@@ -1,0 +1,2 @@
+cd /d E:\software\InstallerEdition\DevTools\RT-ThreadStudio\repo\Extract\Debugger_Support_Packages\RealThread\PyOCD\0.1.3
+pyocd.exe flash --target=STM32F407VE --erase=auto --frequency=1000000 E:\software\InstallerEdition\DevTools\RT-ThreadStudio\workspace\ros\Debug\rtthread.bin
