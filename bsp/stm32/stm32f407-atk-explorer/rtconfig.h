@@ -368,6 +368,8 @@
 #define BSP_USING_UART
 #define BSP_USING_UART1
 #define BSP_USING_USBD
+#define BSP_USBD_TYPE_HS
+#define BSP_USBD_PHY_ULPI
 /* end of On-chip Peripheral Drivers */
 
 /* Board extended module Drivers */

@@ -39,7 +39,7 @@ int main(void)
         }
     }
 
-    rt_kprintf("this is a stm32f407 p22roject\r\n");
+    rt_kprintf("this is a stm32f407 project\r\n");
 
     while (1)
     {
