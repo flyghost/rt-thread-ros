@@ -56,3 +56,14 @@ int main(void)
 
     }
 }
+
+
+extern void cdc_acm_init(uint8_t busid, uintptr_t reg_base);
+int usbd_init(void)
+{
+    // AAAAAA();
+    cdc_acm_init(0, USB_OTG_FS_PERIPH_BASE);
+    return 0;
+}
+
+INIT_APP_EXPORT(usbd_init);

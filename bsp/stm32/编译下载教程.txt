@@ -1,0 +1,3 @@
+1、对应对应的工程目录，右击打开ConEmu终端
+2、编译：scons --j20
+3、下载：..\..\PyOCD\0.1.3\pyocd.bat flash  --target=STM32F407VE rtthread.bin

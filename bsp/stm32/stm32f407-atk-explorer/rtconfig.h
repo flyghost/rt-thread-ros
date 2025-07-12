@@ -94,6 +94,12 @@
 #define RT_SERIAL_USING_DMA
 #define RT_SERIAL_RB_BUFSZ 64
 #define RT_USING_PIN
+#define RT_USING_CHERRYUSB
+#define RT_CHERRYUSB_DEVICE
+#define RT_CHERRYUSB_DEVICE_SPEED_FS
+#define RT_CHERRYUSB_DEVICE_DWC2_ST
+#define RT_CHERRYUSB_DEVICE_CDC_ACM
+#define RT_CHERRYUSB_DEVICE_TEMPLATE_CDC_ACM
 /* end of Device Drivers */
 
 /* C/C++ and POSIX layer */
@@ -154,19 +160,6 @@
 
 /* Using USB legacy version */
 
-#define RT_USING_USB
-#define RT_USING_USB_DEVICE
-#define RT_USBD_THREAD_STACK_SZ 4096
-#define USB_VENDOR_ID 0xFFFF
-#define USB_PRODUCT_ID 0xFFFF
-#define _RT_USB_DEVICE_CDC
-#define RT_USB_DEVICE_CDC
-#define RT_VCOM_TASK_STK_SIZE 512
-#define RT_CDC_RX_BUFSIZE 128
-#define RT_VCOM_TX_USE_DMA
-#define RT_VCOM_SERNO "32021919830108"
-#define RT_VCOM_SER_LEN 14
-#define RT_VCOM_TX_TIMEOUT 1000
 /* end of Using USB legacy version */
 /* end of RT-Thread Components */
 
@@ -367,9 +360,6 @@
 #define BSP_USING_GPIO
 #define BSP_USING_UART
 #define BSP_USING_UART1
-#define BSP_USING_USBD
-#define BSP_USBD_TYPE_HS
-#define BSP_USBD_PHY_ULPI
 /* end of On-chip Peripheral Drivers */
 
 /* Board extended module Drivers */
