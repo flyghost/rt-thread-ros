@@ -17,7 +17,7 @@
 #endif
 
 #ifndef CONFIG_USB_DBG_LEVEL
-#define CONFIG_USB_DBG_LEVEL USB_DBG_LOG
+#define CONFIG_USB_DBG_LEVEL USB_DBG_ERROR
 #endif
 
 /* Enable print with color */
@@ -272,7 +272,7 @@
 /* (5 * number of control endpoints + 8) + ((largest USB packet used / 4) + 1 for
  * status information) + (2 * number of OUT endpoints) + 1 for Global NAK
  */
-#define CONFIG_USB_DWC2_RXALL_FIFO_SIZE (1024 / 4)
+#define CONFIG_USB_DWC2_RXALL_FIFO_SIZE (512 / 4)
 /* IN Endpoints Max packet Size / 4 */
 #define CONFIG_USB_DWC2_TX0_FIFO_SIZE (64 / 4)
 #define CONFIG_USB_DWC2_TX1_FIFO_SIZE (64 / 4)

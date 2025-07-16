@@ -22,6 +22,11 @@
 #ifndef USB_MTP_H
 #define USB_MTP_H
 
+#include "usb_util.h"
+#include "usb_config.h"
+#include <stdint.h>
+#include <stdbool.h>
+
 // clang-format off
 #define MTP_STANDARD_VERSION            100
 
@@ -559,14 +564,41 @@ struct mtp_device_prop_desc {
     uint16_t DevicePropertyCode;
     uint16_t DataType;
     uint8_t GetSet;
+    uint8_t DefaultValue[1];
+    uint8_t CurrentValue[1];
+    uint8_t FormFlag;
+} __PACKED;
+
+struct mtp_device_prop_desc_u16 {
+    uint16_t DevicePropertyCode;
+    uint16_t DataType;
+    uint8_t GetSet;
     uint16_t DefaultValue[1];
     uint16_t CurrentValue[1];
+    uint8_t FormFlag;
+} __PACKED;
+
+struct mtp_device_prop_desc_u32 {
+    uint16_t DevicePropertyCode;
+    uint16_t DataType;
+    uint8_t GetSet;
+    uint32_t DefaultValue[1];
+    uint32_t CurrentValue[1];
     uint8_t FormFlag;
 } __PACKED;
 
 struct mtp_storage_id {
     uint32_t StorageIDS_len;
     uint32_t StorageIDS[255];
+} __PACKED;
+
+struct mtp_storage_info_header {
+    uint16_t StorageType;
+    uint16_t FilesystemType;
+    uint16_t AccessCapability;
+    uint64_t MaxCapability;
+    uint64_t FreeSpaceInBytes;
+    uint32_t FreeSpaceInObjects;
 } __PACKED;
 
 struct mtp_storage_info {
@@ -592,6 +624,33 @@ struct mtp_object_prop_desc {
     uint16_t DataType;
     uint8_t GetSet;
     uint8_t DefValue[16];
+    uint32_t GroupCode;
+    uint8_t FormFlag;
+} __PACKED;
+
+struct mtp_object_prop_desc_u8 {
+    uint16_t ObjectPropertyCode;
+    uint16_t DataType;
+    uint8_t GetSet;
+    uint8_t DefValue;
+    uint32_t GroupCode;
+    uint8_t FormFlag;
+} __PACKED;
+
+struct mtp_object_prop_desc_u16 {
+    uint16_t ObjectPropertyCode;
+    uint16_t DataType;
+    uint8_t GetSet;
+    uint16_t DefValue;
+    uint32_t GroupCode;
+    uint8_t FormFlag;
+} __PACKED;
+
+struct mtp_object_prop_desc_u32 {
+    uint16_t ObjectPropertyCode;
+    uint16_t DataType;
+    uint8_t GetSet;
+    uint32_t DefValue;
     uint32_t GroupCode;
     uint8_t FormFlag;
 } __PACKED;
@@ -643,6 +702,22 @@ struct mtp_object {
     char file_full_name[CONFIG_USBDEV_MTP_MAX_PATHNAME];
     bool in_use;
 };
+
+// MTP设备全局状态
+struct usbd_mtp_priv {
+    uint32_t session_id;          // 当前会话ID
+    uint32_t transaction_id;      // 当前事务ID
+    bool session_open;            // 会话是否打开标志
+    uint8_t *rx_buffer;           // 接收缓冲区指针
+    uint32_t rx_length;           // 接收数据长度
+    uint32_t rx_total_length;     // 接收数据总长度
+    uint8_t *tx_buffer;           // 发送缓冲区指针
+    uint32_t tx_length;           // 发送数据长度
+    struct mtp_object *cur_object; // 当前操作对象
+};
+
+// 声明全局变量
+extern struct usbd_mtp_priv g_usbd_mtp;
 
 /*Length of template descriptor: 23 bytes*/
 #define MTP_DESCRIPTOR_LEN (9 + 7 + 7 + 7)

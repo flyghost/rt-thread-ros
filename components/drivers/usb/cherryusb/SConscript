@@ -14,7 +14,7 @@ path += [cwd + '/class/wireless']
 path += [cwd + '/class/midi']
 path += [cwd + '/class/adb']
 path += [cwd + '/class/dfu']
-path += [cwd + '/class/midi']
+path += [cwd + '/class/mtp']
 path += [cwd + '/class/vendor/net']
 path += [cwd + '/class/vendor/serial']
 path += [cwd + '/class/vendor/wifi']
@@ -111,6 +111,10 @@ if GetDepend(['RT_CHERRYUSB_DEVICE']):
 
     if GetDepend(['RT_CHERRYUSB_DEVICE_CDC_ACM']):
         src += Glob('class/cdc/usbd_cdc_acm.c')
+        src += Glob('class/mtp/mtp_operation.c')
+        src += Glob('class/mtp/mtp_simu_fs.c')
+        src += Glob('class/mtp/usbd_mtp.c')
+        src += Glob('class/mtp/mtp_filesystem.c')
     if GetDepend(['RT_CHERRYUSB_DEVICE_HID']):
         src += Glob('class/hid/usbd_hid.c')
     if GetDepend(['RT_CHERRYUSB_DEVICE_MSC']):
@@ -135,7 +139,8 @@ if GetDepend(['RT_CHERRYUSB_DEVICE']):
         src += Glob('platform/rtthread/usbd_serial.c')
 
     if GetDepend(['RT_CHERRYUSB_DEVICE_TEMPLATE_CDC_ACM']):
-        src += Glob('demo/cdc_acm_template.c')
+        # src += Glob('demo/cdc_acm_template.c')
+        src += Glob('demo/mtp_template.c')
     if GetDepend(['RT_CHERRYUSB_DEVICE_TEMPLATE_MSC']) or GetDepend(['RT_CHERRYUSB_DEVICE_TEMPLATE_MSC_BLKDEV']):
         src += Glob('demo/msc_ram_template.c')
     if GetDepend(['RT_CHERRYUSB_DEVICE_TEMPLATE_HID_MOUSE']):

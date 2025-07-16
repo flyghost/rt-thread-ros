@@ -92,7 +92,7 @@ SECTIONS
         . = ALIGN(4);
         /* This is used by the startup in order to initialize the .data secion */
         _edata = . ;
-    } >RAM1
+    } >RAM2
 
     .stack :
     {
@@ -101,7 +101,7 @@ SECTIONS
         . = . + _system_stack_size;
         . = ALIGN(4);
         _estack = .;
-    } >RAM1
+    } >RAM2
 
     __bss_start = .;
     .bss :

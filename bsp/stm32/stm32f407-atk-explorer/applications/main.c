@@ -58,11 +58,12 @@ int main(void)
 }
 
 
-extern void cdc_acm_init(uint8_t busid, uintptr_t reg_base);
+// extern void cdc_acm_init(uint8_t busid, uintptr_t reg_base);
+extern void mtp_init(uint8_t busid, uint32_t reg_base);
 int usbd_init(void)
 {
     // AAAAAA();
-    cdc_acm_init(0, USB_OTG_FS_PERIPH_BASE);
+    mtp_init(0, USB_OTG_FS_PERIPH_BASE);
     return 0;
 }
 

@@ -8,13 +8,17 @@
 #include "usbd_core.h"
 #include "usbd_mtp.h"
 
-#if 1
+#if 0
 #error "commercial charge"
 #endif
 
 #ifndef CONFIG_USBDEV_MTP_THREAD
 #warning mtp depends on filesystem, suggest to enable CONFIG_USBDEV_MTP_THREAD
 #endif
+
+#define USBD_VID           0x0d28
+#define USBD_PID           0x0404
+#define USBD_MAX_POWER     100
 
 #define WCID_VENDOR_CODE 0x01
 
@@ -238,12 +242,9 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 
 static struct usbd_interface intf0;
 
-extern void usbd_mtp_mount();
 
 void mtp_init(uint8_t busid, uint32_t reg_base)
 {
-    usbd_mtp_mount();
-
     usbd_desc_register(busid, &mtp_descriptor);
     usbd_add_interface(busid, usbd_mtp_init_intf(&intf0, MTP_OUT_EP, MTP_IN_EP, MTP_INT_EP));
     usbd_initialize(busid, reg_base, usbd_event_handler);

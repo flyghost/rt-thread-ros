@@ -31,44 +31,47 @@ const uint16_t supported_op[] = {
     MTP_OPERATION_CLOSE_SESSION,    //0x1003
     MTP_OPERATION_GET_STORAGE_IDS,  //0x1004
     MTP_OPERATION_GET_STORAGE_INFO, //0x1005
-    //MTP_OPERATION_GET_NUM_OBJECTS                        ,//0x1006
+    MTP_OPERATION_GET_NUM_OBJECTS                        ,//0x1006
     MTP_OPERATION_GET_OBJECT_HANDLES, //0x1007
     MTP_OPERATION_GET_OBJECT_INFO,    //0x1008
     MTP_OPERATION_GET_OBJECT,         //0x1009
-    //MTP_OPERATION_GET_THUMB                              ,//0x100A
+    MTP_OPERATION_GET_THUMB                              ,//0x100A
     MTP_OPERATION_DELETE_OBJECT,        //0x100B
     MTP_OPERATION_SEND_OBJECT_INFO,     //0x100C
     MTP_OPERATION_SEND_OBJECT,          //0x100D
     MTP_OPERATION_GET_DEVICE_PROP_DESC, //0x1014
-    // MTP_OPERATION_GET_DEVICE_PROP_VALUE                  ,//0x1015
-    // MTP_OPERATION_SET_DEVICE_PROP_VALUE                  ,//0x1016
-    //MTP_OPERATION_RESET_DEVICE_PROP_VALUE                ,//0x1017
-    // MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
+    MTP_OPERATION_GET_DEVICE_PROP_VALUE                  ,//0x1015
+    MTP_OPERATION_SET_DEVICE_PROP_VALUE                  ,//0x1016
+    MTP_OPERATION_RESET_DEVICE_PROP_VALUE                ,//0x1017
+    MTP_OPERATION_GET_PARTIAL_OBJECT                     ,//0x101B
     MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED, //0x9801
-    // MTP_OPERATION_GET_OBJECT_PROP_DESC,       //0x9802
-    // MTP_OPERATION_GET_OBJECT_PROP_VALUE                  ,//0x9803
-    // MTP_OPERATION_SET_OBJECT_PROP_VALUE                  ,//0x9804
-    // MTP_OPERATION_GET_OBJECT_PROP_LIST                   ,//0x9805
-    //MTP_OPERATION_GET_OBJECT_REFERENCES                  ,//0x9810
-    //MTP_OPERATION_SET_OBJECT_REFERENCES                  ,//0x9811
-    // MTP_OPERATION_GET_PARTIAL_OBJECT_64                  ,//0x95C1
-    // MTP_OPERATION_SEND_PARTIAL_OBJECT                    ,//0x95C2
-    // MTP_OPERATION_TRUNCATE_OBJECT                        ,//0x95C3
-    // MTP_OPERATION_BEGIN_EDIT_OBJECT                      ,//0x95C4
-    // MTP_OPERATION_END_EDIT_OBJECT                         //0x95C5
+    MTP_OPERATION_GET_OBJECT_PROP_DESC,       //0x9802
+    MTP_OPERATION_GET_OBJECT_PROP_VALUE                  ,//0x9803
+    MTP_OPERATION_SET_OBJECT_PROP_VALUE                  ,//0x9804
+    MTP_OPERATION_GET_OBJECT_PROP_LIST                   ,//0x9805
+    MTP_OPERATION_GET_OBJECT_REFERENCES                  ,//0x9810
+    MTP_OPERATION_SET_OBJECT_REFERENCES                  ,//0x9811
+    MTP_OPERATION_GET_PARTIAL_OBJECT_64                  ,//0x95C1
+    MTP_OPERATION_SEND_PARTIAL_OBJECT                    ,//0x95C2
+    MTP_OPERATION_TRUNCATE_OBJECT                        ,//0x95C3
+    MTP_OPERATION_BEGIN_EDIT_OBJECT                      ,//0x95C4
+    MTP_OPERATION_END_EDIT_OBJECT                         //0x95C5
 };
 
 int supported_op_size = sizeof(supported_op);
 
+#define SUPPORTED_OP_COUNT    (sizeof(supported_op)/sizeof(supported_op[0]))
+#define SUPPORTED_EVENT_COUNT (sizeof(supported_event)/sizeof(supported_event[0]))
+
 const uint16_t supported_event[] = {
     MTP_EVENT_OBJECT_ADDED,         // 0x4002
     MTP_EVENT_OBJECT_REMOVED,       // 0x4003
-    MTP_EVENT_STORE_ADDED,          // 0x4004
-    MTP_EVENT_STORE_REMOVED,        // 0x4005
-    MTP_EVENT_STORAGE_INFO_CHANGED, // 0x400C
-    MTP_EVENT_OBJECT_INFO_CHANGED,  // 0x4007
-    MTP_EVENT_DEVICE_PROP_CHANGED,  // 0x4006
-    MTP_EVENT_OBJECT_PROP_CHANGED   // 0xC801
+    // MTP_EVENT_STORE_ADDED,          // 0x4004
+    // MTP_EVENT_STORE_REMOVED,        // 0x4005
+    // MTP_EVENT_STORAGE_INFO_CHANGED, // 0x400C
+    // MTP_EVENT_OBJECT_INFO_CHANGED,  // 0x4007
+    // MTP_EVENT_DEVICE_PROP_CHANGED,  // 0x4006
+    // MTP_EVENT_OBJECT_PROP_CHANGED   // 0xC801
 };
 
 int supported_event_size = sizeof(supported_event);
@@ -82,13 +85,13 @@ const formats_property support_format_properties[] = {
     { MTP_FORMAT_ASSOCIATION, (uint16_t[]){ MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
                                             MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
                                             MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
-                                            0xFFFF } }
-#if 0
+                                            0xFFFF } },
 	{ MTP_FORMAT_TEXT         , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
 												0xFFFF}
-	},
+	}
+#if 0
 	{ MTP_FORMAT_HTML         , (uint16_t[]){   MTP_PROPERTY_STORAGE_ID, MTP_PROPERTY_OBJECT_FORMAT, MTP_PROPERTY_PROTECTION_STATUS, MTP_PROPERTY_OBJECT_SIZE,
 												MTP_PROPERTY_OBJECT_FILE_NAME, MTP_PROPERTY_DATE_MODIFIED, MTP_PROPERTY_PARENT_OBJECT, MTP_PROPERTY_PERSISTENT_UID,
 												MTP_PROPERTY_NAME, MTP_PROPERTY_DISPLAY_NAME, MTP_PROPERTY_DATE_CREATED,
@@ -300,13 +303,41 @@ const profile_property support_object_properties[] = {
 };
 
 const profile_property support_device_properties[] = {
-    // prop_code                                           data_type         getset    default_value          group_code     form_flag
-    //{MTP_DEVICE_PROPERTY_SYNCHRONIZATION_PARTNER,          MTP_TYPE_UINT32,    0x00,   0x00000000           , 0x000000000 , 0x00 },
-    //{MTP_DEVICE_PROPERTY_IMAGE_SIZE,                       MTP_TYPE_UINT32,    0x00,   0x00000000           , 0x000000000 , 0x00 },
-    { MTP_DEVICE_PROPERTY_BATTERY_LEVEL, MTP_TYPE_UINT16, 0x00, 0x00000000, 0x000000000, 0x00 },
-    { MTP_DEVICE_PROPERTY_DEVICE_FRIENDLY_NAME, MTP_TYPE_STR, 0x00, 0x00000000, 0x000000000, 0x00 },
-
-    { 0xFFFF, MTP_TYPE_UINT32, 0x00, 0x00000000, 0x000000000, 0x00 }
+    { MTP_DEVICE_PROPERTY_SYNCHRONIZATION_PARTNER, MTP_TYPE_UINT32, 0x00, 0, 0, 0x00 },
+    { MTP_DEVICE_PROPERTY_DEVICE_FRIENDLY_NAME,    MTP_TYPE_STR,    0x00, 0, 0, 0x00 },
+    { MTP_DEVICE_PROPERTY_IMAGE_SIZE,              MTP_TYPE_STR,    0x00, 0, 0, 0x00 },
+    // { MTP_DEVICE_PROPERTY_BATTERY_LEVEL,           MTP_TYPE_UINT8,  0x00, 0, 0, 0x00 },
+    // { MTP_DEVICE_PROPERTY_PERCEIVED_DEVICE_TYPE,   MTP_TYPE_UINT32, 0x00, 0, 0, 0x00 },
+    // { MTP_DEVICE_PROPERTY_SESSION_INITIATOR_VERSION_INFO, MTP_TYPE_STR, 0x00, 0, 0, 0x00 },
+    { 0xFFFF, MTP_TYPE_UINT32, 0x00, 0, 0, 0x00 }
 };
+
+// 常见图片、音频、视频、文档格式，参考安卓手机和U盘MTP响应
+const uint16_t supported_capture_formats[] = {
+    MTP_FORMAT_UNDEFINED, 
+    0x3801, 
+    // 0x3804, 
+    /*MTP_FORMAT_GIF,*/ 
+    // MTP_FORMAT_JFIF, 
+    // MTP_FORMAT_PNG, 
+    // 0x380D, 0x380E
+};
+
+const uint16_t supported_playback_formats[] = {
+    MTP_FORMAT_UNDEFINED, MTP_FORMAT_ASSOCIATION, MTP_FORMAT_TEXT, 
+    // 0x3005, 0x3008, 0x3009, 0x300B,
+    // 0x3801, 0x3804, 
+    /*MTP_FORMAT_GIF,*/ 
+    // MTP_FORMAT_JFIF, 
+    // MTP_FORMAT_PNG, 
+    // 0x380D, 0x380E, 0x3810, 0x3811, 0x3812, 0x3813, 0x3814, 0x3815
+};
+#define SUPPORTED_CAPTURE_FORMATS_COUNT (sizeof(supported_capture_formats)/sizeof(supported_capture_formats[0]))
+#define SUPPORTED_PLAYBACK_FORMATS_COUNT (sizeof(supported_playback_formats)/sizeof(supported_playback_formats[0]))
+
+#define MTP_MANUFACTURER_STRING   "CherryUSB"
+#define MTP_MODEL_STRING          "CherryUSB MTP"
+#define MTP_DEVICE_VERSION_STRING "1.0"
+#define MTP_SERIAL_NUMBER_STRING  "1234567890"
 
 #endif
