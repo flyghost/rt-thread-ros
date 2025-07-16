@@ -1,0 +1,65 @@
+{
+    // 只需修改这里即可同时影响资源管理器和全局搜索
+    "files.exclude": {
+        // "bsp/stm32": false,
+        "bsp/stm32/stm32f407-atk-explorer": false,
+        "bsp/stm32/tools": false,
+
+        // libraries
+        "bsp/stm32/libraries": false,
+        "bsp/stm32/libraries/HAL_Drivers": false,
+        "bsp/stm32/libraries/STM32F0xx_HAL": true,
+        "bsp/stm32/libraries/STM32F1xx_HAL": true,
+        "bsp/stm32/libraries/STM32F2xx_HAL": true,
+        "bsp/stm32/libraries/STM32F3xx_HAL": true,
+        "bsp/stm32/libraries/STM32F4xx_HAL": false,
+        "bsp/stm32/libraries/STM32F7xx_HAL": true,
+        "bsp/stm32/libraries/STM32G0xx_HAL": true,
+        "bsp/stm32/libraries/STM32G4xx_HAL": true,
+        "bsp/stm32/libraries/STM32H5xx_HAL": true,
+        "bsp/stm32/libraries/STM32H7RSxx_HAL": true,
+        "bsp/stm32/libraries/STM32H7xx_HAL": true,
+        "bsp/stm32/libraries/STM32L0xx_HAL": true,
+        "bsp/stm32/libraries/STM32L1xx_HAL": true,
+        "bsp/stm32/libraries/STM32L5xx_HAL": true,
+        "bsp/stm32/libraries/STM32MPxx_HAL": true,
+        "bsp/stm32/libraries/STM32U5xx_HAL": true,
+        "bsp/stm32/libraries/STM32WBxx_HAL": true,
+        "bsp/stm32/libraries/STM32WLxx_HAL": true,
+
+        "bsp/stm32/libraries/templates": false,
+        "bsp/stm32/libraries/templates/stm32f0xx": true,
+        "bsp/stm32/libraries/templates/stm32f2xx": true,
+        "bsp/stm32/libraries/templates/stm32f3xx": true,
+        "bsp/stm32/libraries/templates/stm32f4xx": false,
+        "bsp/stm32/libraries/templates/stm32f7xx": true,
+        "bsp/stm32/libraries/templates/stm32f10x": true,
+        "bsp/stm32/libraries/templates/stm32h7xx": true,
+        "bsp/stm32/libraries/templates/stm32l1xx": true,
+        "bsp/stm32/libraries/templates/stm32l4xx": true,
+        "bsp/stm32/libraries/templates/stm32l5xx": true,
+        "bsp/stm32/libraries/templates/stm32mp1xx": true,
+        "bsp/stm32/libraries/templates/stm32wbxx": true,
+    },
+    // 让 search.exclude 自动继承 files.exclude 的设置
+    "search.useIgnoreFiles": true,
+    "search.exclude": {
+        // 继承 files.exclude 的设置
+        "**": false
+    },
+    "files.associations": {
+        "*.pri": "makefile",
+        "*.pro": "makefile",
+        "dirent.h": "c",
+        "usb_mtp.h": "c",
+        "usb_util.h": "c",
+        "usbd_mtp.h": "c",
+        "usb_config.h": "c",
+        "mtp_operation.h": "c",
+        "mtp_filesystem.h": "c",
+        "rtthread.h": "c",
+        "usbd_mtp_support.h": "c",
+        "mtp_storage.h": "c",
+        "usbd_mtp_config.h": "c"
+    }
+}
