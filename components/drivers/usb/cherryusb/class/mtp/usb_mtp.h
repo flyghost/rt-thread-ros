@@ -564,41 +564,14 @@ struct mtp_device_prop_desc {
     uint16_t DevicePropertyCode;
     uint16_t DataType;
     uint8_t GetSet;
-    uint8_t DefaultValue[1];
-    uint8_t CurrentValue[1];
-    uint8_t FormFlag;
-} __PACKED;
-
-struct mtp_device_prop_desc_u16 {
-    uint16_t DevicePropertyCode;
-    uint16_t DataType;
-    uint8_t GetSet;
     uint16_t DefaultValue[1];
     uint16_t CurrentValue[1];
-    uint8_t FormFlag;
-} __PACKED;
-
-struct mtp_device_prop_desc_u32 {
-    uint16_t DevicePropertyCode;
-    uint16_t DataType;
-    uint8_t GetSet;
-    uint32_t DefaultValue[1];
-    uint32_t CurrentValue[1];
     uint8_t FormFlag;
 } __PACKED;
 
 struct mtp_storage_id {
     uint32_t StorageIDS_len;
     uint32_t StorageIDS[255];
-} __PACKED;
-
-struct mtp_storage_info_header {
-    uint16_t StorageType;
-    uint16_t FilesystemType;
-    uint16_t AccessCapability;
-    uint64_t MaxCapability;
-    uint64_t FreeSpaceInBytes;
-    uint32_t FreeSpaceInObjects;
 } __PACKED;
 
 struct mtp_storage_info {
@@ -626,12 +599,6 @@ struct mtp_object_prop_desc {
     uint8_t DefValue[16];
     uint32_t GroupCode;
     uint8_t FormFlag;
-} __PACKED;
-
-struct mtp_object_prop_element_header {
-    uint32_t ObjectHandle;
-    uint16_t PropertyCode;
-    uint16_t Datatype;
 } __PACKED;
 
 struct mtp_object_prop_element {
