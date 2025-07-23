@@ -4,14 +4,17 @@
 // ==== 全局变量 ====
 
 #define MTP_ROOT_FILE_NUM 100
+#define MTP_ROOT_DIR      "Documents"
+
+#define MTP_FILESYSTEM_SIZE 1024
+#define MTP_FILESYSTEM_BLOCK_SIZE 512
+#define MTP_FILESYSTEM_BLOCK_NUM 512
 
 static mtp_file_entry_t mtp_root_files[MTP_ROOT_FILE_NUM];
 static mtp_dir_entry_t mtp_root_dir = { "/", { 0 }, 0 };
 static mtp_file_entry_t *mtp_open_file = 0;
 static size_t mtp_open_file_pos = 0;
-static uint32_t mtp_current_time = 0;
-
-const char mtp_driver_num_buf[4] = { '0', ':', '/', '\0' };
+static uint32_t mtp_current_time = 0x11111111;
 
 static uint32_t mtp_get_current_time(void)
 {
@@ -50,23 +53,48 @@ const char *mtp_show_error_string(int result)
 
 const char *usbd_mtp_fs_root_path(void)
 {
-    return mtp_driver_num_buf;
+    return MTP_ROOT_DIR;
 }
 
 const char *usbd_mtp_fs_description(void)
 {
-    return "Mock MTP File System";
+    return "FLASH";
+}
+
+/**
+ * @brief 从路径中去除MTP_ROOT_DIR前缀并规范化斜杠
+ * @param path 原始路径
+ * @param fixed_path 处理后的路径输出缓冲区
+ * @return 处理后的路径指针（指向fixed_path）
+ */
+static char* remove_root_dir(const char* path, char* fixed_path) {
+    const char *ptr = path;
+    char *dst = fixed_path;
+
+    // 检查并跳过MTP_ROOT_DIR前缀
+    if (strncmp(ptr, MTP_ROOT_DIR, strlen(MTP_ROOT_DIR)) == 0) {
+        ptr += strlen(MTP_ROOT_DIR);
+        
+        // 跳过连续的斜杠（兼容0:/、0://等情况）
+        while (*ptr == '/') {
+            ptr++;
+        }
+    }
+
+    // 复制剩余路径
+    strcpy(dst, ptr);
+    return fixed_path;
 }
 
 static mtp_file_entry_t *mtp_find_file(const char *path)
 {
     const char *filename = path;
     
-    // 处理 "0:/" 前缀
-    if (strncmp(path, "0:/", 3) == 0) {
-        filename = path + 3;
+    // 处理 MTP_ROOT_DIR 前缀
+    if (strcmp(path, MTP_ROOT_DIR) == 0) {
+        filename = path + sizeof(MTP_ROOT_DIR) - 1;
         if (*filename == '\0') {
-            return NULL; // 路径为 "0:/" 本身不是文件
+            return NULL; // 路径为 MTP_ROOT_DIR 本身不是文件
         }
     }
     
@@ -90,7 +118,7 @@ static mtp_file_entry_t *mtp_find_file(const char *path)
 
 static mtp_dir_entry_t *mtp_find_dir(const char *path)
 {
-    if (usb_strcmp(path, "/") == 0 || usb_strcmp(path, "0:/") == 0)
+    if (usb_strcmp(path, "/") == 0 || usb_strcmp(path, MTP_ROOT_DIR) == 0)
         return &mtp_root_dir;
     return 0;
 }
@@ -119,8 +147,8 @@ int usbd_mtp_fs_mkdir(const char *path)
     mtp_file_entry_t *new_dir = &mtp_root_files[mtp_root_dir.file_count];
     usb_memset(new_dir, 0, sizeof(mtp_file_entry_t));
     const char *dirname = path;
-    if (usb_strncmp(path, "0:/", 3) == 0)
-        dirname = path + 3;
+    if (usb_strncmp(path, MTP_ROOT_DIR, sizeof(MTP_ROOT_DIR) - 1) == 0)
+        dirname = path + sizeof(MTP_ROOT_DIR) - 1;
     usb_strncpy(new_dir->name, dirname, 255);
     new_dir->type = MTP_FILE_TYPE_DIRECTORY;
     new_dir->attributes = MTP_AM_DIR;
@@ -174,33 +202,25 @@ int usbd_mtp_fs_stat(const char *path, struct mtp_stat *buf)
 {
     // 修正路径中的双斜杠问题
     char fixed_path[CONFIG_USBDEV_MTP_MAX_PATHNAME];
-    const char *ptr = path;
-    char *dst = fixed_path;
     
-    // 跳过开头的0:/或0://
-    if (strncmp(ptr, "0:/", 3) == 0) {
-        strncpy(fixed_path, "0:/", 3);
-        dst += 3;
-        ptr += 3;
-        
-        // 跳过额外的斜杠
-        while (*ptr == '/') {
-            ptr++;
-        }
-    }
-    
-    strcpy(dst, ptr);
+    // 调用独立函数处理路径
+    remove_root_dir(path, fixed_path);
+
+    MTP_LOGD_SHELL("Stat file: %s", fixed_path);
     
     mtp_file_entry_t *file = mtp_find_file(fixed_path);
     if (file == NULL) {
         mtp_dir_entry_t *dir = mtp_find_dir(fixed_path);
-        if (dir == NULL) return -2; // 不存在
+        if (dir == NULL) {
+            MTP_LOGE_SHELL("File not found: %s", fixed_path);
+            return -2; // 不存在
+        }
         
         // 目录信息
         memset(buf, 0, sizeof(*buf));
         buf->st_mode = 0040777;
         buf->st_size = 0; // 目录大小应为0
-        buf->st_blksize = 512;
+        buf->st_blksize = MTP_FILESYSTEM_BLOCK_SIZE;
         return 0;
     }
 
@@ -211,8 +231,8 @@ int usbd_mtp_fs_stat(const char *path, struct mtp_stat *buf)
         buf->st_mode &= ~0222; // 清除写权限
         
     buf->st_size = file->size;
-    buf->st_blksize = 512;
-    buf->st_blocks = (file->size + 511) / 512;
+    buf->st_blksize = MTP_FILESYSTEM_BLOCK_SIZE;
+    buf->st_blocks = (file->size + MTP_FILESYSTEM_BLOCK_SIZE - 1) / MTP_FILESYSTEM_BLOCK_SIZE;
     buf->st_mtime = unix_time_to_mtp(file->modify_time);
     buf->st_ctime = unix_time_to_mtp(file->create_time);
     
@@ -223,14 +243,15 @@ int usbd_mtp_fs_stat(const char *path, struct mtp_stat *buf)
 int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf)
 {
     (void)path;
-    buf->f_bsize = 512;
-    buf->f_blocks = 1000;
-    buf->f_bfree = 500;
+    buf->f_bsize = MTP_FILESYSTEM_BLOCK_SIZE;
+    buf->f_blocks = MTP_FILESYSTEM_BLOCK_NUM;
+    buf->f_bfree = MTP_FILESYSTEM_BLOCK_NUM;
     return 0;
 }
 
 int usbd_mtp_fs_open(const char *path, uint8_t mode)
 {
+    const char *filename;
     mtp_file_entry_t *file = mtp_find_file(path);
     if (mode == MTP_FA_READ) {
         if (file == NULL) {
@@ -246,9 +267,9 @@ int usbd_mtp_fs_open(const char *path, uint8_t mode)
             }
             file = &mtp_root_files[mtp_root_dir.file_count];
             usb_memset(file, 0, sizeof(mtp_file_entry_t));
-            const char *filename = path;
-            if (usb_strncmp(path, "0:/", 3) == 0)
-                filename = path + 3;
+            filename = path;
+            if (usb_strncmp(path, MTP_ROOT_DIR, sizeof(MTP_ROOT_DIR) - 1) == 0)
+                filename = path + sizeof(MTP_ROOT_DIR) - 1;
             usb_strncpy(file->name, filename, 255);
             file->type = MTP_FILE_TYPE_REGULAR;
             file->create_time = mtp_get_current_time();
@@ -263,6 +284,9 @@ int usbd_mtp_fs_open(const char *path, uint8_t mode)
     }
     mtp_open_file = file;
     mtp_open_file_pos = 0;
+
+    MTP_LOGD_SHELL("Opened file: %s, mode: 0x%x, filename: %s", path, mode, filename);
+
     return 0;
 }
 
@@ -329,17 +353,113 @@ void usbd_mtp_mount(void)
     usb_memset(&mtp_root_dir, 0, sizeof(mtp_root_dir));
     usb_strncpy(mtp_root_dir.name, "/", 255);
     mtp_root_dir.file_count = 0;
-    
-    // 确保文件创建成功
-    // int fd = usbd_mtp_fs_open("0:/readme.txt", MTP_FA_WRITE | MTP_FA_CREATE_ALWAYS);
-    // if (fd >= 0) {
-    //     const char *test_content = "Hello, this is mock file system demo\n";
-    //     int len = usb_strlen(test_content);
-    //     if (usbd_mtp_fs_write(fd, test_content, len) == len) {
-    //         MTP_LOGI_SHELL("Successfully created readme.txt");
-    //     }
-    //     usbd_mtp_fs_close(fd);
-    // } else {
-    //     MTP_LOGE_SHELL("Failed to create readme.txt");
-    // }
 }
+
+const char* usbd_mtp_fs_modify_time(const char *path)
+{
+    // if (usbd_mtp_fs_stat(obj->file_full_path, file_stat) != 0) {
+    //     MTP_LOGE_SHELL("Failed to stat object: %s", obj->file_full_path);
+    //     // return mtp_send_response(MTP_RESPONSE_GENERAL_ERROR, hdr->trans_id);
+    // }
+    return "20240501T120000";
+}
+
+const char* usbd_mtp_fs_create_time(const char *path)
+{
+    return "20240501T120000";
+}
+
+int usbd_mtp_fs_is_protect(const char *path)
+{
+    return 0;
+}
+
+uint32_t usbd_mtp_fs_size(const char *path)
+{
+            // if (obj->is_dir) {
+            //     MTP_LOGD_SHELL("Object is a directory, size set to 0");
+            // }
+            // if (usbd_mtp_fs_stat(obj->file_full_path, file_stat) != 0) {
+            //     MTP_LOGE_SHELL("Failed to stat object: %s", obj->file_full_path);
+            //     // return mtp_send_response(MTP_RESPONSE_GENERAL_ERROR, hdr->trans_id);
+            // }
+
+    // file_stat->st_size;
+    return 15;
+}
+
+// void fill_timestamp(uint8_t *buf, time_t timestamp) {
+//     char iso8601[20];
+//     strftime(iso8601, sizeof(iso8601), "%Y%m%dT%H%M%S", gmtime(&timestamp));
+    
+//     // 转换为UTF-16LE
+//     uint8_t len = strlen(iso8601);
+//     buf[0] = len;  // 长度前缀
+//     for (int i = 0; i < len; i++) {
+//         buf[1 + i*2] = iso8601[i];
+//         buf[2 + i*2] = 0x00;
+//     }
+//     buf[1 + len*2] = 0x00; // 终止符
+//     buf[2 + len*2] = 0x00;
+// }
+
+
+// typedef size_t mtp_fs_bsize_t;
+// typedef size_t mtp_fs_blocks_t;
+// typedef size_t mtp_fs_bfree_t;
+
+int usbd_mtp_fs_block_size(const char *path, mtp_fs_bsize_t *size)
+{
+    struct mtp_statfs stat;
+    *size = 0;
+
+    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+        return -1;
+    }
+
+    *size = stat.f_bsize;
+
+    return 0;
+}
+
+int usbd_mtp_fs_block_number(const char *path, mtp_fs_blocks_t *num)
+{
+    struct mtp_statfs stat;
+    *num = 0;
+
+    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+        return -1;
+    }
+
+    *num = stat.f_blocks;
+
+    return 0;
+}
+
+int usbd_mtp_fs_block_free(const char *path, mtp_fs_bfree_t *num)
+{
+    struct mtp_statfs stat;
+    *num = 0;
+
+    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+        return -1;
+    }
+
+    *num = stat.f_bfree;
+
+    return 0;
+}
+
+int usbd_mtp_fs_filesize(const char *path, mtp_fs_filesize_t *size)
+{
+    // struct mtp_stat file_stat;
+    // if (usbd_mtp_fs_stat(txt_file->file_full_path, &file_stat) == 0) {
+    //     MTP_LOGD_SHELL("readme.txt size = %d", txt_file->file_size);
+    // }
+
+    *size = 15;
+
+    return 0;
+}
+
+

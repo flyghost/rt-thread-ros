@@ -628,31 +628,10 @@ struct mtp_object_prop_desc {
     uint8_t FormFlag;
 } __PACKED;
 
-struct mtp_object_prop_desc_u8 {
-    uint16_t ObjectPropertyCode;
-    uint16_t DataType;
-    uint8_t GetSet;
-    uint8_t DefValue;
-    uint32_t GroupCode;
-    uint8_t FormFlag;
-} __PACKED;
-
-struct mtp_object_prop_desc_u16 {
-    uint16_t ObjectPropertyCode;
-    uint16_t DataType;
-    uint8_t GetSet;
-    uint16_t DefValue;
-    uint32_t GroupCode;
-    uint8_t FormFlag;
-} __PACKED;
-
-struct mtp_object_prop_desc_u32 {
-    uint16_t ObjectPropertyCode;
-    uint16_t DataType;
-    uint8_t GetSet;
-    uint32_t DefValue;
-    uint32_t GroupCode;
-    uint8_t FormFlag;
+struct mtp_object_prop_element_header {
+    uint32_t ObjectHandle;
+    uint16_t PropertyCode;
+    uint16_t Datatype;
 } __PACKED;
 
 struct mtp_object_prop_element {
@@ -700,6 +679,7 @@ struct mtp_object {
     uint32_t file_size;
     uint32_t file_full_name_length;
     char file_full_name[CONFIG_USBDEV_MTP_MAX_PATHNAME];
+    char file_full_path[CONFIG_USBDEV_MTP_MAX_PATHNAME];
     bool in_use;
 };
 

@@ -23,6 +23,11 @@
 typedef uint32_t mtp_time_t;
 #define MTP_TIME_NONE 0
 
+typedef size_t mtp_fs_bsize_t;
+typedef size_t mtp_fs_blocks_t;
+typedef size_t mtp_fs_bfree_t;
+typedef size_t mtp_fs_filesize_t;
+
 /* gcc toolchain does not implement dirent.h, so we define our own MTP_DIR and mtp_dirent */
 
 typedef void MTP_DIR;
@@ -72,7 +77,6 @@ typedef struct mtp_dir_entry {
 
 const char *mtp_show_error_string(int result);
 
-mtp_time_t unix_time_to_mtp(time_t unix_time);
 void mtp_format_time(mtp_time_t mtp_time, char* buffer);
 
 // 用于MTP协议调用
@@ -97,5 +101,15 @@ int usbd_mtp_fs_unlink(const char *path);
 
 void usbd_mtp_mount(void);
 
+const char* usbd_mtp_fs_modify_time(const char *path);
+const char* usbd_mtp_fs_create_time(const char *path);
+int usbd_mtp_fs_is_protect(const char *path);
+uint32_t usbd_mtp_fs_size(const char *path);
+
+
+int usbd_mtp_fs_block_size(const char *path, mtp_fs_bsize_t *size);
+int usbd_mtp_fs_block_number(const char *path, mtp_fs_blocks_t *num);
+int usbd_mtp_fs_block_free(const char *path, mtp_fs_bfree_t *num);
+int usbd_mtp_fs_filesize(const char *path, mtp_fs_filesize_t *size);
 
 #endif

@@ -62,8 +62,8 @@ void mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
     (void)busid;
     (void)ep;
 
-    MTP_LOGD_SHELL("\r\nreceive %d bytes", nbytes);
-    MTP_DUMP_SHELL(32, g_usbd_mtp.rx_buffer, nbytes);
+    // MTP_LOGD_SHELL("receive %d bytes", nbytes);
+    // MTP_DUMP_SHELL(16, g_usbd_mtp.rx_buffer, nbytes);
 
     if (g_usbd_mtp.rx_length == 0) {
         /* 新命令包 */
@@ -262,7 +262,7 @@ int usbd_mtp_start_write(uint8_t *buf, uint32_t len)
     }
 
     MTP_LOGD_SHELL("usbd_mtp_start_write %d bytes", len);
-    MTP_DUMP_SHELL(32, buf, len);
+    MTP_DUMP_SHELL(16, buf, len);
 
     g_usbd_mtp.tx_length = len;
     return usbd_ep_start_write(0, mtp_ep_data[MTP_IN_EP_IDX].ep_addr, buf, len);
