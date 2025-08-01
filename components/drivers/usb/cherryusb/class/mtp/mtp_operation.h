@@ -6,7 +6,7 @@
 
 int mtp_command_handler(uint8_t *data, uint32_t len);
 int mtp_send_response(uint16_t code, uint32_t trans_id);
-int mtp_send_object_data(int fd);
+
 
 
 void usbd_mtp_object_init(void);

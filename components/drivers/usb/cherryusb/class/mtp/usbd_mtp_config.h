@@ -18,6 +18,7 @@
 #define usb_strncpy     rt_strncpy
 #define usb_malloc      rt_malloc
 #define usb_free        rt_free
+#define usb_strnlen        rt_strnlen
 
 static inline void MTP_DUMP_SHELL(uint32_t width, uint8_t *data, uint32_t len)
 {

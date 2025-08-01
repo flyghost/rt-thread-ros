@@ -51,16 +51,13 @@ typedef enum {
 } mtp_file_type_t;
 
 struct mtp_stat {
-    uint32_t st_mode;       // 文件类型和权限
     uint64_t st_size;       // 文件大小（字节）
-    mtp_time_t st_mtime;    // 最后修改时间（MTP时间格式）
-    mtp_time_t st_ctime;    // 创建时间（MTP时间格式）
     uint32_t st_blksize;    // 文件系统块大小
     uint64_t st_blocks;     // 分配的块数量
 };
-
+#define USB_FS_PATH_MAX 256
 typedef struct mtp_file_entry {
-    char name[256];
+    char name[USB_FS_PATH_MAX];
     mtp_file_type_t type;
     size_t size;
     uint8_t *data;
@@ -70,32 +67,24 @@ typedef struct mtp_file_entry {
 } mtp_file_entry_t;
 
 typedef struct mtp_dir_entry {
-    char name[256];
+    char name[USB_FS_PATH_MAX];
     mtp_file_entry_t *files[100];
     int file_count;
 } mtp_dir_entry_t;
 
-const char *mtp_show_error_string(int result);
+// 获取磁盘名称
+const char *usbd_mtp_fs_description(uint8_t fs_disk_index);
 
-void mtp_format_time(mtp_time_t mtp_time, char* buffer);
+// 目录操作
 
-// 用于MTP协议调用
-const char *usbd_mtp_fs_root_path(void);
-const char *usbd_mtp_fs_description(void);
-
-int usbd_mtp_fs_mkdir(const char *path);
 int usbd_mtp_fs_rmdir(const char *path);
-MTP_DIR *usbd_mtp_fs_opendir(const char *name);
-int usbd_mtp_fs_closedir(MTP_DIR *d);
-struct mtp_dirent *usbd_mtp_fs_readdir(MTP_DIR *d);
+struct mtp_dirent *usbd_mtp_fs_readdir(void *d);
 
-int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf);
-int usbd_mtp_fs_stat(const char *file, struct mtp_stat *buf);
-
-int usbd_mtp_fs_open(const char *path, uint8_t mode);
-int usbd_mtp_fs_close(int fd);
-int usbd_mtp_fs_read(int fd, void *buf, size_t len);
-int usbd_mtp_fs_write(int fd, const void *buf, size_t len);
+// 文件操作
+void *usbd_mtp_fs_open_file(const char *path, uint8_t mode);
+int usbd_mtp_fs_close_file(void *fp);
+int usbd_mtp_fs_read_file(void *fp, void *buf, size_t len);
+int usbd_mtp_fs_write_file(void *fp, const void *buf, size_t len);
 
 int usbd_mtp_fs_unlink(const char *path);
 
@@ -104,12 +93,12 @@ void usbd_mtp_mount(void);
 const char* usbd_mtp_fs_modify_time(const char *path);
 const char* usbd_mtp_fs_create_time(const char *path);
 int usbd_mtp_fs_is_protect(const char *path);
-uint32_t usbd_mtp_fs_size(const char *path);
+size_t usbd_mtp_fs_size(const char *path);
 
+const char *usbd_fs_top_mtp_path(void);
 
 int usbd_mtp_fs_block_size(const char *path, mtp_fs_bsize_t *size);
 int usbd_mtp_fs_block_number(const char *path, mtp_fs_blocks_t *num);
 int usbd_mtp_fs_block_free(const char *path, mtp_fs_bfree_t *num);
-int usbd_mtp_fs_filesize(const char *path, mtp_fs_filesize_t *size);
 
 #endif

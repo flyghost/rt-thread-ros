@@ -661,6 +661,7 @@ struct usbd_mtp_priv {
     uint8_t *tx_buffer;           // 发送缓冲区指针
     uint32_t tx_length;           // 发送数据长度
     struct mtp_object *cur_object; // 当前操作对象
+    uint32_t cur_trans_id;
 };
 
 // 声明全局变量
