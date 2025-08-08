@@ -41,6 +41,19 @@ int main(void)
 
     rt_kprintf("this is a stm32f407 project\r\n");
 
+    extern int filesystem_mount(void);
+    extern int usbd_init(void);
+    while (1)
+    {
+        if (rt_device_find("sd0") != RT_NULL) {
+            break;
+        }
+        rt_thread_mdelay(100);
+    }
+
+    filesystem_mount();
+    usbd_init();
+
     while (1)
     {
         // rt_pin_write(LED0_PIN, PIN_HIGH);
@@ -67,4 +80,4 @@ int usbd_init(void)
     return 0;
 }
 
-INIT_APP_EXPORT(usbd_init);
+// INIT_APP_EXPORT(usbd_init);

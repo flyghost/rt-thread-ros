@@ -14,7 +14,7 @@
 #include "mtp_operation.h"
 #include <string.h>
 
-#define USBD_MTP_DEBUG    1
+#define USBD_MTP_DEBUG    0
 
 #ifdef CONFIG_USBDEV_MTP_THREAD
 #define USBD_MTP_USING_THREAD
@@ -45,8 +45,6 @@ enum {
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_rx_buffer[MTP_BUFFER_SIZE];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_tx_buffer[MTP_BUFFER_SIZE];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_int_buffer[100];
-
-extern void usbd_mtp_mount(void);
 
 void mtp_tx_lock(void)
 {
@@ -80,8 +78,6 @@ static void mtp_notify_handler(uint8_t busid, uint8_t event, void *arg)
             break;
             
         case USBD_EVENT_CONFIGURED:
-            usbd_mtp_mount();
-            usbd_mtp_object_init();
             usbd_mtp_start_read(mtp_rx_buffer, MTP_BUFFER_SIZE);
             break;
             
@@ -108,8 +104,10 @@ void mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
     (void)busid;
     (void)ep;
 
+#if USBD_MTP_DEBUG
     MTP_LOGD_SHELL("receive %d bytes", nbytes);
     MTP_DUMP_SHELL(16, g_usbd_mtp.rx_buffer, nbytes);
+#endif
 
     if (g_usbd_mtp.rx_length == 0) {
         /* 新命令包 */
@@ -304,18 +302,23 @@ static void usbd_mtp_thread(void *argv)
             MTP_LOGE_SHELL("Failed to receive message from MTP queue: %d", ret);
             continue;
         }
-
+    #if USBD_MTP_DEBUG
         MTP_LOGD_SHELL("Received event: %d", event);
+    #endif
 
         switch (event) {
             case MTP_MSG_SEND_DONE:
+            #if USBD_MTP_DEBUG
                 MTP_LOGD_SHELL("MTP_MSG_SEND_DONE");
+            #endif
                 // mtp_tx_unlock();
                 mtp_data_send_done();
                 break;
 
             case MTP_MSG_RECEIVE_DONE:
+            #if USBD_MTP_DEBUG
                 MTP_LOGD_SHELL("MTP_MSG_RECEIVE_DONE");
+            #endif
                 mtp_bulk_out_done();
                 break;
 

@@ -645,7 +645,8 @@ struct mtp_object {
     bool is_hidden;
     uint32_t file_size;
     uint32_t file_full_name_length;
-    char file_full_name[CONFIG_USBDEV_MTP_MAX_PATHNAME];
+    // char file_full_name[CONFIG_USBDEV_MTP_MAX_PATHNAME];
+    char *file_full_name;
     char file_full_path[CONFIG_USBDEV_MTP_MAX_PATHNAME];
     bool in_use;
 };

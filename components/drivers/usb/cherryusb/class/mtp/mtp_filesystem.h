@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "usb_config.h"
 
 #define MTP_AM_RDO  0x01
@@ -22,11 +23,6 @@
 
 typedef uint32_t mtp_time_t;
 #define MTP_TIME_NONE 0
-
-typedef size_t mtp_fs_bsize_t;
-typedef size_t mtp_fs_blocks_t;
-typedef size_t mtp_fs_bfree_t;
-typedef size_t mtp_fs_filesize_t;
 
 /* gcc toolchain does not implement dirent.h, so we define our own MTP_DIR and mtp_dirent */
 
@@ -74,21 +70,26 @@ typedef struct mtp_dir_entry {
 
 // 获取磁盘名称
 const char *usbd_mtp_fs_description(uint8_t fs_disk_index);
+const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index);
 
 // 目录操作
-
+void *usbd_fs_opendir(const char *path);
+void *usbd_fs_readdir(void *dp);
+int usbd_fs_closedir(void *dp);
 int usbd_mtp_fs_rmdir(const char *path);
-struct mtp_dirent *usbd_mtp_fs_readdir(void *d);
+
+const char *usbd_fs_name_from_dent(void *dent);
+bool usbd_fs_is_dir_from_dent(void *dent);
+
+int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf);
 
 // 文件操作
-void *usbd_mtp_fs_open_file(const char *path, uint8_t mode);
+void *usbd_mtp_fs_open_file(const char *path, const char *mode);
 int usbd_mtp_fs_close_file(void *fp);
 int usbd_mtp_fs_read_file(void *fp, void *buf, size_t len);
 int usbd_mtp_fs_write_file(void *fp, const void *buf, size_t len);
 
-int usbd_mtp_fs_unlink(const char *path);
-
-void usbd_mtp_mount(void);
+int usbd_mtp_fs_rm_file(const char *path);
 
 const char* usbd_mtp_fs_modify_time(const char *path);
 const char* usbd_mtp_fs_create_time(const char *path);
@@ -96,9 +97,5 @@ int usbd_mtp_fs_is_protect(const char *path);
 size_t usbd_mtp_fs_size(const char *path);
 
 const char *usbd_fs_top_mtp_path(void);
-
-int usbd_mtp_fs_block_size(const char *path, mtp_fs_bsize_t *size);
-int usbd_mtp_fs_block_number(const char *path, mtp_fs_blocks_t *num);
-int usbd_mtp_fs_block_free(const char *path, mtp_fs_bfree_t *num);
 
 #endif

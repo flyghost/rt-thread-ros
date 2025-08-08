@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include "usb_config.h"
 
+// 文件系统配置
+#define USB_FS_USING_STANDARD    0  // 1 - 使用标准C接口, 0 - 使用posix接口
+
+// LOG配置
 #define MTP_LOGD_SHELL(fmt, ...)    CONFIG_USB_PRINTF(fmt "\r\n", ##__VA_ARGS__)
 #define MTP_LOGI_SHELL(fmt, ...)    CONFIG_USB_PRINTF("\033[" "32m" fmt "\033[0m" "\r\n", ##__VA_ARGS__)
 #define MTP_LOGW_SHELL(fmt, ...)    CONFIG_USB_PRINTF("\033[" "33m" fmt "\033[0m" "\r\n", ##__VA_ARGS__)

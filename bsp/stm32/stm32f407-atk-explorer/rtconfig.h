@@ -44,10 +44,13 @@
 
 #define RT_USING_MEMPOOL
 #define RT_USING_SMALL_MEM
+#define RT_USING_MEMHEAP
+#define RT_MEMHEAP_FAST_MODE
 #define RT_USING_SMALL_MEM_AS_HEAP
 #define RT_USING_HEAP
 /* end of Memory Management */
 #define RT_USING_DEVICE
+#define RT_USING_DEVICE_OPS
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 128
 #define RT_CONSOLE_DEVICE_NAME "uart1"
@@ -83,6 +86,32 @@
 
 /* DFS: device virtual file system */
 
+#define RT_USING_DFS
+#define DFS_USING_POSIX
+#define DFS_USING_WORKDIR
+#define DFS_FD_MAX 16
+#define RT_USING_DFS_V1
+#define DFS_FILESYSTEMS_MAX 4
+#define DFS_FILESYSTEM_TYPES_MAX 4
+#define RT_USING_DFS_ELMFAT
+
+/* elm-chan's FatFs, Generic FAT Filesystem Module */
+
+#define RT_DFS_ELM_CODE_PAGE 437
+#define RT_DFS_ELM_WORD_ACCESS
+#define RT_DFS_ELM_USE_LFN_3
+#define RT_DFS_ELM_USE_LFN 3
+#define RT_DFS_ELM_LFN_UNICODE_0
+#define RT_DFS_ELM_LFN_UNICODE 0
+#define RT_DFS_ELM_MAX_LFN 255
+#define RT_DFS_ELM_DRIVES 2
+#define RT_DFS_ELM_MAX_SECTOR_SIZE 512
+#define RT_DFS_ELM_REENTRANT
+#define RT_DFS_ELM_MUTEX_TIMEOUT 3000
+/* end of elm-chan's FatFs, Generic FAT Filesystem Module */
+#define RT_USING_DFS_DEVFS
+#define RT_USING_DFS_ROMFS
+#define RT_USING_DFS_ROMFS_USER_ROOT
 /* end of DFS: device virtual file system */
 
 /* Device Drivers */
@@ -93,6 +122,13 @@
 #define RT_USING_SERIAL_V1
 #define RT_SERIAL_USING_DMA
 #define RT_SERIAL_RB_BUFSZ 64
+#define RT_USING_SDIO
+#define RT_SDIO_STACK_SIZE 512
+#define RT_SDIO_THREAD_PRIORITY 15
+#define RT_MMCSD_STACK_SIZE 1024
+#define RT_MMCSD_THREAD_PREORITY 22
+#define RT_MMCSD_MAX_PARTITION 16
+#define RT_SDIO_DEBUG
 #define RT_USING_PIN
 #define RT_USING_CHERRYUSB
 #define RT_CHERRYUSB_DEVICE
@@ -258,6 +294,7 @@
 
 /* STM32 HAL & SDK Drivers */
 
+#define SDIO_MAX_FREQ 1000000
 /* end of STM32 HAL & SDK Drivers */
 
 /* Infineon HAL Packages */
@@ -354,6 +391,8 @@
 /* Onboard Peripheral Drivers */
 
 #define BSP_USING_USB_TO_USART
+#define BSP_USING_FS
+#define BSP_USING_SDCARD_FATFS
 /* end of Onboard Peripheral Drivers */
 
 /* On-chip Peripheral Drivers */
@@ -361,6 +400,7 @@
 #define BSP_USING_GPIO
 #define BSP_USING_UART
 #define BSP_USING_UART1
+#define BSP_USING_SDIO
 /* end of On-chip Peripheral Drivers */
 
 /* Board extended module Drivers */

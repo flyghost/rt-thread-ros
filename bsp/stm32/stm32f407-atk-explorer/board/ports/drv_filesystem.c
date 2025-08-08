@@ -29,6 +29,11 @@
 #ifdef BSP_USING_SDCARD_FATFS
 static int onboard_sdcard_mount(void)
 {
+    if (rt_device_find("sd0") == RT_NULL) {
+        LOG_E("SD card device not found!");
+        return -RT_ERROR;
+    }
+
     if (dfs_mount("sd0", "/sdcard", "elm", 0, 0) == RT_EOK)
     {
         LOG_I("SD card mount to '/sdcard'");
@@ -95,7 +100,7 @@ static const struct romfs_dirent romfs_root =
     ROMFS_DIRENT_DIR, "/", (rt_uint8_t *)_romfs_root, sizeof(_romfs_root) / sizeof(_romfs_root[0])
 };
 
-static int filesystem_mount(void)
+int filesystem_mount(void)
 {
     if (dfs_mount(RT_NULL, "/", "rom", 0, &(romfs_root)) != 0)
     {
@@ -111,4 +116,5 @@ static int filesystem_mount(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(filesystem_mount);
+// INIT_APP_EXPORT(filesystem_mount);
+// MSH_CMD_EXPORT(filesystem_mount, "init ramfs sample");

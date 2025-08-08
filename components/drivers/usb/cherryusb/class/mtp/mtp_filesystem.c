@@ -1,294 +1,215 @@
 #include "mtp_filesystem.h"
 #include "usbd_mtp_config.h"
 
-// ==== 全局变量 ====
+#include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#if USB_FS_USING_STANDARD
+#include <stdio.h>
+#else
+#include <fcntl.h>
+#include <sys/statfs.h>
+#endif
 
-#define MTP_ROOT_FILE_NUM 100
-
-#define MTP_ROOT_DIRECT   "/MTP"            // MTP目录在文件系统中挂在的绝对路径
+#define MTP_ROOT_DIRECT   "/sdcard"
 
 #define MTP_FILESYSTEM_SIZE 1024
 #define MTP_FILESYSTEM_BLOCK_SIZE 512
 #define MTP_FILESYSTEM_BLOCK_NUM 512
 
-static mtp_file_entry_t mtp_root_files[MTP_ROOT_FILE_NUM];
-static mtp_dir_entry_t mtp_root_dir = {0};
+typedef struct {
+    const char *description;    // 文件系统描述
+    const char *mount_point;    // MTP目录在文件系统中挂载的绝对路径
+} usb_mtp_fs_disk_t;
 
-static mtp_file_entry_t *mtp_open_file = NULL;
-static size_t mtp_open_file_pos = 0;
-
-static const char *g_disk_list[] = {
-    "FLASH",
-    "RAM"
+static const usb_mtp_fs_disk_t g_disk_list[] = {
+    {"SDCARD", "/sdcard"},
+    {"FLASH", "/flash"},
+    {"RAM", "/ram"},
+    {NULL, NULL},
 };
-
-static uint32_t mtp_get_current_time(void)
-{
-    static uint32_t mtp_current_time = 0x11111111;
-    return mtp_current_time++;
-}
-
-static void *usbd_fs_opendir(const char *path)
-{
-    return NULL;
-}
-
-static void *usbd_fs_readdir(void *dp)
-{
-    return NULL;
-}
-
-static const char *usbd_fs_name_from_dent(void *dent)
-{
-    return MTP_ROOT_DIRECT;
-}
 
 const char *usbd_fs_top_mtp_path(void)
 {
     return MTP_ROOT_DIRECT;
 }
 
-static const char *usbd_mtp_fs_root_path(void)
-{
-    void *dp = usbd_fs_opendir(MTP_ROOT_DIRECT);
-    const char *name;
-    do {
-        void *dent = usbd_fs_readdir(dp);
-        name = usbd_fs_name_from_dent(dent);
-    }
-    while (0);
-
-    return name;
-}
-
 const char *usbd_mtp_fs_description(uint8_t fs_disk_index)
 {
-    if (fs_disk_index >= sizeof(g_disk_list) / sizeof (char *)) {
-        return NULL;
-    }
-
-    return g_disk_list[fs_disk_index];
-}
-
-static mtp_file_entry_t *mtp_find_file(const char *path)
-{
-    for (int i = 0; i < mtp_root_dir.file_count; i++) {
-        if (strcmp(mtp_root_dir.files[i]->name, path) == 0) {
-            return mtp_root_dir.files[i];
+    for (int i = 0; g_disk_list[i].description != NULL; i++) {
+        if (i == fs_disk_index) {
+            return g_disk_list[i].description;
         }
     }
+
     return NULL;
 }
 
-static mtp_dir_entry_t *mtp_find_dir(const char *path)
+const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index)
 {
-    if (usb_strncmp(path, MTP_ROOT_DIRECT, sizeof(MTP_ROOT_DIRECT) + 1) == 0) {
-        return &mtp_root_dir;
+    for (int i = 0; g_disk_list[i].mount_point != NULL; i++) {
+        if (i == fs_disk_index) {
+            return g_disk_list[i].mount_point;
+        }
     }
 
     return NULL;
 }
 
+void *usbd_fs_opendir(const char *path)
+{
+    // 接口相同
+    void *dp = opendir(path);
+    if (dp == NULL) {
+        MTP_LOGE_SHELL("Failed to open directory: %s", path);
+    }
+    return dp;
+}
+
+int usbd_fs_closedir(void *dp)
+{
+    // 接口相同
+    int ret = closedir(dp);
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to close directory");
+    }
+    return ret;
+}
+
+void *usbd_fs_readdir(void *dp)
+{
+    // 接口相同
+    return readdir(dp);
+}
+
+const char *usbd_fs_name_from_dent(void *dent)
+{
+    // 接口相同
+    return ((struct dirent *)dent)->d_name;
+}
+
+bool usbd_fs_is_dir_from_dent(void *dent)
+{
+    // 接口相同
+    return ((struct dirent *)dent)->d_type == DT_DIR;
+}
 
 int usbd_mtp_fs_rmdir(const char *path)
 {
-    return 0;
+    // 接口相同
+    int ret = rmdir(path);
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to remove directory: %s", path);
+    }
+    MTP_LOGD_SHELL("Removed directory: %s", path);
+    return ret;
 }
 
-struct mtp_dirent *usbd_mtp_fs_readdir(void *dir)
+void *usbd_mtp_fs_open_file(const char *path, const char *mode)
 {
-    static struct mtp_dirent dirent;
-    mtp_dir_entry_t *d = (mtp_dir_entry_t *)dir;
-    static int index = 0;
-    if (index >= d->file_count) {
-        index = 0;
-        return 0;
+#if USB_FS_USING_STANDARD
+    void *fileptr = fopen(path, mode);
+    if (fileptr == NULL) {
+        MTP_LOGE_SHELL("Failed to open file: %s", path);
     }
-    usb_memset(&dirent, 0, sizeof(struct mtp_dirent));
-    usb_strncpy(dirent.d_name, d->files[index]->name, USB_FS_PATH_MAX - 1);
-    dirent.d_namlen = usb_strlen(dirent.d_name);
-    index++;
-    return &dirent;
-}
-
-int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf)
-{
-    (void)path;
-    buf->f_bsize = MTP_FILESYSTEM_BLOCK_SIZE;
-    buf->f_blocks = MTP_FILESYSTEM_BLOCK_NUM;
-    buf->f_bfree = MTP_FILESYSTEM_BLOCK_NUM;
-    return 0;
-}
-
-static void *usbd_mtp_create_file(const char *path)
-{
-    if (mtp_root_dir.file_count >= MTP_ROOT_FILE_NUM) {
-        MTP_LOGE_SHELL("No space for new file: %s", path);
-        // return -9; // 空间不足
-        return NULL;
-    }
-    if (usb_strnlen(path, USB_FS_PATH_MAX + 1) > USB_FS_PATH_MAX) {
-        MTP_LOGE_SHELL("path is too long");
-        // return -9;
-        return NULL;
-    }
-
-    mtp_file_entry_t *file = &mtp_root_files[mtp_root_dir.file_count];
-    usb_memset(file, 0, sizeof(mtp_file_entry_t));
-    usb_strncpy(file->name, path, USB_FS_PATH_MAX - 1);
-    MTP_LOGE_SHELL("create file: %s", path);
-    file->type = MTP_FILE_TYPE_REGULAR;
-    file->create_time = mtp_get_current_time();
-    file->modify_time = file->create_time;
-    mtp_root_dir.files[mtp_root_dir.file_count] = file;
-    mtp_root_dir.file_count++;
-
-    return (void *)file;
-}
-
-/**
- * @brief 打开mtp目录下的文件
- * 
- * @param path          绝对路径
- * @param mode          
- * @return int 
- */
-void *usbd_mtp_fs_open_file(const char *path, uint8_t mode)
-{
-    // 1:打开MTP目录 MTP_ROOT_DIRECT
-    // 模拟操作，忽略
-
-    MTP_LOGD_SHELL("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ usbd_mtp_fs_open_file %s", path);
-
-    if (!path || !path[0]) {
-        MTP_LOGE_SHELL("open path is NULL");
-        // return -1;
-        return NULL;
-    }
-
-    mtp_file_entry_t *file = mtp_find_file(path);
-    if (mode == MTP_FA_READ) {
-        if (file == NULL) {
-            MTP_LOGE_SHELL("File not found: %s", path);
-            // return -2; // 文件不存在
+    return fileptr;
+#else
+    int mode_flags = 0;
+    bool plus = false, binary = false;
+    char m = mode[0];
+    const char *p = mode + 1;
+    while (*p) {
+        if (*p == '+') plus = true;
+        else if (*p == 'b') binary = true;
+        else {
+            MTP_LOGE_SHELL("Unsupported mode character: %c", *p);
             return NULL;
         }
+        ++p;
     }
-    else if (mode & MTP_FA_WRITE) {
-        if (file == NULL) {
-            file = usbd_mtp_create_file(path);
-        }
-    }
-    else {
-        MTP_LOGE_SHELL("Unsupported mode: 0x%x", mode);
-        // return -1;
+
+    switch (m) {
+    case 'r':   // 只读模式
+        mode_flags = plus ? O_RDWR : O_RDONLY;
+        break;
+    case 'w':   // 写入模式
+        mode_flags = O_CREAT | O_TRUNC | (plus ? O_RDWR : O_WRONLY);
+        break;
+    case 'a':   // 追加模式
+        mode_flags = O_CREAT | O_APPEND | (plus ? O_RDWR : O_WRONLY);
+        break;
+    default:
+        MTP_LOGE_SHELL("Unsupported mode: %s", mode);
         return NULL;
     }
-    mtp_open_file = file;
-    mtp_open_file_pos = 0;
 
-    MTP_LOGD_SHELL("Opened file: %s, mode: 0x%x", path, mode);
-
-    return (void *)file;
+    int ret = open(path, mode_flags, 0666);
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to open file: %s, error: %d", path, ret);
+        return NULL;
+    }
+    MTP_LOGD_SHELL("Opened file: %s, fd: %d, flags: 0x%x", path, ret, mode_flags);
+    return (void *)(intptr_t)ret;
+#endif
 }
 
 int usbd_mtp_fs_close_file(void *fp)
 {
-    (void)fp;
-    mtp_open_file = NULL;
-    mtp_open_file_pos = 0;
-    return 0;
+    int ret;
+#if USB_FS_USING_STANDARD
+    ret = fclose(fp);
+#else
+    ret = close((intptr_t)fp);
+#endif
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to close file, error: %d", ret);
+        return -1; // 关闭失败
+    }
+    MTP_LOGD_SHELL("Closed file successfully");
+    return 0; // 关闭成功
 }
 
 int usbd_mtp_fs_read_file(void *fp, void *buf, size_t len)
 {
-    (void)fp;
-
-    if (!buf) {
+#if USB_FS_USING_STANDARD
+    ssize_t length = fread(buf, 1, len, fp);
+#else
+    ssize_t length = read((intptr_t)fp, buf, len);
+#endif
+    if (length < 0) {
+        MTP_LOGE_SHELL("Failed to read file, error: %d", length);
         return -1;
     }
-
-    if (!mtp_open_file) {
-        MTP_LOGE_SHELL("read error : file not open");
-        return -1;
-    }
-
-    if (!mtp_open_file->data || !mtp_open_file->size) {
-        MTP_LOGE_SHELL("read error : file data NULL");
-        return -1;
-    }
-
-    if (mtp_open_file->size <= mtp_open_file_pos) {
-        return 0;
-    }
-
-    size_t remaining = mtp_open_file->size - mtp_open_file_pos;
-    if (len > remaining) {
-        len = remaining;
-    }
-
-    usb_mtp_memcpy(buf, mtp_open_file->data + mtp_open_file_pos, len);
-    mtp_open_file_pos += len;
-
-    return (int)len;
+    return (int)length;
 }
 
 int usbd_mtp_fs_write_file(void *fp, const void *buf, size_t len)
 {
-    (void)fp;
-
-    if (mtp_open_file == 0) {
+#if USB_FS_USING_STANDARD
+    ssize_t length = fwrite(buf, 1, len, fp);
+#else
+    ssize_t length = write((intptr_t)fp, buf, len);
+#endif
+    if (length < 0) {
+        MTP_LOGE_SHELL("Failed to write file, error: %d", length);
         return -1;
     }
+    return (int)length;
+}
 
-    if (mtp_open_file_pos + len > mtp_open_file->size) {
-        size_t new_size = mtp_open_file_pos + len;
-        uint8_t *new_data = (uint8_t *)usb_malloc(new_size);
-        if (!new_data) {
-            return -9;
-        }
+int usbd_mtp_fs_rm_file(const char *path)
+{
+#if USB_FS_USING_STANDARD
+    int ret = remove(path);
+#else
+    int ret = unlink(path);
+#endif
 
-        // 保存旧的数据
-        if (mtp_open_file->data) {
-            if (mtp_open_file->size > 0) {
-                usb_mtp_memcpy(new_data, mtp_open_file->data, mtp_open_file->size);
-            }
-            usb_free(mtp_open_file->data);
-        }
-
-        mtp_open_file->data = new_data;
-        mtp_open_file->size = new_size;
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to unlink file: %s, error: %d", path, ret);
     }
-
-    usb_mtp_memcpy(mtp_open_file->data + mtp_open_file_pos, buf, len);
-    mtp_open_file_pos += len;
-
-    MTP_DUMP_SHELL(16, mtp_open_file->data, mtp_open_file_pos);
-
-    mtp_open_file->modify_time = 0;
-
-    return (int)len;
-}
-
-int usbd_mtp_fs_unlink(const char *path)
-{
-    mtp_file_entry_t *file = mtp_find_file(path);
-    if (file == NULL)
-        return -2;
-    if (file->attributes & MTP_AM_DIR)
-        return -7;
-    if (file->data != 0)
-        usb_free(file->data);
-    usb_memset(file, 0, sizeof(mtp_file_entry_t));
-    return 0;
-}
-
-void usbd_mtp_mount(void)
-{
-    MTP_LOGI_SHELL("Mounting MTP file system...");
-    usb_memset(&mtp_root_dir, 0, sizeof(mtp_root_dir));
-    usb_strncpy(mtp_root_dir.name, MTP_ROOT_DIRECT, USB_FS_PATH_MAX - 1);
-    mtp_root_dir.file_count = 0;
+    MTP_LOGD_SHELL("Unlinked file: %s", path);
+    return ret;
 }
 
 const char* usbd_mtp_fs_modify_time(const char *path)
@@ -303,108 +224,173 @@ const char* usbd_mtp_fs_create_time(const char *path)
 
 int usbd_mtp_fs_is_protect(const char *path)
 {
-    return 0;
+    // 接口相同
+    struct stat file_stat;
+    if (stat(path, &file_stat) == 0) {
+        if (file_stat.st_mode & S_IWUSR) {
+            return 0; // 可写
+        }
+        else {
+            return 1; // 只读
+        }
+    }
+    else {
+        MTP_LOGE_SHELL("Failed to check protection for path: %s", path);
+        return 1; // 错误
+    }
 }
 
 size_t usbd_mtp_fs_size(const char *path)
 {
-    mtp_file_entry_t *file = mtp_find_file(path);
-    if (file == NULL || file->data == NULL) {
+    // 接口相同
+    struct stat file_stat;
+    if (stat(path, &file_stat) == 0) {
+        return file_stat.st_size;
+    }
+    else {
+        MTP_LOGE_SHELL("Failed to get size for path: %s", path);
         return 0;
     }
-
-    return file->size;
 }
 
-// void fill_timestamp(uint8_t *buf, time_t timestamp) {
-//     char iso8601[20];
-//     strftime(iso8601, sizeof(iso8601), "%Y%m%dT%H%M%S", gmtime(&timestamp));
-    
-//     // 转换为UTF-16LE
-//     uint8_t len = strlen(iso8601);
-//     buf[0] = len;  // 长度前缀
-//     for (int i = 0; i < len; i++) {
-//         buf[1 + i*2] = iso8601[i];
-//         buf[2 + i*2] = 0x00;
-//     }
-//     buf[1 + len*2] = 0x00; // 终止符
-//     buf[2 + len*2] = 0x00;
-// }
-
-
-// typedef size_t mtp_fs_bsize_t;
-// typedef size_t mtp_fs_blocks_t;
-// typedef size_t mtp_fs_bfree_t;
-
-int usbd_mtp_fs_block_size(const char *path, mtp_fs_bsize_t *size)
+int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf)
 {
-    struct mtp_statfs stat;
-    *size = 0;
+#if USB_FS_USING_STANDARD
+    (void)path;
+    buf->f_bsize = MTP_FILESYSTEM_BLOCK_SIZE;
+    buf->f_blocks = MTP_FILESYSTEM_BLOCK_NUM;
+    buf->f_bfree = MTP_FILESYSTEM_BLOCK_NUM;
+    return 0;
+#else
+    (void)path;
+    struct statfs fs_stat;
+    int ret = statfs(path, &fs_stat);
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to get filesystem stats for %s: %d", path, ret);
+        return -1; // 获取失败
+    }
 
-    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+    buf->f_bsize = fs_stat.f_bsize;
+    buf->f_blocks = fs_stat.f_blocks;
+    buf->f_bfree = fs_stat.f_bfree;
+
+    MTP_LOGD_SHELL("Filesystem stats for %s: bsize=%zu, blocks=%zu, bfree=%zu", path, buf->f_bsize, buf->f_blocks, buf->f_bfree);
+    return 0; // 获取成功
+#endif
+}
+
+// 测试代码
+#if 0
+#include <rtthread.h>
+// #include <dfs_romfs.h>
+#include <dfs_fs.h>
+#include <dfs_file.h>
+#include <dfs_ramfs.h>
+// #include <dfs_posix.h>
+#include <dfs.h>
+
+extern int open(const char *file, int flags, ...);
+extern int close(int fd);
+extern ssize_t write(int fd, const void *buf, size_t len);
+extern ssize_t read(int fd, void *buf, size_t len);
+
+#define RAMFS_POOL_SIZE (4 * 1024) // 4KB 内存池
+
+int ramfs_sample(void)
+{
+    struct dfs_ramfs *ramfs;
+    rt_uint8_t *ramfs_pool;
+
+    // 1. 分配内存池（需 4 字节对齐）
+    ramfs_pool = rt_malloc(RAMFS_POOL_SIZE);
+    if (ramfs_pool == RT_NULL) {
+        rt_kprintf("RAMFS pool malloc failed!\n");
         return -1;
     }
 
-    *size = stat.f_bsize;
+    // 先注册文件系统类型
+    // if (dfs_register(&dfs_ramfs) != 0) {
+    //     rt_kprintf("RAMFS register failed!\n");
+    //     return -1;
+    // }
 
-    return 0;
-}
+    // if (dfs_mkdir("/ram", 0) != 0) {
+    //     rt_kprintf("Failed to create /ram directory\n");
+    //     // 处理错误...
+    // }
 
-int usbd_mtp_fs_block_number(const char *path, mtp_fs_blocks_t *num)
-{
-    struct mtp_statfs stat;
-    *num = 0;
-
-    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+    // 2. 创建 RAMFS 实例
+    ramfs = dfs_ramfs_create(ramfs_pool, RAMFS_POOL_SIZE);
+    if (ramfs == RT_NULL) {
+        rt_kprintf("RAMFS create failed!\n");
+        rt_free(ramfs_pool);
         return -1;
     }
 
-    *num = stat.f_blocks;
-
-    return 0;
-}
-
-int usbd_mtp_fs_block_free(const char *path, mtp_fs_bfree_t *num)
-{
-    struct mtp_statfs stat;
-    *num = 0;
-
-    if (usbd_mtp_fs_statfs(usbd_mtp_fs_root_path(), &stat) != 0) {
+    // 3. 挂载到文件系统（例如挂载到 "/ram" 目录）
+    if (dfs_mount(RT_NULL, "/ram", "ram", 0, ramfs) != 0) {
+        rt_kprintf("RAMFS mount failed!\n");
+        rt_free(ramfs_pool);
         return -1;
     }
 
-    *num = stat.f_bfree;
-
+    rt_kprintf("RAMFS mounted at /ram\n");
     return 0;
 }
+// INIT_APP_EXPORT(ramfs_sample);
+MSH_CMD_EXPORT(ramfs_sample, "init ramfs sample");
 
-int usbd_mtp_fs_filesize(const char *path, mtp_fs_filesize_t *size)
+void ramfs_write_file(void)
 {
-    *size = 15;
+    FILE *fp;
+    char *data = "Hello, RAMFS!";
 
-    return 0;
+    // 0. 先创建文件夹（如果不存在）
+    if (mkdir("/ram", 0) != 0) {
+        // 如果文件夹已存在，错误码是 EEXIST，这是可以接受的
+        if (rt_get_errno() != EEXIST) {
+            rt_kprintf("Create directory failed! errno=%d\n", rt_get_errno());
+            return;
+        }
+    }
+
+    // 1. 打开文件（如果不存在则创建）
+    fp = fopen("/ram/test.txt", "w");
+    if (fp == NULL) {
+        rt_kprintf("Open file failed!\n");
+        return;
+    }
+
+    // 2. 写入数据
+    fwrite(data, 1, rt_strlen(data), fp);
+    rt_kprintf("Write data: %s\n", data);
+
+    // 3. 关闭文件
+    fclose(fp);
 }
+MSH_CMD_EXPORT(ramfs_write_file, "Write file to RAMFS");
 
+void ramfs_read_file(void)
+{
+    FILE *fp;
+    char buf[64];
+    size_t len;
 
-// #define MTP_FS_USE_SIM_RAMFS   1
+    // 1. 打开文件
+    fp = fopen("/ram/test.txt", "r");
+    if (fp == NULL) {
+        rt_kprintf("Open file failed!\n");
+        return;
+    }
 
-// void *usbd_fs_opendir(const char *path)
-// {
-// #if MTP_FS_USE_SIM_RAMFS
-//     if (usb_strncmp(path, MTP_ROOT_DIRECT, sizeof(MTP_ROOT_DIRECT) + 1) == 0) {
-//         return (void *)&mtp_root_dir;
-//     }
-//     return NULL;
-// #endif
-// }
+    // 2. 读取数据
+    len = fread(buf, 1, sizeof(buf), fp);
+    buf[len] = '\0';  // 确保字符串结尾
+    rt_kprintf("Read data: %s\n", buf);
 
-// void *usbd_fs_readdir(void *dp)
-// {
-//     mtp_dir_entry_t *dir = (mtp_dir_entry_t *)dp;
-//     static int index = 0;
-//     if (index >= dir->file_count) {
-//         index = 0;
-//         return NULL;
-//     }
-//     return &dir->files[index++];
-// }
+    // 3. 关闭文件
+    fclose(fp);
+}
+MSH_CMD_EXPORT(ramfs_read_file, "Read file from RAMFS");
+
+#endif
