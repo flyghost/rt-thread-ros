@@ -237,26 +237,26 @@ static int handle_reset_request(struct usb_setup_packet *setup,
 static int handle_get_status(struct usb_setup_packet *setup,
                             uint8_t **data, uint32_t *len) 
 {
-    // static struct DeviceStatus {
-    //     uint16_t status_code;
-    //     uint32_t session_id;
-    //     uint32_t trans_id;
-    //     uint8_t  reserved[5];
-    // } status;
+    static struct {
+        uint16_t status_code;
+        uint32_t session_id;
+        uint32_t trans_id;
+        uint8_t  reserved[24];  // 确保总共36字节
+    } status = {0};
     
-    // // 填充状态信息
-    // status.status_code = g_usbd_mtp.error_code ? 
-    //                     g_usbd_mtp.error_code : MTP_RESPONSE_OK;
-    // status.session_id = g_usbd_mtp.session_id;
-    // status.trans_id = g_usbd_mtp.trans_id;
-    // memset(status.reserved, 0, 5);
+    // 填充状态信息
+    status.status_code = MTP_RESPONSE_OK;
+    status.session_id = g_usbd_mtp.session_id;
+    // 操作完成后，事务ID应该清零
+    status.trans_id = 0;
+    memset(status.reserved, 0, sizeof(status.reserved));
     
-    // // Windows要求固定返回36字节
-    // *data = (uint8_t*)&status;
-    *len = 36;
+    // Windows要求固定返回36字节
+    *data = (uint8_t*)&status;
+    *len = sizeof(status);
     
-    // 清除错误状态
-    // g_usbd_mtp.error_code = 0;
+    MTP_LOGD_SHELL("GET_STATUS: status=0x%04X, session=0x%08X, trans=0x%08X", 
+                   status.status_code, status.session_id, status.trans_id);
     
     return 0;
 }
