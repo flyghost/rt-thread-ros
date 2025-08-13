@@ -25,6 +25,13 @@ typedef struct _format_property {
     uint16_t *properties;
 } formats_property;
 
+typedef struct {
+    const char *extension;
+    const char *magic_number;
+    size_t magic_len;
+    uint16_t format;
+} format_extension;
+
 const char mtp_extension_string[] = "microsoft.com: 1.0; android.com: 1.0;";
 
 const uint16_t supported_op[] = {
@@ -69,6 +76,22 @@ const uint16_t supported_event[] = {
     // MTP_EVENT_OBJECT_INFO_CHANGED,  // 0x4007
     // MTP_EVENT_DEVICE_PROP_CHANGED,  // 0x4006
     // MTP_EVENT_OBJECT_PROP_CHANGED   // 0xC801
+};
+
+const format_extension support_format_extension[] = {
+    // {".png", "\x89PNG", 4, "PNG图像文件"},
+    // {".jpg", "\xFF\xD8\xFF", 3, "JPEG图像文件"},
+    // {".gif", "GIF8", 4, "GIF图像文件"},
+    // {".pdf", "%PDF", 4, "PDF文档"},
+    // {".zip", "PK", 2, "ZIP压缩文件"},
+    // {".mp3", "ID3", 3, "MP3音频文件"},
+    // {".doc", "\xD0\xCF\x11\xE0", 4, "Microsoft Word文档"},
+    // {".xls", "\xD0\xCF\x11\xE0", 4, "Microsoft Excel文档"},
+    // {".ppt", "\xD0\xCF\x11\xE0", 4, "Microsoft PowerPoint文档"},
+    {NULL, NULL, 0, MTP_FORMAT_ASSOCIATION},
+    {"txt", NULL, 0, MTP_FORMAT_TEXT},
+    {"png", NULL, 0, MTP_FORMAT_PNG},
+    {NULL, NULL, 0, MTP_ARRAY_END_MARK} // 结束标记
 };
 
 int supported_event_size = sizeof(supported_event);

@@ -68,11 +68,8 @@ typedef struct mtp_dir_entry {
     int file_count;
 } mtp_dir_entry_t;
 
-// 获取磁盘名称
-const char *usbd_mtp_fs_description(uint8_t fs_disk_index);
-const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index);
-
 // 目录操作
+int usbd_fs_mkdir(const char *path, mode_t mode);
 void *usbd_fs_opendir(const char *path);
 void *usbd_fs_readdir(void *dp);
 int usbd_fs_closedir(void *dp);

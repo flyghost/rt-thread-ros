@@ -1,11 +1,3 @@
-/*
- * Copyright (c) 2025, sakumisu
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * MTP操作命令处理实现
- */
-
 #include "mtp_operation.h"
 #include "usbd_mtp_config.h"
 #include "usb_config.h"
@@ -29,6 +21,41 @@ static uint32_t g_mtp_storage_id_list[] = {
     MTP_STORAGE_ID,
     MTP_STORAGE_ID + 1,
 };
+
+typedef struct {
+    uint32_t storage_id;
+    const char *description;    // 文件系统描述
+    const char *mount_point;    // MTP目录在文件系统中挂载的绝对路径
+} mtp_storage_t;
+
+static const mtp_storage_t g_disk_list[] = {
+    {MTP_STORAGE_ID,     "SDCARD", "/sdcard"},
+    {MTP_STORAGE_ID + 1, "FLASH",  "/flash"},
+    {MTP_STORAGE_ID + 2, "RAM",    "/ram"},
+    {0, NULL, NULL},
+};
+
+const char *usbd_mtp_fs_description(uint8_t fs_disk_index)
+{
+    for (int i = 0; g_disk_list[i].description != NULL; i++) {
+        if (i == fs_disk_index) {
+            return g_disk_list[i].description;
+        }
+    }
+
+    return NULL;
+}
+
+const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index)
+{
+    for (int i = 0; g_disk_list[i].mount_point != NULL; i++) {
+        if (i == fs_disk_index) {
+            return g_disk_list[i].mount_point;
+        }
+    }
+
+    return NULL;
+}
 
 #define MTP_PACK_UINT8_ARRAY(dest, offset, val) \
     (*(uint8_t *)((uint8_t *)dest + offset) = (uint8_t)(val), offset + sizeof(uint8_t))
@@ -55,30 +82,8 @@ typedef struct {
     ssize_t tx_count; // 当前发送字节数
 } mtp_transfer_ctrl_t;
 
-typedef struct {
-    const char *extension;
-    const char *magic_number;
-    size_t magic_len;
-    const char *description;
-    uint16_t format;
-} FileSignature;
 
 static char mtp_current_path[CONFIG_USBDEV_MTP_MAX_PATHNAME] = {0};
-
-FileSignature signatures[] = {
-    // {".png", "\x89PNG", 4, "PNG图像文件"},
-    // {".jpg", "\xFF\xD8\xFF", 3, "JPEG图像文件"},
-    // {".gif", "GIF8", 4, "GIF图像文件"},
-    // {".pdf", "%PDF", 4, "PDF文档"},
-    // {".zip", "PK", 2, "ZIP压缩文件"},
-    // {".mp3", "ID3", 3, "MP3音频文件"},
-    // {".doc", "\xD0\xCF\x11\xE0", 4, "Microsoft Word文档"},
-    // {".xls", "\xD0\xCF\x11\xE0", 4, "Microsoft Excel文档"},
-    // {".ppt", "\xD0\xCF\x11\xE0", 4, "Microsoft PowerPoint文档"},
-    {NULL, NULL, 0, "文件夹", MTP_FORMAT_ASSOCIATION},
-    {"txt", NULL, 0, "文本文档", MTP_FORMAT_TEXT},
-    {NULL, NULL, 0, NULL, MTP_ARRAY_END_MARK} // 结束标记
-};
 
 // 通过扩展名获取文件类型描述
 static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
@@ -96,10 +101,10 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
         return MTP_FORMAT_UNDEFINED;
     }
 
-    for (int i = 0; signatures[i].format != MTP_ARRAY_END_MARK; i++) {
-        if (strcmp(dot, signatures[i].extension) == 0) {
-            MTP_LOGD_SHELL("File: %s, Format: 0x%x", filename, signatures[i].format);
-            return signatures[i].format;
+    for (int i = 0; support_format_extension[i].format != MTP_ARRAY_END_MARK; i++) {
+        if (strcmp(dot, support_format_extension[i].extension) == 0) {
+            MTP_LOGD_SHELL("File: %s, Format: 0x%x", filename, support_format_extension[i].format);
+            return support_format_extension[i].format;
         }
     }
 
@@ -114,10 +119,10 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
     
 //     if (bytes_read == 0) return "空文件或无法读取";
     
-//     for (int i = 0; signatures[i].magic_number != NULL; i++) {
-//         if (bytes_read >= signatures[i].magic_len && 
-//             memcmp(header, signatures[i].magic_number, signatures[i].magic_len) == 0) {
-//             return signatures[i].description;
+//     for (int i = 0; support_format_extension[i].magic_number != NULL; i++) {
+//         if (bytes_read >= support_format_extension[i].magic_len && 
+//             memcmp(header, support_format_extension[i].magic_number, support_format_extension[i].magic_len) == 0) {
+//             return support_format_extension[i].description;
 //         }
 //     }
     
@@ -126,12 +131,12 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
 
 static mtp_transfer_ctrl_t g_mtp_transfer_ctrl = {0};
 
-static int aaaaaaaaa = 0;
+// static int aaaaaaaaa = 0;
 
 static int mtp_send_object_info_test(void);
 
 // 对象句柄管理
-static struct mtp_object object_pool[CONFIG_USBDEV_MTP_MAX_OBJECTS];
+// static struct mtp_object object_pool[CONFIG_USBDEV_MTP_MAX_OBJECTS];
 static uint32_t object_count = 0;
 
 extern int usbd_mtp_start_write(uint8_t *buf, uint32_t len);
@@ -810,7 +815,7 @@ static int _mtp_get_storage_info(struct mtp_header *hdr)
     uint8_t *buffer = (uint8_t *)info;
     uint32_t offset = offsetof(struct mtp_storage_info, StorageDescription_len);
     const char *fs_name = NULL;
-    const char *fs_mount_path = usbd_fs_top_mtp_path();
+    const char *fs_mount_path = NULL;
 
     for (uint32_t i = 0; i < sizeof(g_mtp_storage_id_list) / sizeof(g_mtp_storage_id_list[0]); i++) {
         if (storage_id == g_mtp_storage_id_list[i]) {
@@ -1329,13 +1334,15 @@ static int mtp_get_object(struct mtp_header *hdr)
 // 删除对象
 static int mtp_delete_object(struct mtp_header *hdr)
 {
-    if (hdr->conlen != sizeof(struct mtp_header) + 4) {
+    if (hdr->conlen < sizeof(struct mtp_header) + sizeof(hdr->param[0])) {
+        MTP_LOGE_SHELL("Invalid parameter length");
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
     }
 
     uint32_t handle = hdr->param[0];
     struct mtp_object *obj = mtp_obj_reverse_handle(MTP_STORAGE_ID, handle);
     if (!obj) {
+        MTP_LOGD_SHELL("Object not found: 0x%08X", handle);
         return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
     }
     
@@ -1350,6 +1357,7 @@ static int mtp_delete_object(struct mtp_header *hdr)
     usb_free(obj);
 
     if (ret != 0) {
+        MTP_LOGE_SHELL("Failed to delete object: %s", obj->file_full_path);
         return mtp_send_response(MTP_RESPONSE_ACCESS_DENIED, hdr->trans_id);
     }
     
@@ -1455,6 +1463,16 @@ static int mtp_send_object_info(struct mtp_header *hdr)
     // 清理父对象临时数据
     if (parent_obj) {
         usb_free(parent_obj);
+    }
+
+    if (is_dir) {
+        if (usbd_fs_mkdir(obj->file_full_path, 0777) < 0) {
+            MTP_LOGE_SHELL("Failed to create directory: %s", obj->file_full_path);
+            usb_free(obj);
+            g_usbd_mtp.cur_object = NULL;
+            return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
+        }
+        MTP_LOGD_SHELL("Created directory: %s", obj->file_full_path);
     }
 
     return usbd_mtp_start_write((uint8_t *)g_usbd_mtp.tx_buffer, resp->conlen);

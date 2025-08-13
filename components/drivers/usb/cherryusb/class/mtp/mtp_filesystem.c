@@ -17,43 +17,18 @@
 #define MTP_FILESYSTEM_BLOCK_SIZE 512
 #define MTP_FILESYSTEM_BLOCK_NUM 512
 
-typedef struct {
-    const char *description;    // 文件系统描述
-    const char *mount_point;    // MTP目录在文件系统中挂载的绝对路径
-} usb_mtp_fs_disk_t;
-
-static const usb_mtp_fs_disk_t g_disk_list[] = {
-    {"SDCARD", "/sdcard"},
-    {"FLASH", "/flash"},
-    {"RAM", "/ram"},
-    {NULL, NULL},
-};
-
 const char *usbd_fs_top_mtp_path(void)
 {
     return MTP_ROOT_DIRECT;
 }
 
-const char *usbd_mtp_fs_description(uint8_t fs_disk_index)
+int usbd_fs_mkdir(const char *path, mode_t mode)
 {
-    for (int i = 0; g_disk_list[i].description != NULL; i++) {
-        if (i == fs_disk_index) {
-            return g_disk_list[i].description;
-        }
+    int ret = mkdir(path, mode);
+    if (ret < 0) {
+        MTP_LOGE_SHELL("Failed to create directory: %s", path);
     }
-
-    return NULL;
-}
-
-const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index)
-{
-    for (int i = 0; g_disk_list[i].mount_point != NULL; i++) {
-        if (i == fs_disk_index) {
-            return g_disk_list[i].mount_point;
-        }
-    }
-
-    return NULL;
+    return ret;
 }
 
 void *usbd_fs_opendir(const char *path)

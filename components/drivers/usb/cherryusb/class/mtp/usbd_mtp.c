@@ -1,11 +1,3 @@
-/*
- * Copyright (c) 2025, sakumisu
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * USB MTP 设备核心实现
- */
-
 #include "usb_config.h"
 #include "usbd_mtp_config.h"
 #include "usbd_core.h"
@@ -202,7 +194,7 @@ static int handle_cancel_request(struct usb_setup_packet *setup,
 static int handle_get_event_data(struct usb_setup_packet *setup,
                                  uint8_t **data, uint32_t *len)
 {
-    static uint8_t event_buffer[64]; // 事件缓冲区
+    // static uint8_t event_buffer[64]; // 事件缓冲区
     
     // if (g_usbd_mtp.event_pending) {
     //     // 返回待处理事件（示例：存储设备插入）
