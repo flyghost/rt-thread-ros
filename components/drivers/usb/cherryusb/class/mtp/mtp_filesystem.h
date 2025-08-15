@@ -93,6 +93,4 @@ const char* usbd_mtp_fs_create_time(const char *path);
 int usbd_mtp_fs_is_protect(const char *path);
 size_t usbd_mtp_fs_size(const char *path);
 
-const char *usbd_fs_top_mtp_path(void);
-
 #endif

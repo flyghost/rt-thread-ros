@@ -11,16 +11,9 @@
 #include <sys/statfs.h>
 #endif
 
-#define MTP_ROOT_DIRECT   "/sdcard"
-
 #define MTP_FILESYSTEM_SIZE 1024
 #define MTP_FILESYSTEM_BLOCK_SIZE 512
 #define MTP_FILESYSTEM_BLOCK_NUM 512
-
-const char *usbd_fs_top_mtp_path(void)
-{
-    return MTP_ROOT_DIRECT;
-}
 
 int usbd_fs_mkdir(const char *path, mode_t mode)
 {
