@@ -288,8 +288,8 @@ static uint64_t mtp_path_name_hash(const char *path, const char *name)
     
     // 只有当path不以'/'结尾时才添加路径分隔符
     if (path_len == 0 || path[path_len - 1] != '/') {
-    hash ^= '/'; // 添加路径分隔符
-    hash *= FNV_64_PRIME;
+        hash ^= '/'; // 添加路径分隔符
+        hash *= FNV_64_PRIME;
     }
     
     for (int i = 0; name[i]; i++) {
@@ -1537,7 +1537,7 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
             return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
         }
 
-        MTP_LOGI_SHELL("recv object data : len =%d paylaod len=%d", hdr->conlen, hdr->conlen, sizeof(struct mtp_header));
+        MTP_LOGI_SHELL("recv object data : len = %d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
 
         g_mtp_data_transfer_ctrl.fp = usbd_mtp_fs_open_file(g_usbd_mtp.cur_object->file_full_path, "w+");
         if (!g_mtp_data_transfer_ctrl.fp) {
@@ -1549,7 +1549,7 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
         // 初始化传输控制块
         g_mtp_data_transfer_ctrl.trans_id = hdr->trans_id;
         g_mtp_data_transfer_ctrl.state = MTP_XFER_HEADER_RECEIVED;
-        
+
         return 0;
     }
 
@@ -1568,14 +1568,14 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
         recv_len = usbd_mtp_fs_write_file(g_mtp_data_transfer_ctrl.fp, (hdr), len);
     }
 
-    MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen, sizeof(struct mtp_header));
+    MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
 
     if (recv_len < 0) {
-        MTP_LOGE_SHELL("Failed to write file")
+        MTP_LOGE_SHELL("Failed to write file");
         usbd_mtp_fs_close_file(g_mtp_data_transfer_ctrl.fp);
         mtp_send_object_param_init(hdr, len);
-            return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
-        }
+        return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
+    }
 
     if (g_mtp_data_transfer_ctrl.state == MTP_XFER_HEADER_RECEIVED) {
         g_mtp_data_transfer_ctrl.tot_len = hdr->conlen;
@@ -1592,12 +1592,12 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
         mtp_send_object_param_init(hdr, len);
 
         MTP_LOGI_SHELL("write ok, tot write %d bytes", g_mtp_data_transfer_ctrl.tot_len - sizeof(struct mtp_header));
-        
+
         return mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
     }
     else {
         if (g_mtp_data_transfer_ctrl.state == MTP_XFER_HEADER_RECEIVED) {
-            g_mtp_data_transfer_ctrl.state == MTP_XFER_DATA_RECEIVING;
+            g_mtp_data_transfer_ctrl.state = MTP_XFER_DATA_RECEIVING;
         }
     }
 
