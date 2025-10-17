@@ -16,6 +16,22 @@
 #define MTP_IN_EP_IDX  1
 #define MTP_INT_EP_IDX 2
 
+#define MAX_PENDING_EVENTS 8
+
+typedef struct {
+    uint16_t event_code;
+    uint32_t params[3];
+    bool pending;
+} mtp_event_t;
+
+static struct {
+    mtp_event_t queue[MAX_PENDING_EVENTS];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+    uint8_t busy;
+} g_event_queue;
+
 /* 端点描述符 */
 static struct usbd_endpoint mtp_ep_data[3];
 
@@ -30,12 +46,15 @@ static usb_osal_mutex_t g_usbd_mtp_tx_mutex = NULL;
 enum {
     MTP_MSG_SEND_DONE = 0,
     MTP_MSG_RECEIVE_DONE,
+    MTP_MSG_INT_EVENT,
 };
 
 /* 非缓存缓冲区 */
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_rx_buffer[MTP_BUFFER_SIZE];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_tx_buffer[MTP_BUFFER_SIZE];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t mtp_int_buffer[100];
+
+void mtp_process_event_queue(void);
 
 void mtp_tx_lock(void)
 {
@@ -111,12 +130,12 @@ void mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
         g_usbd_mtp.rx_total_length = hdr->conlen;
         g_usbd_mtp.rx_length = nbytes;
         
-        if (nbytes < hdr->conlen) {
-            usbd_ep_start_read(busid, ep, 
-                g_usbd_mtp.rx_buffer + nbytes, 
-                hdr->conlen - nbytes);
-            return;
-        }
+        // if (nbytes < hdr->conlen) {
+        //     usbd_ep_start_read(busid, ep, 
+        //         g_usbd_mtp.rx_buffer + nbytes, 
+        //         hdr->conlen - nbytes);
+        //     return;
+        // }
     } else {
         /* 继续接收数据 */
         g_usbd_mtp.rx_length += nbytes;
@@ -172,9 +191,16 @@ void mtp_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 /* 中断端点回调 */
 void mtp_int_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
+#if USBD_MTP_DEBUG
+    MTP_LOGE_SHELL("============================== Interrupt IN: busid=%d, ep=%d, nbytes=%d", busid, ep, nbytes);
+#endif
     (void)busid;
     (void)ep;
     (void)nbytes;
+
+    g_event_queue.busy = 0;
+
+    mtp_process_event_queue();
 }
 
 static int handle_cancel_request(struct usb_setup_packet *setup, 
@@ -321,10 +347,7 @@ static void usbd_mtp_thread(void *argv)
 }
 
 /* 初始化 MTP 接口 */
-struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
-                                         const uint8_t out_ep,
-                                         const uint8_t in_ep,
-                                         const uint8_t int_ep)
+struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf, const uint8_t out_ep, const uint8_t in_ep, const uint8_t int_ep)
 {
     g_usbd_mtp_mq = usb_osal_mq_create(7);
     if (g_usbd_mtp_mq == NULL) {
@@ -347,6 +370,8 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
             return NULL;
         }
     }
+
+    memset(&g_event_queue, 0, sizeof(g_event_queue));
 
     /* 初始化端点配置 */
     mtp_ep_data[MTP_OUT_EP_IDX].ep_addr = out_ep;
@@ -427,4 +452,141 @@ __WEAK void mtp_data_send_done(void)
 __WEAK void mtp_data_recv_done(uint32_t len)
 {
     /* 可由用户重写 */
+}
+
+int usbd_mtp_start_write_int(uint16_t code, const uint32_t params[3])
+{
+    if (!g_usbd_mtp.session_open) return -1;
+
+    if (!usb_device_is_configured(0)) {
+        MTP_LOGE_SHELL("USB device not configured, cannot start write");
+        return -1;
+    }
+
+    struct mtp_header *hdr = (struct mtp_header *)mtp_int_buffer;
+    hdr->conlen = sizeof(struct mtp_header) + sizeof(hdr->param[0]) * 3;
+    hdr->contype = MTP_CONTAINER_TYPE_EVENT;
+    hdr->code = code;
+    hdr->trans_id = 0;
+
+    memcpy(hdr->param, params, sizeof(hdr->param[0]) * 3);
+    return usbd_ep_start_write(0, mtp_ep_data[MTP_INT_EP_IDX].ep_addr, mtp_int_buffer, hdr->conlen);
+}
+
+void mtp_process_event_queue(void)
+{
+    if (g_event_queue.count == 0) {
+        // MTP_LOGE_SHELL("Event queue is empty");
+        return;
+    }
+
+    USB_OSAL_IRQ_LOCK_TYPE lock;
+    USB_OSAL_IRQ_LOCK(lock);
+
+    g_event_queue.busy = 1;
+    
+    mtp_event_t *evt = &g_event_queue.queue[g_event_queue.head];
+    if (usbd_mtp_start_write_int(evt->event_code, evt->params)) {
+        g_event_queue.busy = 0;
+        USB_OSAL_IRQ_UNLOCK(lock);
+        MTP_LOGE_SHELL("Failed to send event: 0x%04X", evt->event_code);
+        return;
+    }
+
+    g_event_queue.head = (g_event_queue.head + 1) % MAX_PENDING_EVENTS;
+    g_event_queue.count--;
+
+    USB_OSAL_IRQ_UNLOCK(lock);
+
+    MTP_LOGD_SHELL("Event sent: 0x%04X", evt->event_code);
+}
+
+int mtp_enqueue_event(uint16_t code, const uint32_t params[3])
+{
+    if (g_event_queue.count >= MAX_PENDING_EVENTS) {
+        MTP_LOGE_SHELL("Event queue full");
+        return -1;
+    }
+
+    MTP_LOGD_SHELL("Enqueue event: 0x%04X", code);
+
+    USB_OSAL_IRQ_LOCK_TYPE lock;
+    USB_OSAL_IRQ_LOCK(lock);
+
+    mtp_event_t *evt = &g_event_queue.queue[g_event_queue.tail];
+    evt->event_code = code;
+    memcpy(evt->params, params, 12);
+    evt->pending = true;
+    
+    g_event_queue.tail = (g_event_queue.tail + 1) % MAX_PENDING_EVENTS;
+    g_event_queue.count++;
+
+    if (!g_event_queue.busy) {
+        mtp_process_event_queue();
+    }
+
+    USB_OSAL_IRQ_UNLOCK(lock);
+
+    return 0;
+}
+
+void mtp_notify_object_add(uint32_t handle, uint32_t parent_handle)
+{
+    mtp_enqueue_event(MTP_EVENT_OBJECT_ADDED, (const uint32_t[]){handle, MTP_FORMAT_ASSOCIATION, parent_handle});
+}
+
+void mtp_notify_object_removed(uint32_t handle)
+{
+    mtp_enqueue_event(MTP_EVENT_OBJECT_REMOVED, (const uint32_t[]){handle, 0, 0});
+}
+
+void mtp_notify_object_info_changed(uint32_t handle)
+{
+    mtp_enqueue_event(MTP_EVENT_OBJECT_INFO_CHANGED, (const uint32_t[]){handle, 0, 0});
+}
+
+// 强制刷新MTP客户端显示
+void mtp_force_refresh(void)
+{
+    // 发送多个事件来强制客户端刷新
+    mtp_enqueue_event(MTP_EVENT_STORAGE_INFO_CHANGED, (const uint32_t[]){0xAAAA0001 >> 24, 0, 0});
+    
+    // 可选：发送设备信息变化事件
+    // mtp_enqueue_event(MTP_EVENT_DEVICE_INFO_CHANGED, (const uint32_t[]){0, 0, 0});
+}
+
+extern uint32_t mtp_handle_get_from_fullpath(const char *fullpath);
+extern uint32_t mtp_parent_handle_get_from_fullpath(const char *fullpath);
+extern char *usbd_mtp_fs_normalize_path(const char *base, const char *path);
+
+// 删除MTP文件
+int usbd_mtp_remove(const char *abspath)
+{
+    uint32_t handle = mtp_handle_get_from_fullpath(abspath);
+    if (handle == 0) {
+        return -1;
+    }
+
+    mtp_notify_object_removed(handle);
+
+    return 0;
+}
+
+// 新建MTP文件
+int usbd_mtp_file_create(const char *abspath)
+{
+    uint32_t handle = mtp_handle_get_from_fullpath(abspath);
+    uint32_t parent_handle = mtp_parent_handle_get_from_fullpath(abspath);
+    if (handle == 0) {
+        MTP_LOGE_SHELL("Failed to get handle from path: %s", abspath);
+        return -1;
+    }
+
+    // 发送对象添加事件
+    mtp_notify_object_add(handle, parent_handle);
+    
+    // 可选：发送存储信息变化事件，强制客户端刷新
+    // mtp_enqueue_event(MTP_EVENT_STORAGE_INFO_CHANGED, (const uint32_t[]){0xAAAA0001 >> 24, 0, 0});
+
+    return 0;
 }

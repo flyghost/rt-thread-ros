@@ -663,6 +663,12 @@ struct usbd_mtp_priv {
     uint32_t tx_length;           // 发送数据长度
     struct mtp_object *cur_object; // 当前操作对象
     uint32_t cur_trans_id;
+
+    struct {
+        uint16_t event_code;
+        uint32_t params[3];
+        bool pending;
+    } event;
 };
 
 // 声明全局变量

@@ -37,8 +37,8 @@ void mtp_data_recv_done(uint32_t len);
 
 int usbd_mtp_start_write(uint8_t *buf, uint32_t len);
 int usbd_mtp_start_read(uint8_t *buf, uint32_t len);
-
-
+int usbd_mtp_start_write_int(uint16_t code, const uint32_t params[3]);
+int mtp_enqueue_event(uint16_t code, const uint32_t params[3]);
 
 #ifdef __cplusplus
 }
