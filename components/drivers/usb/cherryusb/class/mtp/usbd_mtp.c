@@ -1,4 +1,3 @@
-#include "usb_config.h"
 #include "usbd_mtp_config.h"
 #include "usbd_core.h"
 #include "usbd_mtp.h"
