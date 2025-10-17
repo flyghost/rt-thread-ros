@@ -115,6 +115,9 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
     }
 
     for (int i = 0; support_format_extension[i].format != MTP_ARRAY_END_MARK; i++) {
+        if (support_format_extension[i].extension == NULL) {
+            continue;
+        }
         if (strcmp(dot, support_format_extension[i].extension) == 0) {
             MTP_LOGD_SHELL("File: %s, Format: 0x%x", filename, support_format_extension[i].format);
             return support_format_extension[i].format;
