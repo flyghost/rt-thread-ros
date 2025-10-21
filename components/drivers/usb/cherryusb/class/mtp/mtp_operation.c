@@ -1362,7 +1362,7 @@ static int mtp_delete_object(struct mtp_header *hdr)
     // 删除文件或目录
     int ret;
     if (obj->is_dir) {
-        ret = usbd_mtp_fs_rmdir(obj->file_full_path);
+        ret = usbd_mtp_fs_rmdir_recursive(obj->file_full_path);
     } else {
         ret = usbd_mtp_fs_rm_file(obj->file_full_path);
     }
