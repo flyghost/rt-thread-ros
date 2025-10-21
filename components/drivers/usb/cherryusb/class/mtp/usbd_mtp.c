@@ -122,10 +122,11 @@ void mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
     if (g_usbd_mtp.rx_length == 0) {
         /* 新命令包 */
         struct mtp_header *hdr = (struct mtp_header *)g_usbd_mtp.rx_buffer;
-        if (nbytes < sizeof(struct mtp_header)) {
-            usbd_mtp_start_read(mtp_rx_buffer, MTP_BUFFER_SIZE);
-            return;
-        }
+        // PC发送文件过来，会存在最后一包小于mtp头长度的，所以以下代码不需要
+        // if (nbytes < sizeof(struct mtp_header)) {
+        //     usbd_mtp_start_read(mtp_rx_buffer, MTP_BUFFER_SIZE);
+        //     return;
+        // }
         
         g_usbd_mtp.rx_total_length = hdr->conlen;
         g_usbd_mtp.rx_length = nbytes;

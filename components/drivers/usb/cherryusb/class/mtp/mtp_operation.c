@@ -1590,12 +1590,14 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
         }
 
         recv_len = usbd_mtp_fs_write_file(g_mtp_data_transfer_ctrl.fp, (hdr + 1), len - sizeof(struct mtp_header));
+
+        // MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
     }
     else {
         recv_len = usbd_mtp_fs_write_file(g_mtp_data_transfer_ctrl.fp, (hdr), len);
-    }
 
-    MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
+        // MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
+    }
 
     if (recv_len < 0) {
         MTP_LOGE_SHELL("Failed to write file");
@@ -1613,6 +1615,8 @@ static int mtp_send_object_data2(struct mtp_header *hdr, uint32_t len)
         g_mtp_data_transfer_ctrl.len += len;
         g_usbd_mtp.cur_object->file_size += recv_len;
     }
+
+    MTP_LOGD_SHELL("current write %d bytes, tot write %d bytes, tot = %d", recv_len, g_mtp_data_transfer_ctrl.len, g_mtp_data_transfer_ctrl.tot_len);
 
     if (g_mtp_data_transfer_ctrl.len >= g_mtp_data_transfer_ctrl.tot_len) {
         usbd_mtp_fs_close_file(g_mtp_data_transfer_ctrl.fp);
@@ -2356,12 +2360,16 @@ static void mtp_packet_print(uint8_t *data, uint32_t len)
     uint32_t param_num = (len - sizeof(struct mtp_header)) / sizeof(hdr->param[0]);
 
     MTP_LOGI_SHELL("============================ [%d] ===============================", msg_count);
-    MTP_LOGI_SHELL("recv %d types, mtp header, conlen : %d, contype : 0x%04X, code : 0x%04X, trans_id : 0x%08X", 
-                    len, hdr->conlen, hdr->contype, hdr->code, hdr->trans_id);
+    MTP_LOGI_SHELL("recv %d types, mtp header, conlen : %d, contype : 0x%04X, code : 0x%04X, trans_id : 0x%08X, param_num : %d", 
+                    len, hdr->conlen, hdr->contype, hdr->code, hdr->trans_id, param_num);
 
-    for (uint32_t i = 0; i < param_num; i++) {
-        MTP_LOGI_SHELL("param[%d] = 0x%08X", i, hdr->param[i]);
+    if (hdr->contype == MTP_CONTAINER_TYPE_DATA) {
+        param_num = (param_num >= 10 ? 10 : param_num);
     }
+
+    // for (uint32_t i = 0; i < param_num; i++) {
+    //     MTP_LOGI_SHELL("param[%d] = 0x%08X", i, hdr->param[i]);
+    // }
     MTP_LOGI_SHELL("===========================================================");
 
     msg_count++;
@@ -2380,7 +2388,8 @@ int mtp_command_handler(uint8_t *data, uint32_t len)
         return mtp_send_response(MTP_RESPONSE_SESSION_NOT_OPEN, hdr->trans_id);
     }
 
-    if (len < sizeof(struct mtp_header)) {
+    // PC发送文件过来，会存在最后一包小于mtp头长度的
+    if (len < sizeof(struct mtp_header) && g_mtp_data_transfer_ctrl.state != MTP_XFER_DATA_RECEIVING) {
         MTP_LOGE_SHELL("mtp header len invalid : %d", len);
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
     }
