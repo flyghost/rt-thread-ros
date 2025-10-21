@@ -12,7 +12,7 @@
 #define MTP_ROOT_PARENT_HANDLE  0x00000000      // 根目录下文件的父句柄
 
 #define MTP_XFER_BUFFER_SIZE    (3 + sizeof(struct mtp_header)) // 传输缓冲区大小，包含头部
-#define MTP_XFER_PAYLOAD_SIZE   (512)
+#define MTP_XFER_PAYLOAD_SIZE   (MTP_BUFFER_SIZE - sizeof(struct mtp_header))
 
 #define MTP_SCANNE_DIR_MAX_DEPTH  8               // 最大扫描目录深度
 
@@ -1161,8 +1161,18 @@ static int mtp_send_object_data(void)
     g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_SENDING_DATA;
 
     uint32_t chunk_size = (MTP_BUFFER_SIZE > UINT32_MAX) ? UINT32_MAX : MTP_BUFFER_SIZE;
+    int len;
+
+    if (g_mtp_transfer_ctrl.tx_count == 0) {
     chunk_size = (chunk_size > MTP_XFER_PAYLOAD_SIZE) ? MTP_XFER_PAYLOAD_SIZE : chunk_size;
-    int len = usbd_mtp_fs_read_file(g_mtp_transfer_ctrl.fp, g_usbd_mtp.tx_buffer + sizeof(struct mtp_header), chunk_size);
+        len = usbd_mtp_fs_read_file(g_mtp_transfer_ctrl.fp, g_usbd_mtp.tx_buffer + sizeof(struct mtp_header), chunk_size);
+    }
+    else {
+        len = usbd_mtp_fs_read_file(g_mtp_transfer_ctrl.fp, g_usbd_mtp.tx_buffer, chunk_size);
+    }
+
+    MTP_LOGD_SHELL("file read %d %d", len, chunk_size);
+
     if (len < 0) {
         g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
         MTP_LOGE_SHELL("File read error: %s", obj->file_full_path);
@@ -1179,10 +1189,25 @@ static int mtp_send_object_data(void)
         ret = mtp_send_response(MTP_RESPONSE_OK, g_mtp_transfer_ctrl.trans_id);
     }
     else {
+        if (g_mtp_transfer_ctrl.tx_count == 0) {
         g_mtp_transfer_ctrl.tx_count += len;
+
+            struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
+            resp->conlen = sizeof(struct mtp_header) + obj->file_size;
+            resp->contype = MTP_CONTAINER_TYPE_DATA;
+            resp->code = MTP_OPERATION_GET_OBJECT;
+            resp->trans_id = g_mtp_transfer_ctrl.trans_id;
+
+            ret = usbd_mtp_start_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + len);
+
+        }
+        else {
+            g_mtp_transfer_ctrl.tx_count += len;
+            ret = usbd_mtp_start_write(g_usbd_mtp.tx_buffer, len);
+        }
+        
         MTP_LOGD_SHELL("Sending object data: %s, current send=%d, total send=%d", obj->file_full_path, len, g_mtp_transfer_ctrl.tx_count);
 
-        ret = mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + len, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT, g_mtp_transfer_ctrl.trans_id);
         if (ret) {
             MTP_LOGE_SHELL("Failed to start write for object data: %s", obj->file_full_path);
             g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
@@ -1241,6 +1266,8 @@ static int mtp_get_object(struct mtp_header *hdr)
         usb_free(obj);
         return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
     }
+
+    MTP_LOGD_SHELL("object file size = %d", obj->file_size);
 
     // 5. 根据文件大小选择发送策略
     if (obj->file_size <= MTP_XFER_PAYLOAD_SIZE) {
