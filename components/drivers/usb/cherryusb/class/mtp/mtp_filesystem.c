@@ -99,6 +99,12 @@ int usbd_mtp_fs_rmdir_recursive(const char *path)
     void *entry;
     int ret = 0;
     
+    char *full_path = (char *)usb_malloc(CONFIG_USBDEV_MTP_MAX_PATHNAME);
+    if (!full_path) {
+        MTP_LOGE_SHELL("malloc error");
+        return -1;
+    }
+    
     while ((entry = usbd_fs_readdir(dir)) != NULL) {
         const char *name = usbd_fs_name_from_dent(entry);
         
@@ -108,8 +114,8 @@ int usbd_mtp_fs_rmdir_recursive(const char *path)
         }
         
         // 构建完整路径
-        char full_path[CONFIG_USBDEV_MTP_MAX_PATHNAME];
-        snprintf(full_path, sizeof(full_path), "%s/%s", path, name);
+        memset(full_path, 0, CONFIG_USBDEV_MTP_MAX_PATHNAME);
+        snprintf(full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s/%s", path, name);
         
         if (usbd_fs_is_dir_from_dent(entry)) {
             // 递归删除子目录
@@ -124,6 +130,8 @@ int usbd_mtp_fs_rmdir_recursive(const char *path)
             break;
         }
     }
+    
+    usb_free(full_path);
     
     usbd_fs_closedir(dir);
     
