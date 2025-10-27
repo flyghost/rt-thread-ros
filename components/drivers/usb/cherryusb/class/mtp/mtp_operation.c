@@ -202,28 +202,27 @@ static uint32_t mtp_pack_string_utf_16le(uint8_t *buf, uint32_t offset, const ch
     return offset;
 }
 
-static uint32_t mtp_parse_string_utf_16le(const uint8_t *buf, uint32_t offset, char *out_str)
+static uint32_t mtp_pack_string_utf_16le_length(const char *str)
 {
-    if (!buf || !out_str) return 0;
+    uint32_t offset = 0;
 
-    // 读取长度字节
-    uint8_t char_count = buf[offset++];
-    if (char_count == 0) {
-        out_str[0] = '\0';
-        return offset + 2;  // 跳过终止符
+    if (!str || !str[0]) {
+        offset++;
+        return offset;
+    }
+    uint8_t len = 0;
+    const char *p = str;
+    while (*p) { len++; p++; }
+    offset++;
+    for (uint8_t i = 0; i < len; i++) {
+        offset++;
+        offset++;
     }
 
-    // 实际字符数（减去终止符）
-    uint8_t actual_len = char_count - 1;
-    
-    // 转换为UTF-8（简化处理）
-    for (uint8_t i = 0; i < actual_len; i++) {
-        out_str[i] = buf[offset];  // 取低字节
-        offset += 2;               // 跳过高字节
-    }
-    out_str[actual_len] = '\0';
+    offset++;
+    offset++;
 
-    return offset + 2;  // 跳过终止符
+    return offset;
 }
 
 static uint32_t mtp_pack_array_utf_16le(uint8_t *buf, uint32_t offset, uint8_t *src, uint32_t len)
@@ -2079,6 +2078,66 @@ static const char* mtp_get_display_name(const struct mtp_object *obj) {
     return obj->file_full_name;
 }
 
+static uint32_t mtp_fill_property_value_length(const struct mtp_object *obj, uint16_t prop_code, uint8_t *buf, uint32_t offset, uint16_t *data_type)
+{
+    uint32_t length = 0;
+
+    switch (prop_code) {
+        case MTP_PROPERTY_STORAGE_ID:
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_FORMAT:
+            length += sizeof(uint16_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_SIZE:
+            length += sizeof(uint32_t);
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_FILE_NAME:
+            length += mtp_pack_string_utf_16le_length(mtp_get_object_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_object_name(obj), usb_strlen(mtp_get_object_name(obj)));
+            break;
+        case MTP_PROPERTY_NAME:
+            length += mtp_pack_string_utf_16le_length(mtp_get_base_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_base_name(obj), usb_strlen(mtp_get_base_name(obj)));
+            break;
+        case MTP_PROPERTY_DISPLAY_NAME:
+            length += mtp_pack_string_utf_16le_length(mtp_get_display_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_display_name(obj), usb_strlen(mtp_get_display_name(obj)));
+            break;
+
+        case MTP_PROPERTY_PARENT_OBJECT:
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_PROTECTION_STATUS:
+            length += sizeof(uint16_t);
+            break;
+
+        case MTP_PROPERTY_DATE_MODIFIED: {
+            length += mtp_pack_string_utf_16le_length(usbd_mtp_fs_modify_time(obj->file_full_path));
+            break;
+        }
+
+        case MTP_PROPERTY_DATE_CREATED: {
+            length += mtp_pack_string_utf_16le_length(usbd_mtp_fs_create_time(obj->file_full_path));
+            break;
+        }
+
+        case MTP_PROPERTY_PERSISTENT_UID:
+            length += 16;
+            break;
+
+        default:
+            length += sizeof(uint32_t);
+            break;
+    }
+    return length;
+}
+
 // 注意：这里面的数据长度一旦超过，会出问题，需要增加边界检测
 static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t prop_code, uint8_t *buf, uint32_t offset, uint16_t *data_type)
 {
@@ -2267,6 +2326,199 @@ static bool is_windows_special_request(const uint32_t *params, uint32_t *handle,
     return is_windows;
 }
 
+typedef struct {
+    uint8_t *buf;
+    uint32_t length;
+    uint32_t offset;
+} mtp_prop_list_node_t;
+
+typedef struct {
+    struct mtp_object *obj;
+    const uint16_t *prop_list;
+    uint32_t prop_count;
+    uint32_t handle;
+    uint16_t prop_code;
+    uint32_t trans_id;
+    bool request_all_props;
+
+    mtp_prop_list_node_t *prop_list_node;
+    uint32_t prop_list_cur_node;
+
+    bool all_sent;
+
+    uint32_t total_len;
+} mtp_get_object_prop_list_t;
+
+static mtp_get_object_prop_list_t g_mtp_get_object_prop_list_param = {0};
+
+static int mtp_get_object_prop_list_send(void *param)
+{
+    mtp_get_object_prop_list_t *mtp_get_object_prop_list_ptr = (mtp_get_object_prop_list_t *)param;
+
+    const uint16_t *prop_list = mtp_get_object_prop_list_ptr->prop_list;
+    struct mtp_object *obj    = mtp_get_object_prop_list_ptr->obj;
+    uint32_t prop_count       = mtp_get_object_prop_list_ptr->prop_count;
+    uint32_t handle           = mtp_get_object_prop_list_ptr->handle;
+    uint16_t prop_code        = mtp_get_object_prop_list_ptr->prop_code;
+    uint32_t trans_id         = mtp_get_object_prop_list_ptr->trans_id;
+    bool request_all_props    = mtp_get_object_prop_list_ptr->request_all_props;
+    mtp_prop_list_node_t *prop_list_node = mtp_get_object_prop_list_ptr->prop_list_node;
+    uint32_t cur_node = 0;
+
+    // 写入属性数量
+    uint8_t *tx_buf  = g_usbd_mtp.tx_buffer;
+    uint32_t offset = sizeof(struct mtp_header);
+    struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + offset);
+    elem_list->element_len = prop_count;
+    offset += offsetof(struct mtp_object_prop_list, element);
+
+    MTP_LOGD_SHELL("Request prob count : %d", prop_count);
+
+    // MTP_LOGD_SHELL("222222----------------- %d --------------", tot_len);
+
+    uint16_t current_prop;
+    uint16_t data_type;
+    uint32_t tx_counter = 0;
+    uint32_t tx_remain;
+
+    if (g_mtp_transfer_ctrl.state == MTP_TRANSFER_STATE_IDLE) {
+        struct mtp_object_prop_element *elem;
+        struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + sizeof(struct mtp_header));
+        elem_list->element_len = prop_count;
+        tx_counter = sizeof(struct mtp_header) + offsetof(struct mtp_object_prop_list, element);
+
+        if (request_all_props) {
+            for (uint32_t i = 0; i < prop_count; i++) {
+                current_prop = prop_list[i];
+                elem = (struct mtp_object_prop_element *)prop_list_node[i].buf;
+
+                mtp_fill_property_value(obj, current_prop, prop_list_node[i].buf, offsetof(struct mtp_object_prop_element, value), &data_type);
+                elem->ObjectHandle = handle;
+                elem->PropertyCode = current_prop;
+                elem->Datatype = data_type;
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf, prop_list_node[i].length);
+            }
+        }
+        else {
+            current_prop = prop_code;
+            elem = (struct mtp_object_prop_element *)prop_list_node[0].buf;
+
+            mtp_fill_property_value(obj, current_prop, prop_list_node[0].buf, offsetof(struct mtp_object_prop_element, value), &data_type);
+            elem->ObjectHandle = handle;
+            elem->PropertyCode = current_prop;
+            elem->Datatype = data_type;
+
+            // MTP_DUMP_SHELL(16, prop_list_node[0].buf, prop_list_node[0].length);
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = 0;
+        mtp_get_object_prop_list_ptr->all_sent = false;
+        uint32_t cur_node = mtp_get_object_prop_list_ptr->prop_list_cur_node;
+        uint32_t total_len = tx_counter + mtp_get_object_prop_list_ptr->total_len;
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            tx_remain = MTP_BUFFER_SIZE - tx_counter;
+
+            // 当前节点已经发送完
+            if (tx_remain >= prop_list_node[i].length) {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf, prop_list_node[i].length);
+                tx_counter += prop_list_node[i].length;
+                prop_list_node[i].offset = prop_list_node[i].length;
+                cur_node = i + 1;
+
+                if (i + 1 == prop_count) {
+                    mtp_get_object_prop_list_ptr->all_sent = true;
+                    MTP_LOGI_SHELL("All properties sent");
+                }
+            }
+            // 还未发送完
+            else {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf, tx_remain);
+                tx_counter += tx_remain;
+                prop_list_node[i].offset = tx_remain;
+                cur_node = i;
+                // MTP_LOGI_SHELL("Partial property sent, node=%d, remain=%d", i, prop_list_node[i].length - prop_list_node[i].offset);
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+            }
+
+            if (tx_counter >= MTP_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = cur_node;
+
+        g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_SENDING_DATA;
+
+        struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
+        resp->conlen = total_len;
+        resp->contype = MTP_CONTAINER_TYPE_DATA;
+        resp->code = MTP_OPERATION_GET_OBJECT_PROP_LIST;
+        resp->trans_id = trans_id;
+
+        return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, tx_counter);
+        // return mtp_write(g_usbd_mtp.tx_buffer, tx_counter, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROP_LIST, trans_id);
+    }
+    else if (g_mtp_transfer_ctrl.state == MTP_TRANSFER_STATE_SENDING_DATA) 
+    {
+        if (mtp_get_object_prop_list_ptr->all_sent) {
+            for (uint32_t i = 0; i < prop_count; i++) {
+                usb_free(prop_list_node[i].buf);
+            }
+            usb_free(prop_list_node);
+            usb_free(obj);
+            MTP_LOGD_SHELL("All properties sent");
+            g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_SENDING_RESPONSE;
+            return mtp_send_response(MTP_RESPONSE_OK, trans_id);
+        }
+        
+        cur_node = mtp_get_object_prop_list_ptr->prop_list_cur_node;
+        tx_counter = 0;
+
+        uint32_t start = cur_node;
+
+        for (uint32_t i = start; i < prop_count; i++) {
+            tx_remain = MTP_BUFFER_SIZE - tx_counter;
+
+            // 当前节点已经发送完
+            if (tx_remain >= prop_list_node[i].length - prop_list_node[i].offset) {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+                tx_counter += prop_list_node[i].length - prop_list_node[i].offset;
+                prop_list_node[i].offset = prop_list_node[i].length;
+                cur_node = i + 1;
+
+                if (i + 1 == prop_count) {
+                    mtp_get_object_prop_list_ptr->all_sent = true;
+                    MTP_LOGI_SHELL("All properties sent");
+                }
+            }
+            // 还未发送完
+            else {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf + prop_list_node[i].offset, tx_remain);
+                tx_counter += tx_remain;
+                prop_list_node[i].offset += tx_remain;
+                cur_node = i;
+                // MTP_LOGI_SHELL("Partial property sent, node=%d, remain=%d", i, prop_list_node[i].length - prop_list_node[i].offset);
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+            }
+
+            if (tx_counter >= MTP_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = cur_node;
+
+        return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, tx_counter);
+
+        // return mtp_write(g_usbd_mtp.tx_buffer, tx_counter, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROP_LIST, trans_id);
+    }
+    else {
+        MTP_LOGE_SHELL("Invalid transfer state %d", g_mtp_transfer_ctrl.state);
+        return mtp_send_response(MTP_RESPONSE_GENERAL_ERROR, trans_id);
+    }
+}
+
 /* 主处理函数（兼容Windows和标准协议）*/
 static int mtp_get_object_prop_list(struct mtp_header *hdr)
 {
@@ -2278,10 +2530,6 @@ static int mtp_get_object_prop_list(struct mtp_header *hdr)
 
     uint32_t handle, group_code, depth;
     uint16_t prop_code, format_code;
-    // bool is_windows = false;
-    // 准备响应缓冲区
-    uint8_t *tx_buf;
-    uint32_t offset;
 
     /* 检测请求类型 */
     is_windows_special_request(hdr->param, &handle, &prop_code, &group_code, &depth, &format_code);
@@ -2339,65 +2587,50 @@ static int mtp_get_object_prop_list(struct mtp_header *hdr)
         return mtp_send_response(MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED, hdr->trans_id);
     }
 
-    // 写入属性数量
-    tx_buf = g_usbd_mtp.tx_buffer;
-    offset = sizeof(struct mtp_header);
-    struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + offset);
-    elem_list->element_len = prop_count;
-    offset += offsetof(struct mtp_object_prop_list, element);
+    usb_memset(&g_mtp_transfer_ctrl, 0, sizeof(mtp_transfer_ctrl_t));
+    g_mtp_transfer_ctrl.obj = obj;
+    g_mtp_transfer_ctrl.trans_id = hdr->trans_id;
+    g_mtp_transfer_ctrl.tx_count = 0;
+    g_mtp_transfer_ctrl.function = mtp_get_object_prop_list_send;
+    g_mtp_transfer_ctrl.param = &g_mtp_get_object_prop_list_param;
+    g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
 
-    MTP_LOGD_SHELL("Request prob count : %d", prop_count);
+    g_mtp_get_object_prop_list_param.obj = obj;
+    g_mtp_get_object_prop_list_param.prop_list = prop_list;
+    g_mtp_get_object_prop_list_param.prop_count = prop_count;
+    g_mtp_get_object_prop_list_param.handle = handle;
+    g_mtp_get_object_prop_list_param.prop_code = prop_code;
+    g_mtp_get_object_prop_list_param.trans_id = hdr->trans_id;
+    g_mtp_get_object_prop_list_param.request_all_props = request_all_props;
+
+    g_mtp_get_object_prop_list_param.prop_list_node = usb_malloc(sizeof(mtp_prop_list_node_t) * prop_count);
+    usb_memset(g_mtp_get_object_prop_list_param.prop_list_node, 0, sizeof(mtp_prop_list_node_t) * prop_count);
 
     uint16_t current_prop;
+    uint32_t total_len = 0;
     /* 处理属性请求 */
     if (request_all_props) {
         for (uint32_t i = 0; i < prop_count; i++) {
             current_prop = prop_list[i];
-            
-            // 检查缓冲区剩余空间
-            if (offset + sizeof(struct mtp_object_prop_element) > MTP_BUFFER_SIZE) { // 预留64字节给单个属性
-                MTP_LOGE_SHELL("Buffer overflow");
-                usb_free(obj);
-                return mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, hdr->trans_id);
-            }
-
-            // 填充属性头
-            struct mtp_object_prop_element *elem = (struct mtp_object_prop_element *)(tx_buf + offset);
-            uint16_t data_type;
-            elem->ObjectHandle = handle;
-            elem->PropertyCode = current_prop;
-            offset += offsetof(struct mtp_object_prop_element, value);
-
-            // 填充属性值
-            offset = mtp_fill_property_value(obj, current_prop, tx_buf, offset, &data_type);
-            elem->Datatype = data_type; // 解决编译告警，提示未对齐
+            g_mtp_get_object_prop_list_param.prop_list_node[i].length = offsetof(struct mtp_object_prop_element, value);
+            g_mtp_get_object_prop_list_param.prop_list_node[i].length += mtp_fill_property_value_length(obj, current_prop, NULL, 0, NULL);
+            g_mtp_get_object_prop_list_param.prop_list_node[i].buf = usb_malloc(g_mtp_get_object_prop_list_param.prop_list_node[i].length);
+            total_len += g_mtp_get_object_prop_list_param.prop_list_node[i].length;
         }
     }
     else {
         current_prop = prop_code;
-
-        // 检查缓冲区剩余空间
-        if (offset + sizeof(struct mtp_object_prop_element) > MTP_BUFFER_SIZE) { // 预留64字节给单个属性
-            MTP_LOGE_SHELL("Buffer overflow");
-            usb_free(obj);
-            return mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, hdr->trans_id);
-        }
-
-        // 填充属性头
-        struct mtp_object_prop_element *elem = (struct mtp_object_prop_element *)(tx_buf + offset);
-        uint16_t data_type;
-        elem->ObjectHandle = handle;
-        elem->PropertyCode = current_prop;
-        offset += offsetof(struct mtp_object_prop_element, value);
-
-        // 填充属性值
-        offset = mtp_fill_property_value(obj, current_prop, tx_buf, offset, &data_type);
-        elem->Datatype = data_type; // 解决编译告警，提示未对齐
+        g_mtp_get_object_prop_list_param.prop_list_node[0].length = offsetof(struct mtp_object_prop_element, value);
+        g_mtp_get_object_prop_list_param.prop_list_node[0].length += mtp_fill_property_value_length(obj, current_prop, NULL, 0, NULL);
+        g_mtp_get_object_prop_list_param.prop_list_node[0].buf = usb_malloc(g_mtp_get_object_prop_list_param.prop_list_node[0].length);
+        total_len += g_mtp_get_object_prop_list_param.prop_list_node[0].length;
     }
 
-    usb_free(obj);
+    MTP_LOGI_SHELL(" ------------------------------ Total property data length: %d bytes", total_len);
 
-    return mtp_write(g_usbd_mtp.tx_buffer, offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROP_LIST, hdr->trans_id);
+    g_mtp_get_object_prop_list_param.total_len = total_len;
+
+    return mtp_get_object_prop_list_send(&g_mtp_get_object_prop_list_param);
 }
 
 struct reverse_handle_ctx2 {
