@@ -1328,6 +1328,8 @@ static int mtp_get_object_info_fsm(void *parameter)
     else {
         MTP_LOGE_SHELL("Invalid state in get_object_info_fsm: %d", g_mtp_send_ctrl.status);
     }
+
+    return 0;
 }
 
 // 获取对象信息
@@ -1340,7 +1342,7 @@ static int mtp_get_object_info(struct mtp_header *hdr, uint32_t len)
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
     }
 
-    if (g_mtp_send_ctrl.status != MTP_RECV_STATUS_IDLE) {
+    if (g_mtp_send_ctrl.status != MTP_SEND_STATUS_IDLE) {
         MTP_LOGE_SHELL("Invalid ctrl status: %d", g_mtp_send_ctrl.status);
         return mtp_send_response(MTP_RESPONSE_ACCESS_DENIED, hdr->trans_id);
     }
