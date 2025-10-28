@@ -131,6 +131,21 @@ const char *usbd_fs_top_mtp_path(void)
     return usbd_mtp_fs_mount_path(0);
 }
 
+typedef struct {
+    const char *str;        // 原始字符串指针
+    uint32_t str_len;       // 字符串长度(字符数)
+    uint32_t pos;           // 当前处理位置(字符索引)
+    bool need_length_byte;  // 是否需要写入长度字节
+    bool first_call;        // 是否是第一次调用
+} mtp_string_2_utf16le_ctrl_t;
+
+typedef struct {
+    bool utf_16le_half;
+    uint32_t utf_16le_pos;
+    uint32_t tot_len;
+    char *str_addr;
+} mtp_utf16le_2_string_ctrl_t;
+
 #define MTP_PACK_UINT8_ARRAY(dest, offset, val) \
     (*(uint8_t *)((uint8_t *)dest + offset) = (uint8_t)(val), offset + sizeof(uint8_t))
 
@@ -176,11 +191,10 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
     return MTP_FORMAT_UNDEFINED;
 }
 
-// 辅助函数：打包MTP字符串（返回新offset）
-static uint32_t mtp_pack_string(uint8_t *buf, uint32_t offset, const char *str)
+static uint32_t mtp_convert_string_2_utf16le_without_termsymbol(uint8_t *buf, uint32_t offset, const char *str)
 {
     if (!str || !str[0]) {
-        buf[offset++] = 0; // 空字符串，长度为0
+        buf[offset++] = 0;
         return offset;
     }
     uint8_t len = 0;
@@ -198,19 +212,22 @@ static uint32_t mtp_pack_string(uint8_t *buf, uint32_t offset, const char *str)
     return offset;
 }
 
-static uint32_t mtp_pack_string_utf_16le(uint8_t *buf, uint32_t offset, const char *str)
+static uint32_t mtp_convert_string_2_utf16le(uint8_t *buf, uint32_t offset, const char *str)
 {
     if (!str || !str[0]) {
-        buf[offset++] = 0; // 空字符串，长度为0
+        buf[offset++] = 0;
         return offset;
     }
     uint8_t len = 0;
     const char *p = str;
-    while (*p) { len++; p++; }
+    while (*p) {
+        len++;
+        p++;
+    }
     buf[offset++] = len + 1;
     for (uint8_t i = 0; i < len; i++) {
         buf[offset++] = str[i];
-        buf[offset++] = 0x00; // UTF-16LE低字节
+        buf[offset++] = 0x00;
     }
 
     buf[offset++] = 0x00;
@@ -219,33 +236,21 @@ static uint32_t mtp_pack_string_utf_16le(uint8_t *buf, uint32_t offset, const ch
     return offset;
 }
 
-// 字符串打包上下文结构体
-typedef struct {
-    const char *str;        // 原始字符串指针
-    uint32_t str_len;       // 字符串长度(字符数)
-    uint32_t pos;           // 当前处理位置(字符索引)
-    bool need_length_byte;  // 是否需要写入长度字节
-    bool first_call;        // 是否是第一次调用
-} mtp_string_packer_ctx_t;
-
-/**
- * @brief 初始化字符串打包上下文
- * @param ctx 上下文指针
- * @param str 要打包的字符串
- * @note 如果str为NULL或空字符串，会初始化一个空字符串打包上下文
- */
-static void mtp_pack_utf_16le_string_init(mtp_string_packer_ctx_t *ctx, const char *str)
+static void mtp_convert_string_2_utf16le_init(mtp_string_2_utf16le_ctrl_t *ctx, const char *str)
 {
     ctx->str = str;
     ctx->pos = 0;
     ctx->first_call = true;
     ctx->need_length_byte = true;
-    
-    // 计算字符串长度
     ctx->str_len = 0;
+
+    // 如果str为NULL或空字符串，会初始化一个空字符串打包上下文
     if (str && str[0]) {
         const char *p = str;
-        while (*p) { ctx->str_len++; p++; }
+        while (*p) {
+            ctx->str_len++;
+            p++;
+        }
     }
 }
 
@@ -257,7 +262,7 @@ static void mtp_pack_utf_16le_string_init(mtp_string_packer_ctx_t *ctx, const ch
  * @return 已使用的缓冲区字节数
  * @note 返回值可能小于buf_size，表示打包完成
  */
-static uint32_t mtp_pack_utf_16le_string(mtp_string_packer_ctx_t *ctx, uint8_t *buf, uint32_t buf_size)
+static uint32_t mtp_convert_string_2_utf16le_step(mtp_string_2_utf16le_ctrl_t *ctx, uint8_t *buf, uint32_t buf_size)
 {
     if (!buf || buf_size == 0) {
         return 0;
@@ -307,12 +312,7 @@ static uint32_t mtp_pack_utf_16le_string(mtp_string_packer_ctx_t *ctx, uint8_t *
     return used;
 }
 
-/**
- * @brief 检查字符串打包是否完成
- * @param ctx 打包上下文
- * @return true如果打包完成，false如果还有数据需要处理
- */
-static bool mtp_pack_utf_16le_is_end(mtp_string_packer_ctx_t *ctx)
+static bool mtp_check_string_2_utf16le_is_end(mtp_string_2_utf16le_ctrl_t *ctx)
 {
     if (!ctx->str || ctx->str_len == 0) {
         return !ctx->first_call;  // 空字符串只需要一次调用就完成
@@ -320,7 +320,7 @@ static bool mtp_pack_utf_16le_is_end(mtp_string_packer_ctx_t *ctx)
     return ctx->pos > ctx->str_len;  // 已经处理完所有字符和结尾null
 }
 
-static uint32_t mtp_pack_string_utf_16le_length(const char *str)
+static uint32_t mtp_calc_string_2_utf16le_length(const char *str)
 {
     uint32_t offset = 0;
 
@@ -330,7 +330,10 @@ static uint32_t mtp_pack_string_utf_16le_length(const char *str)
     }
     uint8_t len = 0;
     const char *p = str;
-    while (*p) { len++; p++; }
+    while (*p) {
+        len++;
+        p++;
+    }
     offset++;
     for (uint8_t i = 0; i < len; i++) {
         offset++;
@@ -343,54 +346,7 @@ static uint32_t mtp_pack_string_utf_16le_length(const char *str)
     return offset;
 }
 
-static uint32_t mtp_pack_array_utf_16le(uint8_t *buf, uint32_t offset, uint8_t *src, uint32_t len)
-{
-    if (!src || !src[0] || !len) {
-        buf[offset++] = 0;
-        return offset;
-    }
-
-    buf[offset++] = len + 1;
-    for (uint8_t i = 0; i < len; i++) {
-        buf[offset++] = src[i];
-        buf[offset++] = 0x00; // UTF-16LE低字节
-    }
-
-    buf[offset++] = 0x00;
-    buf[offset++] = 0x00;
-
-    return offset;
-}
-
-static uint32_t mtp_pack_uint8_array(uint8_t *buf, uint32_t offset, uint8_t *arr, uint32_t len)
-{
-    for (uint32_t i = 0; i < len; i++) {
-        *(uint8_t *)(buf + offset) = arr[i];
-        offset += 1;
-    }
-    return offset;
-}
-
-// 辅助函数：打包MTP数组（返回新offset）
-static uint32_t mtp_pack_uint16_array(uint8_t *buf, uint32_t offset, const uint16_t *arr, uint16_t count)
-{
-    *(uint32_t *)(buf + offset) = count;
-    offset += 4;
-    for (uint16_t i = 0; i < count; i++) {
-        *(uint16_t *)(buf + offset) = arr[i];
-        offset += 2;
-    }
-    return offset;
-}
-
-typedef struct {
-    bool utf_16le_half;
-    uint32_t utf_16le_pos;
-    uint32_t tot_len;
-    char *str_addr;
-} mtp_utf_16le_ctrl_t;
-
-static void mtp_unpack_utf_16le_string_init(mtp_utf_16le_ctrl_t *ctrl, uint32_t str_exp_len, uint32_t str_max_len)
+static void mtp_convert_utf16le_2_string_init(mtp_utf16le_2_string_ctrl_t *ctrl, uint32_t str_exp_len, uint32_t str_max_len)
 {
     ctrl->tot_len       = str_exp_len;
     ctrl->utf_16le_pos  = 0;
@@ -399,7 +355,7 @@ static void mtp_unpack_utf_16le_string_init(mtp_utf_16le_ctrl_t *ctrl, uint32_t 
     memset(ctrl->str_addr, 0, CONFIG_USBDEV_MTP_MAX_PATHNAME);
 }
 
-static void mtp_unpack_utf_16le_string_deinit(mtp_utf_16le_ctrl_t *ctrl)
+static void mtp_convert_utf16le_2_string_deinit(mtp_utf16le_2_string_ctrl_t *ctrl)
 {
     if (ctrl->str_addr) {
         usb_free(ctrl->str_addr);
@@ -407,7 +363,7 @@ static void mtp_unpack_utf_16le_string_deinit(mtp_utf_16le_ctrl_t *ctrl)
     }
 }
 
-static uint32_t mtp_unpack_utf_16le_string(mtp_utf_16le_ctrl_t *ctrl, uint8_t *src, uint32_t len)
+static uint32_t mtp_convert_utf16le_2_string_step(mtp_utf16le_2_string_ctrl_t *ctrl, uint8_t *src, uint32_t len)
 {
     uint16_t *data_ptr = (uint16_t *)src;
     uint32_t name_start = 0;
@@ -442,11 +398,31 @@ static uint32_t mtp_unpack_utf_16le_string(mtp_utf_16le_ctrl_t *ctrl, uint8_t *s
     return ctrl->utf_16le_pos - utf_16le_pos_start;
 }
 
-static int mtp_unpack_utf_16le_is_end(mtp_utf_16le_ctrl_t *ctrl)
+static int mtp_check_utf16le_2_string_is_end(mtp_utf16le_2_string_ctrl_t *ctrl)
 {
     return (ctrl->utf_16le_pos >= ctrl->tot_len);
 }
 
+static uint32_t mtp_pack_uint8_array(uint8_t *buf, uint32_t offset, uint8_t *arr, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++) {
+        *(uint8_t *)(buf + offset) = arr[i];
+        offset += 1;
+    }
+    return offset;
+}
+
+// 辅助函数：打包MTP数组（返回新offset）
+static uint32_t mtp_pack_uint16_array(uint8_t *buf, uint32_t offset, const uint16_t *arr, uint16_t count)
+{
+    *(uint32_t *)(buf + offset) = count;
+    offset += 4;
+    for (uint16_t i = 0; i < count; i++) {
+        *(uint16_t *)(buf + offset) = arr[i];
+        offset += 2;
+    }
+    return offset;
+}
 
 static uint32_t simple_hash(const char *str)
 {
@@ -914,7 +890,7 @@ static int mtp_get_device_info(struct mtp_header *hdr)
     offset += 2;
 
     // 2. VendorExtensionDesc
-    offset = mtp_pack_string(tx_buf, offset, mtp_extension_string);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, mtp_extension_string);
 
     // 3. FunctionalMode
     *(uint16_t*)(tx_buf + offset) = 0;
@@ -942,16 +918,16 @@ static int mtp_get_device_info(struct mtp_header *hdr)
     offset = mtp_pack_uint16_array(tx_buf, offset, supported_playback_formats, SUPPORTED_PLAYBACK_FORMATS_COUNT);
 
     // 9. Manufacturer
-    offset = mtp_pack_string(tx_buf, offset, MTP_MANUFACTURER_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_MANUFACTURER_STRING);
 
     // 10. Model
-    offset = mtp_pack_string(tx_buf, offset, MTP_MODEL_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_MODEL_STRING);
 
     // 11. DeviceVersion
-    offset = mtp_pack_string(tx_buf, offset, MTP_DEVICE_VERSION_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_DEVICE_VERSION_STRING);
 
     // 12. SerialNumber
-    offset = mtp_pack_string(tx_buf, offset, MTP_SERIAL_NUMBER_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_SERIAL_NUMBER_STRING);
 
     // === 构建响应头 ===
     return mtp_write(tx_buf, offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_DEVICE_INFO, hdr->trans_id);
@@ -1047,8 +1023,8 @@ static int _mtp_get_storage_info(struct mtp_header *hdr)
     info->MaxCapability = (uint64_t)(statfs_param.f_bsize * statfs_param.f_blocks);
     info->FreeSpaceInBytes = (uint64_t)(statfs_param.f_bsize * statfs_param.f_bfree);
     info->FreeSpaceInObjects = CONFIG_USBDEV_MTP_MAX_OBJECTS - object_count; // 计算剩余对象空间
-    offset = mtp_pack_string_utf_16le(buffer, offset, fs_name);
-    offset = mtp_pack_string_utf_16le(buffer, offset, fs_name);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, fs_name);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, fs_name);
     
     // 设置响应头
     return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_STORAGE_INFO, hdr->trans_id);
@@ -1274,7 +1250,7 @@ static uint32_t mtp_pack_object_filename(uint16_t *dest, size_t dest_size, const
         src_len = (max_bytes - 3) / 2;
     }
     
-    offset = mtp_pack_string_utf_16le(buffer, offset, src);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, src);
     
     // 确保不超过缓冲区
     if (offset > max_bytes) {
@@ -1295,7 +1271,7 @@ static void mtp_pack_object_info(struct mtp_object_info *info, struct mtp_object
 typedef struct {
     struct mtp_object *obj;
     uint32_t handle;
-    mtp_string_packer_ctx_t string_ctx;
+    mtp_string_2_utf16le_ctrl_t string_ctx;
 } mtp_get_object_info_param_t;
 
 static int mtp_get_object_info_fsm(void *parameter)
@@ -1304,14 +1280,14 @@ static int mtp_get_object_info_fsm(void *parameter)
 
     if (g_mtp_send_ctrl.status == MTP_SEND_STATUS_SENDING_DATA) {
         uint32_t used = 0;
-        if (mtp_pack_utf_16le_is_end(&param->string_ctx)) {
+        if (mtp_check_string_2_utf16le_is_end(&param->string_ctx)) {
             g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
             MTP_LOGD_SHELL("send [%d] complete", g_mtp_send_ctrl.tx_count);
             usb_free(param->obj);
             return mtp_send_response(MTP_RESPONSE_OK, g_mtp_send_ctrl.trans_id);
         }
         else {
-            used = mtp_pack_utf_16le_string(&param->string_ctx, g_usbd_mtp.tx_buffer, MTP_BUFFER_SIZE);
+            used = mtp_convert_string_2_utf16le_step(&param->string_ctx, g_usbd_mtp.tx_buffer, MTP_BUFFER_SIZE);
         }
         
         // 这里边界需要再多做一个处理，todo
@@ -1376,9 +1352,9 @@ static int mtp_get_object_info(struct mtp_header *hdr, uint32_t len)
 
     param.obj = obj;
 
-    mtp_pack_utf_16le_string_init(&param.string_ctx, obj->file_full_name);
+    mtp_convert_string_2_utf16le_init(&param.string_ctx, obj->file_full_name);
 
-    used = mtp_pack_utf_16le_string(&param.string_ctx, g_usbd_mtp.tx_buffer + offset, MTP_BUFFER_SIZE - offset);
+    used = mtp_convert_string_2_utf16le_step(&param.string_ctx, g_usbd_mtp.tx_buffer + offset, MTP_BUFFER_SIZE - offset);
 
     usb_memset(&g_mtp_send_ctrl, 0, sizeof(mtp_send_ctrl_t));
     g_mtp_send_ctrl.trans_id = hdr->trans_id;
@@ -1387,7 +1363,7 @@ static int mtp_get_object_info(struct mtp_header *hdr, uint32_t len)
     g_mtp_send_ctrl.param = &param;
     
     g_mtp_send_ctrl.total_len = sizeof(struct mtp_header) + offsetof(struct mtp_object_info, Filename) +
-                                    mtp_pack_string_utf_16le_length(obj->file_full_name) + 6 + 6;
+                                    mtp_calc_string_2_utf16le_length(obj->file_full_name) + 6 + 6;
 
     if (used + offset >= MTP_BUFFER_SIZE) {
         MTP_LOGD_SHELL("String too long, need multiple packets : %d %d", used, offset);
@@ -1655,13 +1631,13 @@ typedef struct {
     uint32_t parent_handle;
     uint16_t obj_format;
 
-    mtp_utf_16le_ctrl_t utf16le_name_ctrl;
+    mtp_utf16le_2_string_ctrl_t utf16le_name_ctrl;
 
 } mtp_send_object_info_param_t;
 
 static void mtp_send_object_info_clear(mtp_send_object_info_param_t *param)
 {
-    mtp_unpack_utf_16le_string_deinit(&param->utf16le_name_ctrl);
+    mtp_convert_utf16le_2_string_deinit(&param->utf16le_name_ctrl);
 
     usb_memset(param, 0, sizeof(mtp_send_object_info_param_t));
 }
@@ -1733,9 +1709,9 @@ static int mtp_send_object_info(struct mtp_header *hdr, uint32_t len)
 
         trans_param.obj_format = obj_info->ObjectFormat;
 
-        mtp_unpack_utf_16le_string_init(&trans_param.utf16le_name_ctrl, obj_info->Filename_len, CONFIG_USBDEV_MTP_MAX_PATHNAME);
+        mtp_convert_utf16le_2_string_init(&trans_param.utf16le_name_ctrl, obj_info->Filename_len, CONFIG_USBDEV_MTP_MAX_PATHNAME);
 
-        mtp_unpack_utf_16le_string(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
+        mtp_convert_utf16le_2_string_step(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
 
         // obj_info已经全部接收完
         if (g_mtp_recv_ctrl.recv_len < g_mtp_recv_ctrl.tot_len) {
@@ -1753,8 +1729,8 @@ static int mtp_send_object_info(struct mtp_header *hdr, uint32_t len)
         g_mtp_recv_ctrl.recv_len += len;
         name_start = 0;
 
-        if (!mtp_unpack_utf_16le_is_end(&trans_param.utf16le_name_ctrl)) {
-            mtp_unpack_utf_16le_string(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
+        if (!mtp_check_utf16le_2_string_is_end(&trans_param.utf16le_name_ctrl)) {
+            mtp_convert_utf16le_2_string_step(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
     }
 
         if (g_mtp_recv_ctrl.recv_len < g_mtp_recv_ctrl.tot_len) {
@@ -2001,8 +1977,8 @@ static int mtp_get_device_prop_desc(struct mtp_header *hdr)
 
         case MTP_TYPE_STR:
             MTP_LOGI_SHELL("MTP prop type : str");
-            offset = mtp_pack_string(desc_addr, offset, NULL);
-            offset = mtp_pack_string(desc_addr, offset, NULL);
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL);
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL);
             offset = MTP_PACK_UINT8_ARRAY(desc_addr, offset, (uint8_t)(prop->form_flag & 0xFF));
             break;
 
@@ -2033,7 +2009,7 @@ static int mtp_get_object_props_supported(uint8_t *tx_buffer, struct mtp_header 
     for (int i = 0; support_format_properties[i].format_code != MTP_ARRAY_END_MARK; i++) {
         if (support_format_properties[i].format_code == format_code) {
             uint16_t *prop_list = support_format_properties[i].properties;
-            MTP_LOGRAW_SHELL("found supported object property : ", *prop_list);
+            MTP_LOGRAW_SHELL("found supported object property : ");
             while (*prop_list != MTP_ARRAY_END_MARK) {
                 MTP_LOGRAW_SHELL("0x%04X ", *prop_list);
                 props->ObjectPropCode[props->ObjectPropCode_len++] = *prop_list++;
@@ -2125,7 +2101,7 @@ static int mtp_get_object_prop_desc(struct mtp_header *hdr)
             break;
         case MTP_TYPE_STR:
             MTP_LOGI_SHELL("MTP get obj prop desc type : str");
-            offset = mtp_pack_string(desc_addr, offset, NULL); // 默认值为空字符串
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL); // 默认值为空字符串
             break;
             
         default:
@@ -2238,15 +2214,15 @@ static uint32_t mtp_fill_property_value_length(const struct mtp_object *obj, uin
             break;
 
         case MTP_PROPERTY_OBJECT_FILE_NAME:
-            length += mtp_pack_string_utf_16le_length(mtp_get_object_name(obj));
+            length += mtp_calc_string_2_utf16le_length(mtp_get_object_name(obj));
             // MTP_DUMP_SHELL(16, mtp_get_object_name(obj), usb_strlen(mtp_get_object_name(obj)));
             break;
         case MTP_PROPERTY_NAME:
-            length += mtp_pack_string_utf_16le_length(mtp_get_base_name(obj));
+            length += mtp_calc_string_2_utf16le_length(mtp_get_base_name(obj));
             // MTP_DUMP_SHELL(16, mtp_get_base_name(obj), usb_strlen(mtp_get_base_name(obj)));
             break;
         case MTP_PROPERTY_DISPLAY_NAME:
-            length += mtp_pack_string_utf_16le_length(mtp_get_display_name(obj));
+            length += mtp_calc_string_2_utf16le_length(mtp_get_display_name(obj));
             // MTP_DUMP_SHELL(16, mtp_get_display_name(obj), usb_strlen(mtp_get_display_name(obj)));
             break;
 
@@ -2259,12 +2235,12 @@ static uint32_t mtp_fill_property_value_length(const struct mtp_object *obj, uin
             break;
 
         case MTP_PROPERTY_DATE_MODIFIED: {
-            length += mtp_pack_string_utf_16le_length(usbd_mtp_fs_modify_time(obj->file_full_path));
+            length += mtp_calc_string_2_utf16le_length(usbd_mtp_fs_modify_time(obj->file_full_path));
             break;
         }
 
         case MTP_PROPERTY_DATE_CREATED: {
-            length += mtp_pack_string_utf_16le_length(usbd_mtp_fs_create_time(obj->file_full_path));
+            length += mtp_calc_string_2_utf16le_length(usbd_mtp_fs_create_time(obj->file_full_path));
             break;
         }
 
@@ -2318,19 +2294,19 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
             // MTP_LOGD_SHELL("MTP_PROPERTY_OBJECT_FILE_NAME: %s", mtp_get_object_name(obj));
             MTP_LOGD_SHELL("MTP_PROPERTY_OBJECT_FILE_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_object_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_object_name(obj));
             break;
         case MTP_PROPERTY_NAME:             // 不包含扩展名
             // MTP_LOGD_SHELL("MTP_PROPERTY_NAME: %s", mtp_get_base_name(obj));
             MTP_LOGD_SHELL("MTP_PROPERTY_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_base_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_base_name(obj));
             break;
         case MTP_PROPERTY_DISPLAY_NAME:     // 别称
             // MTP_LOGD_SHELL("MTP_PROPERTY_DISPLAY_NAME: %s", mtp_get_display_name(obj));
             MTP_LOGD_SHELL("MTP_PROPERTY_DISPLAY_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_display_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_display_name(obj));
             break;
 
         case MTP_PROPERTY_PARENT_OBJECT:
@@ -2350,14 +2326,14 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
         case MTP_PROPERTY_DATE_MODIFIED: {
             MTP_LOGD_SHELL("MTP_PROPERTY_DATE_MODIFIED: %s", usbd_mtp_fs_modify_time(obj->file_full_path));
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, usbd_mtp_fs_modify_time(obj->file_full_path));
+            offset = mtp_convert_string_2_utf16le(buf, offset, usbd_mtp_fs_modify_time(obj->file_full_path));
             break;
         }
 
         case MTP_PROPERTY_DATE_CREATED: {
             MTP_LOGD_SHELL("MTP_PROPERTY_DATE_CREATED: %s", usbd_mtp_fs_create_time(obj->file_full_path));
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, usbd_mtp_fs_create_time(obj->file_full_path));
+            offset = mtp_convert_string_2_utf16le(buf, offset, usbd_mtp_fs_create_time(obj->file_full_path));
             break;
         }
 
@@ -2366,7 +2342,6 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
             *data_type = MTP_TYPE_UINT128;
             uint8_t uid[16] = {0};
             mtp_generate_uid(uid, MTP_STORAGE_ID, obj->handle, obj->file_full_name);
-            // offset = mtp_pack_array_utf_16le(buf, offset, uid, 16);
             offset = mtp_pack_uint8_array(buf, offset, uid, 16);
             MTP_LOGD_SHELL("MTP_PROPERTY_PERSISTENT_UID");
             break;
