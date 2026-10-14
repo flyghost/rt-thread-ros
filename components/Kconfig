@@ -34,17 +34,7 @@ rsource "dfs/Kconfig"
 rsource "fal/Kconfig"
 rsource "drivers/Kconfig"
 rsource "libc/Kconfig"
-rsource "net/Kconfig"
-rsource "mprotect/Kconfig"
 rsource "utilities/Kconfig"
-rsource "vbus/Kconfig"
 endif
-
-if RT_USING_SMART
-rsource "lwp/Kconfig"
-rsource "mm/Kconfig"
-endif
-
-rsource "legacy/Kconfig"
 
 endmenu
