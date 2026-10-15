@@ -96,6 +96,14 @@ void NMI_Handler(void)
 
 /**
   * @brief This function handles Hard fault interrupt.
+  *
+  * NOTE: This BSP handler is intentionally left empty. The actual
+  * HardFault_Handler is provided by RT-Thread in libcpu/arm/cortex-m4/context_gcc.S
+  * which saves the exception frame and calls rt_hw_hard_fault_exception().
+  * If this BSP handler were defined, it would conflict with RT-Thread's version.
+  */
+/**
+  * @brief This function handles Hard fault interrupt.
   */
 void HardFault_Handler(void)
 {

@@ -1,0 +1,58 @@
+# components/ramdump/SConscript
+from building import *
+
+cwd  = GetCurrentDir()
+path = [cwd, cwd + '/include']
+src  = []
+
+if GetDepend('RT_USING_RAMDUMP'):
+    # Port adapter layer (OS abstraction)
+    path += [cwd + '/port/rtthread']
+    src  += ['port/rtthread/ramdump_port_rtthread.c']
+
+    # Transport layer (selection + channels)
+    path += [cwd + '/transport/uart']
+    src  += [
+        'transport/transport.c',
+        'transport/uart/ramdump_uart.c',
+    ]
+
+    # Protocol layer
+    path += [cwd + '/protocol/ymodem']
+    src += [
+        'protocol/protocol.c',
+        'protocol/ymodem/ramdump_ymodem.c',
+    ]
+
+    # Core files
+    src += [
+        'ramdump_init.c',
+        'ramdump_exception.c',
+        'ramdump_assert.c',
+        'ramdump_utils.c',
+        'ramdump_commands.c',
+        'ramdump_cli.c',
+    ]
+
+    if GetDepend('RAMDUMP_ENABLE_STORAGE'):
+        src += ['ramdump_storage.c']
+
+    # USB CDC ACM channel
+    if GetDepend('RT_USING_RAMDUMP_USB'):
+        path += [cwd + '/transport/usb']
+        path += [cwd + '/transport/usb/common']
+        path += [cwd + '/transport/usb/core']
+        path += [cwd + '/transport/usb/class/cdc']
+        path += [cwd + '/transport/usb/port/dwc2']
+
+        src += [
+            'transport/usb/core/usbd_core.c',
+            'transport/usb/class/cdc/usbd_cdc_acm.c',
+            'transport/usb/port/dwc2/usb_dc_dwc2.c',
+            'transport/usb/ramdump_usb_cdc.c',
+        ]
+
+group = DefineGroup('ramdump', src, depend=['RT_USING_RAMDUMP'],
+                    CPPPATH=path)
+
+Return('group')

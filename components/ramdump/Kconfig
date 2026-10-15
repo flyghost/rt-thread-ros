@@ -1,0 +1,55 @@
+# components/ramdump/Kconfig
+menu "Ramdump Configuration"
+
+config RT_USING_RAMDUMP
+    bool "Enable ramdump support"
+    default n
+    help
+        Enable ramdump to capture memory dumps on system crashes.
+        Requires UART device for data transfer.
+
+if RT_USING_RAMDUMP
+
+config RAMDUMP_UART_DEVICE
+    string "UART device name for ramdump"
+    default "uart2"
+    help
+        The UART device used for ramdump data transfer.
+
+config RAMDUMP_UART_BAUDRATE
+    int "UART baudrate for ramdump"
+    default 921600
+    help
+        High baudrate recommended for faster dump transfer.
+
+config RAMDUMP_ENABLE_STORAGE
+    bool "Enable local storage (SD/Flash) for dump"
+    default n
+    depends on RT_USING_DFS
+    help
+        Save dump images to local storage instead of UART only.
+
+config RAMDUMP_STORAGE_PATH
+    string "Local storage mount point"
+    default "/sd"
+    depends on RAMDUMP_ENABLE_STORAGE
+    help
+        Mount point where dump files will be saved.
+
+config RAMDUMP_AUTO_ENTER
+    bool "Auto enter ramdump on exception"
+    default y
+    help
+        Automatically enter ramdump CLI when a fault occurs.
+        If disabled, exception info is saved but system reboots directly.
+
+config RAMDUMP_ENABLE_CLI
+    bool "Enable ramdump MSH commands"
+    default y
+    depends on RT_USING_FINSH
+    help
+        Register ramdump and ramdump_test commands in MSH shell.
+
+endif  # RT_USING_RAMDUMP
+
+endmenu

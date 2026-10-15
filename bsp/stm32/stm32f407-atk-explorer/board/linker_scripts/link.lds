@@ -131,6 +131,16 @@ SECTIONS
         __MCUlcdgrambysram_free__ = .;
     } > MCUlcdgrambysram
 
+    .noinit (NOLOAD) :
+    {
+        . = ALIGN(4);
+        PROVIDE(__noinit_start = .);
+        KEEP(*(.noinit))
+        KEEP(*(.noinit*))
+        . = ALIGN(4);
+        PROVIDE(__noinit_end = .);
+    } > RAM1
+
     _end = .;
 
     /* Stabs debugging sections.  */

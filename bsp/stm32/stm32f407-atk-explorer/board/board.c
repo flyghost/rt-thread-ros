@@ -62,5 +62,13 @@ uint8_t sys_stm32_clock_init(uint32_t plln, uint32_t pllm, uint32_t pllp, uint32
 
 void SystemClock_Config(void)
 {
+    /* Enable MemManage, BusFault, and UsageFault exceptions.
+     * These are disabled by default on Cortex-M4; enabling them allows
+     * the fault handlers in libcpu to capture detailed diagnostics
+     * instead of everything escalating to HardFault. */
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk
+               | SCB_SHCSR_BUSFAULTENA_Msk
+               | SCB_SHCSR_USGFAULTENA_Msk;
+
     sys_stm32_clock_init(336, 8, 2, 7);     /* 设置时钟,168Mhz */
 }

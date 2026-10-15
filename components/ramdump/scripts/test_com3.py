@@ -1,0 +1,10 @@
+import subprocess, serial, time
+subprocess.run('taskkill /F /IM python.exe', shell=True, capture_output=True)
+subprocess.run('taskkill /F /IM pyocd.exe', shell=True, capture_output=True)
+time.sleep(2)
+s = serial.Serial('COM3', 115200, timeout=1, write_timeout=1)
+s.write(b'\r\n')
+time.sleep(0.5)
+r = s.read(s.in_waiting or 1024)
+print(f'COM3: {r[:100]!r}')
+s.close()

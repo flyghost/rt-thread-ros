@@ -6,7 +6,7 @@
 
 /* RT-Thread Kernel */
 
-#define RT_NAME_MAX 8
+#define RT_NAME_MAX 16
 #define RT_CPUS_NR 1
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
@@ -130,12 +130,13 @@
 #define RT_MMCSD_MAX_PARTITION 16
 #define RT_SDIO_DEBUG
 #define RT_USING_PIN
-#define RT_USING_CHERRYUSB
+// #define RT_USING_CHERRYUSB   /* disabled - using ramdump_usb instead */
 #define RT_CHERRYUSB_DEVICE
 #define RT_CHERRYUSB_DEVICE_SPEED_FS
 #define RT_CHERRYUSB_DEVICE_DWC2_ST
 #define RT_CHERRYUSB_DEVICE_CDC_ACM
-#define RT_CHERRYUSB_DEVICE_TEMPLATE_CDC_ACM
+#define RT_CHERRYUSB_DEVICE_CDC_ACM_CHARDEV
+#define RT_CHERRYUSB_DEVICE_TEMPLATE_CDC_ACM_CHARDEV
 /* end of Device Drivers */
 
 /* C/C++ and POSIX layer */
@@ -174,6 +175,16 @@
 /* Utilities */
 
 #define RT_USING_ULOG
+
+/* Ramdump - crash diagnostics via USB CDC ACM */
+
+#define RT_USING_RAMDUMP
+#define RAMDUMP_UART_DEVICE "uart1"
+#define RAMDUMP_UART_BAUDRATE 115200
+#define RAMDUMP_AUTO_ENTER
+#define RAMDUMP_ENABLE_CLI
+#define RT_USING_RAMDUMP_USB
+/* end of Ramdump */
 #define ULOG_OUTPUT_LVL_D
 #define ULOG_OUTPUT_LVL 7
 #define ULOG_USING_ISR_LOG
@@ -282,9 +293,9 @@
 /* end of Micrium: Micrium software products porting for RT-Thread */
 #define PKG_USING_CHERRYUSB
 #define PKG_CHERRYUSB_DEVICE
-#define PKG_CHERRYUSB_DEVICE_HS
+#define PKG_CHERRYUSB_DEVICE_FS
 #define PKG_CHERRYUSB_DEVICE_DWC2_ST
-#define PKG_CHERRYUSB_DEVICE_TEMPLATE_NONE
+#define PKG_CHERRYUSB_DEVICE_TEMPLATE_CDC_ACM_CHARDEV
 #define PKG_USING_CHERRYUSB_V010300
 /* end of system packages */
 
