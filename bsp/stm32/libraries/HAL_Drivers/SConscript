@@ -11,11 +11,11 @@ path = [cwd]
 if not GetDepend('PKG_USING_CMSIS_CORE'):
     path += [os.path.join(cwd, 'CMSIS', 'Include')]
 
-if GetDepend(['RT_USING_NANO']):
-    group = group + SConscript(os.path.join(cwd, 'nano', 'SConscript'))
-else:
-    group = group + SConscript(os.path.join(cwd, 'drivers', 'SConscript'))
-
+# 瘦身后 HAL_Drivers 只保留三个 BSP 真正参与编译的驱动（见 drivers/SConscript）：
+#   drv_common.c / drv_gpio.c / drv_sdio.c / drv_usart.c
+# 已删除的驱动（drv_spi/drv_can/drv_rtc/drv_tim/drv_crypto/drv_usbd/drv_flash/nano ...）
+# 需要时用 git 从历史版本恢复对应目录，并在 drivers/SConscript 里加回对应的 GetDepend 分支。
+group = group + SConscript(os.path.join(cwd, 'drivers', 'SConscript'))
 group = group + DefineGroup('Drivers', src, depend = [''], CPPPATH = path)
 
 Return('group')
