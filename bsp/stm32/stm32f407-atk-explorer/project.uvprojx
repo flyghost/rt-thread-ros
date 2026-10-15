@@ -334,7 +334,7 @@
               <MiscControls />
               <Define>RT_USING_LIBC, RT_USING_ARMLIBC, USE_HAL_DRIVER, STM32F407xx, __CLK_TCK=RT_TICK_PER_SECOND, __STDC_LIMIT_MACROS, __RTTHREAD__</Define>
               <Undefine />
-              <IncludePath>applications;..\..\..\libcpu\arm\cortex-m4;..\..\..\components\libc\compilers\common\extension\fcntl\octal;..\libraries\HAL_Drivers\CMSIS\Include;.;..\libraries\STM32F4xx_HAL\CMSIS\Device\ST\STM32F4xx\Include;..\..\..\components\libc\compilers\common\include;board\ports;..\libraries\HAL_Drivers\drivers;..\libraries\STM32F4xx_HAL\STM32F4xx_HAL_Driver\Inc;..\libraries\HAL_Drivers\drivers\config;board\CubeMX_Config\Inc;..\..\..\components\finsh;..\..\..\components\libc\posix\io\epoll;..\..\..\libcpu\arm\common;..\libraries\HAL_Drivers;..\..\..\components\drivers\include;..\..\..\include;..\..\..\components\libc\posix\io\eventfd;board;..\..\..\components\libc\posix\io\poll;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\libc\compilers\common\extension;..\..\..\components\drivers\include;..\..\..\components\drivers\include;..\..\..\components\libc\posix\ipc</IncludePath>
+              <IncludePath>applications;..\..\..\..\os\rt-thread\libcpu\arm\cortex-m4;..\..\..\..\os\rt-thread\components\libc\compilers\common\extension\fcntl\octal;..\libraries\HAL_Drivers\CMSIS\Include;.;..\libraries\STM32F4xx_HAL\CMSIS\Device\ST\STM32F4xx\Include;..\..\..\..\os\rt-thread\components\libc\compilers\common\include;board\ports;..\libraries\HAL_Drivers\drivers;..\libraries\STM32F4xx_HAL\STM32F4xx_HAL_Driver\Inc;..\libraries\HAL_Drivers\drivers\config;board\CubeMX_Config\Inc;..\..\..\..\os\rt-thread\components\finsh;..\..\..\..\os\rt-thread\components\libc\posix\io\epoll;..\..\..\..\os\rt-thread\libcpu\arm\common;..\libraries\HAL_Drivers;..\..\..\..\os\rt-thread\components\drivers\include;..\..\..\..\os\rt-thread\include;..\..\..\..\os\rt-thread\components\libc\posix\io\eventfd;board;..\..\..\..\os\rt-thread\components\libc\posix\io\poll;..\..\..\..\os\rt-thread\components\drivers\include;..\..\..\..\os\rt-thread\components\drivers\include;..\..\..\..\os\rt-thread\components\libc\compilers\common\extension;..\..\..\..\os\rt-thread\components\drivers\include;..\..\..\..\os\rt-thread\components\drivers\include;..\..\..\..\os\rt-thread\components\libc\posix\ipc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -391,56 +391,56 @@
             <File>
               <FileName>syscall_mem.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\armlibc\syscall_mem.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\armlibc\syscall_mem.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>syscalls.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\armlibc\syscalls.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\armlibc\syscalls.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cctype.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\cctype.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\cctype.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cstdlib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\cstdlib.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\cstdlib.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cstring.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\cstring.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\cstring.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>ctime.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\ctime.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\ctime.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cunistd.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\cunistd.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\cunistd.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cwchar.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\libc\compilers\common\cwchar.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\libc\compilers\common\cwchar.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -450,7 +450,7 @@
             <File>
               <FileName>device.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\core\device.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\core\device.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -469,7 +469,7 @@
             <File>
               <FileName>i2c-bit-ops.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\i2c\i2c-bit-ops.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\i2c\i2c-bit-ops.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -488,7 +488,7 @@
             <File>
               <FileName>i2c_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\i2c\i2c_core.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\i2c\i2c_core.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -507,7 +507,7 @@
             <File>
               <FileName>i2c_dev.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\i2c\i2c_dev.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\i2c\i2c_dev.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -526,7 +526,7 @@
             <File>
               <FileName>completion.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\completion.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\completion.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -545,7 +545,7 @@
             <File>
               <FileName>dataqueue.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\dataqueue.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\dataqueue.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -564,7 +564,7 @@
             <File>
               <FileName>pipe.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\pipe.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\pipe.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -583,7 +583,7 @@
             <File>
               <FileName>ringblk_buf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\ringblk_buf.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\ringblk_buf.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -602,7 +602,7 @@
             <File>
               <FileName>ringbuffer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\ringbuffer.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\ringbuffer.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -621,7 +621,7 @@
             <File>
               <FileName>waitqueue.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\waitqueue.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\waitqueue.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -640,7 +640,7 @@
             <File>
               <FileName>workqueue.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\ipc\workqueue.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\ipc\workqueue.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -659,7 +659,7 @@
             <File>
               <FileName>pin.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\pin\pin.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\pin\pin.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -678,7 +678,7 @@
             <File>
               <FileName>serial.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\drivers\serial\serial.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\drivers\serial\serial.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -752,28 +752,28 @@
             <File>
               <FileName>shell.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\finsh\shell.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\finsh\shell.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>msh.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\finsh\msh.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\finsh\msh.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>msh_parse.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\finsh\msh_parse.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\finsh\msh_parse.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cmd.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\components\finsh\cmd.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\components\finsh\cmd.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -783,7 +783,7 @@
             <File>
               <FileName>clock.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\clock.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\clock.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -802,7 +802,7 @@
             <File>
               <FileName>components.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\components.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\components.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -821,7 +821,7 @@
             <File>
               <FileName>idle.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\idle.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\idle.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -840,7 +840,7 @@
             <File>
               <FileName>ipc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\ipc.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\ipc.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -859,7 +859,7 @@
             <File>
               <FileName>irq.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\irq.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\irq.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -878,7 +878,7 @@
             <File>
               <FileName>kstdio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\klibc\kstdio.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\klibc\kstdio.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -897,7 +897,7 @@
             <File>
               <FileName>kstring.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\klibc\kstring.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\klibc\kstring.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -916,7 +916,7 @@
             <File>
               <FileName>kservice.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\kservice.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\kservice.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -935,7 +935,7 @@
             <File>
               <FileName>mem.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\mem.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\mem.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -954,7 +954,7 @@
             <File>
               <FileName>mempool.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\mempool.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\mempool.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -973,7 +973,7 @@
             <File>
               <FileName>object.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\object.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\object.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -992,7 +992,7 @@
             <File>
               <FileName>scheduler_comm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\scheduler_comm.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\scheduler_comm.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -1011,7 +1011,7 @@
             <File>
               <FileName>scheduler_up.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\scheduler_up.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\scheduler_up.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -1030,7 +1030,7 @@
             <File>
               <FileName>thread.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\thread.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\thread.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -1049,7 +1049,7 @@
             <File>
               <FileName>timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\timer.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\src\timer.c</FilePath>
               <FileOption>
                 <FileArmAds>
                   <Cads>
@@ -1071,35 +1071,35 @@
             <File>
               <FileName>atomic_arm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\common\atomic_arm.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\libcpu\arm\common\atomic_arm.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>div0.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\common\div0.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\libcpu\arm\common\div0.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>showmem.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\common\showmem.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\libcpu\arm\common\showmem.c</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>context_rvds.S</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\..\libcpu\arm\cortex-m4\context_rvds.S</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\libcpu\arm\cortex-m4\context_rvds.S</FilePath>
             </File>
           </Files>
           <Files>
             <File>
               <FileName>cpuport.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\libcpu\arm\cortex-m4\cpuport.c</FilePath>
+              <FilePath>..\..\..\..\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c</FilePath>
             </File>
           </Files>
         </Group>

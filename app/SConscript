@@ -1,0 +1,12 @@
+# app/SConscript - own code, kept outside the upstream tree (os/rt-thread)
+import os
+from building import *
+
+objs = []
+cwd  = GetCurrentDir()
+
+for item in os.listdir(cwd):
+    if os.path.isfile(os.path.join(cwd, item, 'SConscript')):
+        objs = objs + SConscript(os.path.join(item, 'SConscript'))
+
+Return('objs')
