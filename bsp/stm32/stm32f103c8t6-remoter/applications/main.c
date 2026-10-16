@@ -19,16 +19,33 @@
 /* defined the LED0 pin: PA1 */
 #define LED0_PIN    GET_PIN(A, 1)
 
-int main(void)
+int usbtest(void)
 {
-    /* set LED0 pin mode to output */
-    rt_pin_mode(LED0_PIN, PIN_MODE_OUTPUT);
+    rt_device_t dev = RT_NULL;
+    char buf[] = "hello rt-thread!\r\n";
+
+    dev = rt_device_find("vcom");
+
+    if (dev)
+        rt_device_open(dev, RT_DEVICE_FLAG_RDWR);
+    else
+        return -RT_ERROR;
 
     while (1)
     {
-        rt_pin_write(LED0_PIN, PIN_HIGH);
-        rt_thread_mdelay(500);
-        rt_pin_write(LED0_PIN, PIN_LOW);
-        rt_thread_mdelay(500);
+        rt_device_write(dev, 0, buf, rt_strlen(buf));
+        rt_thread_mdelay(200);
+    }
+
+    return RT_EOK;
+}
+int main(void)
+{
+    /* set LED0 pin mode to output */
+    // rt_pin_mode(LED0_PIN, PIN_MODE_OUTPUT);
+
+    while (1)
+    {
+        usbtest();
     }
 }

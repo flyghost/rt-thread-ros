@@ -27,7 +27,7 @@ int main(void)
     /* set LED0 pin mode to output */
     // rt_pin_mode(LED0_PIN, PIN_MODE_OUTPUT);
 
-    rt_device_t vcom = rt_device_find("vcom");
+    rt_device_t vcom = rt_device_find("usb-acm0");
 
     rt_uint8_t flag = 0;
 
@@ -42,7 +42,6 @@ int main(void)
     rt_kprintf("this is a stm32f407 project\r\n");
 
     extern int filesystem_mount(void);
-    extern int usbd_init(void);
     while (1)
     {
         if (rt_device_find("sd0") != RT_NULL) {
@@ -52,7 +51,7 @@ int main(void)
     }
 
     filesystem_mount();
-    usbd_init();
+    /* usbd_init() is called automatically via INIT_APP_EXPORT during board init */
 
     while (1)
     {
@@ -70,14 +69,10 @@ int main(void)
     }
 }
 
-
-// extern void cdc_acm_init(uint8_t busid, uintptr_t reg_base);
-extern void mtp_init(uint8_t busid, uint32_t reg_base);
-int usbd_init(void)
-{
-    // AAAAAA();
-    mtp_init(0, USB_OTG_FS_PERIPH_BASE);
-    return 0;
-}
-
+// extern void cdc_acm_chardev_init(uint8_t busid, uintptr_t reg_base);
+// int usbd_init(void)
+// {
+//     cdc_acm_chardev_init(0, USB_OTG_FS_PERIPH_BASE);
+//     return 0;
+// }
 // INIT_APP_EXPORT(usbd_init);
