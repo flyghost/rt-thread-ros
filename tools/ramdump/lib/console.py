@@ -1,7 +1,5 @@
 """
 Console interaction: MSH prompt check, ramdump trigger, CLI command dispatch.
-
-Used by ramdump_auto.py (automation) or standalone scripts.
 """
 
 import time

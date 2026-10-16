@@ -1,4 +1,4 @@
-# Ramdump 组件 — Claude 行为规范
+# Ramdump 组件 — 行为规范（给 AI 的会话基线）
 
 ## 架构概述
 
@@ -97,7 +97,7 @@ USB 回环不再是独立线程，而是 `@ramdump>` 下的 `vcom` 命令，与�
 ```python
 import serial, time
 # 触发 dump
-u = serial.Serial('COM3', 115200, timeout=1, write_timeout=1)
+u = serial.Serial('COM46', 115200, timeout=1, write_timeout=1)
 u.write(b'cmd_ramdump\r\n'); u.flush(); u.close()
 time.sleep(4)
 

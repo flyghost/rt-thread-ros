@@ -63,8 +63,6 @@ python tools/ramdump/analyzer/ramdump_analyzer.py out/dump/20260722_015005
 
 > 现状：`dump/` 与 `test/` 里的脚本目前是**直接打开 COM 口**的。让它们改连串口中枢的 TCP 口（`--host/--port`）是一步可选的增量改动，还没做。
 
-## 与旧结构的关系
+## 与 Trace32 的关系
 
-- `tools/ramdump_auto/`（采集侧）与 `tools/ramdump_analyzer/`（解析侧）已合并进本目录；旧目录保留在原地未删，可随时对照/回滚。
-- `lib/` 里的代码以 `app/ramdump/scripts/` 那份为基线（它更完整：`console.py` 有 `enter_ramdump_usb()`、`serial_utils.py` 有 `write_timeout=1.0`、`ymodem_receiver.py` 有 5 次重发 `'C'` 的握手重试）。
-- Trace32 的离线分析脚本仍在 `bsp/stm32/tools/trace32/`（第三套手段，与本目录的 analyzer 并列）。
+`bsp/stm32/tools/trace32/` 是本目录 `analyzer/` 之外的另一套离线分析手段，两者并列。
