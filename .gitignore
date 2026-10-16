@@ -58,3 +58,29 @@ vdso.lds
 # cherryusb libraries
 !components/drivers/usb/cherryusb/port/pusb2/*.a
 !components/drivers/usb/cherryusb/port/xhci/phytium/*.a
+
+# ---------------------------------------------------------------------------
+# 本项目自有：运行产物 / 抓取结果 / 临时目录（默认都不进版本库）
+# ---------------------------------------------------------------------------
+__pycache__/
+
+# 构建与调试产物：out/{bin,log,dump,backup,tmp}
+/out/
+# Trace32 抓取与临时输出
+/trace32_tmp/
+
+# 上位机临时脚本目录：脚本本身可入库，产物不入库
+tools/tmp/*
+!tools/tmp/*.py
+
+# 本地工具与上传缓存
+.claude/
+.uploads/
+.out-of-code-insights/
+
+# cherryusb MTP 调试残留（上游没有这两个文件，属于调试垃圾）
+os/rt-thread/components/drivers/usb/cherryusb/class/mtp/hello.txt
+os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
+
+# tools/ramdump/build/ 是入库的源码目录，别被上面的 build 规则吃掉
+!tools/ramdump/build/

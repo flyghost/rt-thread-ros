@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 SCRIPT_DIR   = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent  # scripts/ → ramdump/ → components/ → root
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent  # lib/ → ramdump/ → tools/ → 仓库根
 BSP_DIR      = PROJECT_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
 
 # ---- Toolchain (from build_and_flash.bat defaults) ----

@@ -80,8 +80,8 @@ USB 是主机驱动的总线，设备不能主动发送。软件只负责在 TXF
 ### 编译烧录（必须用脚本）
 
 ```bash
-cd tools/ramdump_auto
-python ramdump_auto.py --build-only
+python tools/ramdump/build/build.py            # 只编译
+python tools/ramdump/build/build.py --flash    # 编译 + 烧录
 ```
 
 ### USB 回环测试（在 dump CLI 内）
@@ -89,9 +89,9 @@ python ramdump_auto.py --build-only
 USB 回环不再是独立线程，而是 `@ramdump>` 下的 `vcom` 命令，与真实 crash dump
 运行在完全相同的 HardFault 轮询上下文中：
 
-1. COM3（UART MSH）输入 `cmd_ramdump` → 触发断言进入 HardFault
+1. UART MSH（**COM46**，CH340）输入 `cmd_ramdump` → 触发断言进入 HardFault
 2. 等待 ~3 秒让 USB 枚举完成
-3. 切换到 COM8（USB CDC ACM 虚拟串口）
+3. 切换到新出现的 **USB CDC ACM 虚拟串口**（VID:PID 为占位 `FFFF:FFFF`，端口号由系统分配，用 `python tools/ramdump/test/test_serial.py --list` 查）
 4. 输入 `vcom` → 进入 echo 回环，Ctrl+C 退出
 
 ```python
@@ -112,13 +112,13 @@ ser.write(b'\x03')    # Ctrl+C 退出
 ser.close()
 ```
 
-**COM8 是 USB CDC ACM，COM3 是 CH340 UART。**
+**UART 口是 CH340（现 COM46），USB CDC 口是另一个动态分配的端口号。**
 
 ### 完整 dump
 
 ```bash
-cd tools/ramdump_auto
-python ramdump_auto.py --com COM3 --crash
+python tools/ramdump/dump/dump.py --com COM46 --crash          # UART 侧触发（默认路径）
+python tools/ramdump/dump/dump.py --com COM46 --transport usb  # 走 USB CDC 收 dump
 ```
 
 ## 常见错误
@@ -126,5 +126,5 @@ python ramdump_auto.py --com COM3 --crash
 1. **不要开 OTG_FS 的 NVIC 中断**——会导致 `USBD_IRQHandler` 重入
 2. **crash 上下文不要用 `rt_thread_mdelay`**——调度器已停，用 DWT 忙等
 3. **NVIC 控制不要放在 port 层**——`usb_dc_low_level_init` 只做硬件初始化
-4. **COM3 是 UART，COM8 是 USB**——不要搞混
+4. **UART 与 USB 是两个不同的口**——CH340 UART（现 COM46）用于触发，USB CDC（动态端口）用于传数据，不要搞混
 5. **`ramdump_usb_send` 现在是同步的**——返回 0 表示主机已 ACK

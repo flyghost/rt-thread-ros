@@ -134,6 +134,7 @@ def ymodem_receive(ser, output_dir: str, verbose: bool = True):
     # ---- Init: send 'C' to start YMODEM (retry a few times) ----
     if verbose:
         print("  Sending 'C' to initiate YMODEM...")
+    ser.reset_input_buffer()        # 丢掉进 dump 前残留的输出，避免把老字节当包头
     for _ in range(5):
         ser.write(b'C')
         ser.flush()
