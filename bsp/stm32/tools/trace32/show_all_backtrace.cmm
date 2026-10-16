@@ -1,0 +1,83 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 All-Thread Backtrace
+; @Description:
+;   Performs call-stack backtrace for every RT-Thread thread found in the dump.
+;   Traverses rt_object_container to enumerate all threads.
+; @Target: STM32F407ZG + RT-Thread
+; --------------------------------------------------------------------------------
+
+PRINT "========================================================================"
+PRINT "                    ALL THREAD BACKTRACE"
+PRINT "========================================================================"
+
+; ---- Crashed thread first (from g_ramdump_exception) ----
+IF sYmbol.EXIST(g_ramdump_exception)
+(
+    &exc=ADDRESS.OFFSET(g_ramdump_exception)
+    &magic=Data.Long(D:&exc+0x0)
+    IF (&magic==0x52414D44)
+    (
+        &crash_sp=Data.Long(D:&exc+0x20)
+        &crash_name=Data.STRing(D:&exc+0x24)
+
+        PRINT ""
+        PRINT "=== Crashed Thread ==="
+        PRINTF "Thread: %-8s  SP:0x%08X" "&crash_name" &crash_sp
+
+        IF ((&crash_sp>0x20000000)&&(&crash_sp<0x20020000))
+        (
+            &stack_end=&crash_sp+0x800
+            do backtrace.cmm &crash_sp &stack_end
+        )
+    )
+)
+
+; ---- Traverse thread list via g_ramdump_thread_list_head ----
+IF sYmbol.EXIST(g_ramdump_thread_list_head)
+(
+    LOCAL &head_addr &list_head &node &thread &sp &stack_addr &stack_size &count
+    LOCAL &stack_end &name_str
+    &count=0x0
+
+    ; g_ramdump_thread_list_head holds the address of object_list
+    &head_addr=ADDRESS.OFFSET(g_ramdump_thread_list_head)
+    &list_head=Data.Long(D:&head_addr)
+    &node=Data.Long(D:&list_head)
+
+    PRINT ""
+    PRINT "=== All Threads (via rt_object_container) ==="
+
+    WHILE ((&node!=&list_head)&&(&node!=0x0)&&(&count<0x40))
+    (
+        ; rt_object.list is at offset 0x0C within rt_thread (after name[8]+type+flags)
+        &thread=&node-0xC
+
+        &name_str=Data.STRing(D:&thread)
+
+        ; rt_thread layout (RT-Thread v5.x, ARM Cortex-M, RT_NAME_MAX=8):
+        ;   +0x1C: sp (void*)
+        ;   +0x28: stack_addr (void*)
+        ;   +0x2C: stack_size (rt_uint32_t)
+        &sp=Data.Long(D:&thread+0x14)
+        &stack_addr=Data.Long(D:&thread+0x20)
+        &stack_size=Data.Long(D:&thread+0x24)
+
+        PRINTF "Thread: %-8s SP:0x%08X Stack:%d" "&name_str" &sp &stack_size
+
+        IF ((&sp>&stack_addr)&&(&sp<(&stack_addr+&stack_size)))
+        (
+            &stack_end=&stack_addr+&stack_size
+            do backtrace.cmm &sp &stack_end
+        )
+
+        ; next node
+        &node=Data.Long(D:&node)
+        &count=&count+0x1
+    )
+
+    PRINTF "Total threads: %d" &count
+)
+
+PRINT "========================================================================"
+
+ENDDO

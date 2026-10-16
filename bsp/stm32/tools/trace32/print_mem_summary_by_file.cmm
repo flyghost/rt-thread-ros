@@ -1,0 +1,7 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Memory Summary by File (Stub)
+; @Description: Placeholder
+; @Target: STM32F407ZG
+; --------------------------------------------------------------------------------
+PRINT "Memory summary by file is not yet implemented for STM32F407."
+ENDDO

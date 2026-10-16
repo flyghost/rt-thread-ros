@@ -1,0 +1,72 @@
+; --------------------------------------------------------------------------------
+; backtrace.cmm — ARM Thumb-2 call stack backtrace
+;
+; Scans the stack for function return addresses.  Verifies each candidate
+; by reading the instruction BEFORE the return address from P: memory
+; (FLASH.bin must be loaded into 0x08000000 for this to work).
+;
+; ARM Thumb-2 instruction encoding:
+;   BL (32-bit):  first halfword bits[15:11] = 11110 or 11111
+;                 → (&hw & 0xF800) == 0xF000 or 0xF800
+;   BLX reg (16-bit): 0100 0111 0xxx x000
+;                 → (&hw & 0xFF87) == 0x4780
+; @Target: STM32F407ZG (ARM Cortex-M4)
+; @Usage:  do backtrace.cmm <stack_start> <stack_end>
+; --------------------------------------------------------------------------------
+
+ENTRY &stack_start &stack_end
+
+IF ((&stack_start==0x0)||(&stack_end==0x0)||(&stack_start>&stack_end))
+(
+    PRINT "<invalid stack range>"
+    ENDDO
+)
+
+&point_len=0x4
+LOCAL &found
+&found=0x0
+
+PRINT "==================================== BACK TRACE =========================================="
+
+WHILE (&stack_start<&stack_end)
+(
+    &stack_value=Data.Long(D:&stack_start)
+
+    ; Only process addresses that look like code (flash 0x08000000-0x08100000)
+    IF ((&stack_value>0x07FFFFFF)&&(&stack_value<0x08200000))
+    (
+        &func_name=sYmbol.FUNCTION(P:&stack_value)
+        IF (("&func_name"!=""))
+        (
+            ; Check if the instruction before return address is BL (Thumb-2 32-bit)
+            &instr_hw1=Data.Short(P:&stack_value-0x4)
+            &bl_opcode=&instr_hw1&0xF800
+
+            IF ((&bl_opcode==0xF000)||(&bl_opcode==0xF800))
+            (
+                PRINTF "%32s     ADDR:0x%08x -> 0x%08x" "&func_name" &stack_start &stack_value
+                &found=&found+0x1
+            )
+            ELSE
+            (
+                ; Check for BLX register (16-bit): 0100 0111 0xxx x000
+                &instr_hw2=Data.Short(P:&stack_value-0x2)
+                &blx_opcode=&instr_hw2&0xFF87
+                IF (&blx_opcode==0x4780)
+                (
+                    PRINTF "%32s     ADDR:0x%08x -> 0x%08x" "&func_name" &stack_start &stack_value
+                    &found=&found+0x1
+                )
+            )
+        )
+    )
+
+    &stack_start=&stack_start+&point_len
+)
+
+IF (&found==0x0)
+    PRINT "  (no call frames found — try the crashed thread, or check FLASH.bin is loaded)"
+
+PRINT "=========================================================================================="
+
+ENDDO

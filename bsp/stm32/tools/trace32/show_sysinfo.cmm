@@ -1,0 +1,41 @@
+; --------------------------------------------------------------------------------
+; show_sysinfo.cmm — Crash context summary (direct memory access)
+;
+; ramdump_exception_t offsets: +0x04 fault_type, +0x24 thread_name[8], +0x2C tick
+; --------------------------------------------------------------------------------
+
+LOCAL &info &exc
+
+IF !sYmbol.EXIST(g_ramdump_exception)
+(
+    PRINT "<no symbol g_ramdump_exception>"
+    ENDDO "<no ramdump>"
+)
+
+&exc=ADDRESS.OFFSET(g_ramdump_exception)
+
+&fault_type=Data.Long(D:&exc+0x4)
+&thread_name=Data.STRing(D:&exc+0x24)
+&tick=Data.Long(D:&exc+0x2C)
+
+; Decode fault type
+LOCAL &fault_str
+&fault_str="HardFault"
+IF (&fault_type==0x1)
+    &fault_str="MemManage"
+IF (&fault_type==0x2)
+    &fault_str="BusFault"
+IF (&fault_type==0x3)
+    &fault_str="UsageFault"
+IF (&fault_type==0x4)
+    &fault_str="Assert"
+
+; Build info string
+IF (("&thread_name"!=""))
+    &info="THREAD["+"&thread_name"+"]"+"  FAULT["+"&fault_str"+"]"+"  TICK["+"&tick"+"]"
+ELSE
+    &info="FAULT["+"&fault_str"+"]"+"  TICK["+"&tick"+"]"
+
+PRINTF "SYSINFO: %s" "&info"
+
+ENDDO "&info"

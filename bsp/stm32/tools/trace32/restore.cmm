@@ -1,0 +1,56 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Ramdump Restore Script
+; @Description:
+;   Loads memory dumps (SRAM.bin, CCM.bin, exception_record.bin) and ELF symbols
+;   into Trace32 for offline crash analysis on ARM Cortex-M4.
+; @Target: STM32F407ZG (ARM Cortex-M4, 128KB SRAM + 64KB CCM + 1MB Flash)
+; @Usage:  do restore.cmm <ramdump_path> <elf_file>
+; --------------------------------------------------------------------------------
+
+ENTRY &ramdump_path &elf_file
+
+RESet
+SYStem.RESet
+SYStem.CPU STM32F407ZG
+SYStem.Up
+
+; ---- Load memory dumps ----
+; SRAM: 128KB @ 0x20000000
+Data.LOAD.Binary   &ramdump_path\"SRAM.bin"   0x20000000
+
+; CCM: 64KB @ 0x10000000
+Data.LOAD.Binary   &ramdump_path\"CCM.bin"    0x10000000
+
+; FLASH: 1MB @ 0x08000000 (enables BL/BLX instruction verification in backtrace)
+Data.LOAD.Binary   &ramdump_path\"FLASH.bin"  0x08000000
+
+; ---- Load ELF for symbol resolution ----
+; /NoCODE: don't load code sections (FLASH.bin already covers them)
+; symbols + debug info are still loaded
+Data.LOAD.Elf      &elf_file  /NoCODE /RelPath
+
+; ---- Recover exception frame from .noinit record ----
+; g_ramdump_exception is placed in the .noinit section
+IF sYmbol.EXIST(g_ramdump_exception)
+(
+    ; Read hw_frame_ptr via direct memory access (+0x1C in exception record)
+    &exc=ADDRESS.OFFSET(g_ramdump_exception)
+    &hw_frame=Data.Long(D:&exc+0x1C)
+    IF ((&hw_frame!=0x0))
+    (
+        do frame.cmm &hw_frame
+    )
+    ELSE
+    (
+        PRINT "No valid hardware frame pointer in exception record."
+    )
+)
+ELSE
+(
+    PRINT "Warning: g_ramdump_exception symbol not found in ELF."
+    PRINT "Try loading SRAM.bin first, or check that ramdump was enabled."
+)
+
+PRINT "Restore STM32F407 Ramdump Files Complete!!"
+
+ENDDO

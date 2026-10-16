@@ -1,0 +1,129 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 RT-Thread Small Memory Heap Analyzer
+; @Description:
+;   Analyzes the RT-Thread small memory heap (rt_system_heap) from the dump.
+;   Walks the linked list of heap blocks and computes usage statistics.
+;
+;   RT-Thread small heap block layout (struct heap_mem):
+;     +0x00: next  (struct heap_mem*) — next block in list
+;     +0x04: used  (rt_uint32_t)       — 1=used, 0=free
+;     +0x08: data[]                    — user data (if used)
+;
+;   Free blocks contain additional fields:
+;     +0x08: prev  (struct heap_mem*) — previous free block
+;     +0x0C: level (rt_uint32_t)      — free list level (not always present)
+;   Minimum block size = 12 bytes (sizeof(struct heap_mem))
+; @Target: STM32F407ZG + RT-Thread
+; --------------------------------------------------------------------------------
+
+PRINT "========================================================================"
+PRINT "              RT-Thread Small Memory Heap Analysis"
+PRINT "========================================================================"
+
+; heap_mem struct offset
+&H_NEXT=0x0
+&H_USED=0x4
+&H_MIN_SIZE=0xC   ; sizeof(struct heap_mem)
+
+LOCAL &heap_start &heap_end &mem &next &used &block_size &total_free &total_used
+LOCAL &free_blocks &used_blocks &max_free_block
+
+&total_free=0x0
+&total_used=0x0
+&free_blocks=0x0
+&used_blocks=0x0
+&max_free_block=0x0
+
+; Try to find heap boundaries from RT-Thread symbols
+IF sYmbol.EXIST(heap_start)
+    &heap_start=Var.Value(heap_start)
+ELSE
+    &heap_start=0x0
+
+IF sYmbol.EXIST(heap_end)
+    &heap_end=Var.Value(heap_end)
+ELSE
+    &heap_end=0x0
+
+IF ((&heap_start==0x0)||(&heap_end==0x0))
+(
+    PRINT "Heap symbols (heap_start/heap_end) not found."
+    PRINT "The heap may use rt_system_heap (rt_memheap) instead."
+    PRINT ""
+    PRINT "To analyze: check rt_memheap structure manually."
+    ENDDO
+)
+
+PRINTF "Heap range: 0x%08X - 0x%08X" &heap_start &heap_end
+&heap_size=&heap_end-&heap_start
+PRINTF "Heap size:  %d bytes (%d KB)" &heap_size (&heap_size/0x400)
+PRINT ""
+
+; Walk the heap linked list
+&mem=&heap_start
+
+WHILE ((&mem<&heap_end)&&(&mem!=0x0))
+(
+    &next=Data.Long(D:&mem+&H_NEXT)
+    &used=Data.Long(D:&mem+&H_USED)
+
+    IF ((&next==0x0)||(&next==&mem))
+    (
+        ; End of list or corruption
+        PRINT "  (end of heap list)"
+        &mem=0x0
+    )
+    ELSE
+    (
+        ; Block size = next - current - header_size
+        ; But the mem header (next+used) is included in the gap
+        IF (&next>&mem)
+        (
+            &block_size=&next-&mem
+
+            IF (&used==0x1)
+            (
+                &total_used=&total_used+&block_size
+                &used_blocks=&used_blocks+0x1
+            )
+            ELSE
+            (
+                &total_free=&total_free+&block_size
+                &free_blocks=&free_blocks+0x1
+                IF (&block_size>&max_free_block)
+                    &max_free_block=&block_size
+            )
+        )
+
+        &mem=&next
+
+        ; Safety: limit iterations
+        IF (&free_blocks+&used_blocks)&0xFF
+        (
+            IF ((&free_blocks+&used_blocks)>0x400)
+                &mem=0x0
+        )
+    )
+)
+
+; Summary
+PRINT ""
+PRINT "--- Heap Statistics ---"
+PRINTF "  Used blocks:  %d" &used_blocks
+PRINTF "  Free blocks:  %d" &free_blocks
+PRINTF "  Total used:   %d bytes (%d KB)" &total_used (&total_used/0x400)
+PRINTF "  Total free:   %d bytes (%d KB)" &total_free (&total_free/0x400)
+PRINTF "  Max free blk: %d bytes" &max_free_block
+
+&frag=&free_blocks
+IF ((&free_blocks>0x5)&&(&max_free_block<(&total_free/0x2)))
+    PRINT "  ** WARNING: High fragmentation — many small free blocks **"
+ELSE
+(
+    IF ((&free_blocks>0x0))
+        PRINT "  Fragmentation: normal"
+)
+
+PRINT "========================================================================"
+
+ENDDO

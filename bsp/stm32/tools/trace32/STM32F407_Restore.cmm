@@ -1,0 +1,241 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Ramdump Tool (GUI)
+; @Description:
+;   Trace32 PRACTICE GUI for STM32F407 ramdump crash analysis.
+;   Adapted from LM620_Restore.cmm for ARM Cortex-M4 + RT-Thread.
+; @Target: STM32F407ZG
+; @Usage:  do STM32F407_Restore.cmm
+; --------------------------------------------------------------------------------
+
+  LOCAL &ramdump_path &elf_file &last_path
+  GLOBAL &g_sel_sp &g_sel_name &g_sel_stack_end
+
+; Save the initial working directory (for file browser defaults)
+  &last_path=OS.PPD()
+
+; Create print area
+  AREA.Create PrintData 120. 20000.
+  AREA.CLEAR PrintData
+
+  PRINT "---------STM32F407 Ramdump Tool------------------"
+
+; ---- Main Dialog ----
+  WINPOS 50. 0. 120. 30.
+  DIALOG.AREA PrintData
+  (
+        HEADER "STM32F407 Ramdump Tool"
+
+        POS  1.  0. 9.
+        TEXT "Ramdump :"
+        POS 10.  0. 30.
+RAMDUMP:   EDIT "" "GOSUB set_ramdump_path"
+
+        POS 40. 0. 3. 1.
+        BUTTON "..." "GOSUB browse_path RAMDUMP ramdump_path"
+
+        POS  1. 1. 9.
+        TEXT "Elf File :"
+        POS 10. 1. 30.
+ELF:    EDIT "" "GOSUB set_elf_file"
+
+        POS 40. 1. 3. 1.
+        BUTTON "..." "GOSUB browse_file ELF elf_file *"
+
+        POS 44. 0. 8. 2.
+LOAD:   BUTTON "LOAD" "GOSUB load_ramdump"
+
+        POS 53. 0. 50. 1.
+SYSINFO:   dyntext "SYSINFO:"
+
+        POS 53. 1. 50. 1.
+ERRINFO:   dyntext "ERRINFO:"
+
+        POS 1. 3. 12. 1.
+BACK_TRACE: BUTTON "BackTrace"
+        (
+            ; Get exception frame pointer from g_ramdump_exception
+            IF sYmbol.EXIST(g_ramdump_exception)
+            (
+                &exc=ADDRESS.OFFSET(g_ramdump_exception)
+                &frame=Data.Long(D:&exc+0x1C)
+                IF ((&frame!=0x0))
+                (
+                    ; Compute stack bounds: SP is just above the frame
+                    &sp=&frame+0x20
+                    &end=&sp+0x800   ; search 2KB above SP
+                    do backtrace.cmm &sp &end
+                    do frame.cmm  &frame
+                )
+                ELSE
+                (
+                    PRINT "No valid hardware frame pointer"
+                )
+            )
+            ELSE
+            (
+                PRINT "g_ramdump_exception symbol not found"
+            )
+        )
+
+        POS 14. 3. 10. 1.
+SHOW_THREAD: BUTTON "ShowThread"
+        (
+            do show_thread.cmm
+        )
+
+        POS 25. 3. 10. 1.
+THREAD_BT: BUTTON "ThreadBT"
+        (
+            GLOBAL &g_sel_sp &g_sel_name &g_sel_stack_end
+            do select_thread.cmm
+            IF ((&g_sel_sp!=0x0)&&(&g_sel_stack_end!=0x0))
+            (
+                do backtrace.cmm  &g_sel_sp &g_sel_stack_end
+                do frame.cmm  &g_sel_sp
+            )
+        )
+
+        POS 36. 3. 12. 1.
+ALL_THREAD_BT: BUTTON "AllThreadBT"
+        (
+            do show_all_backtrace.cmm
+        )
+
+        POS 49. 3. 10. 1.
+MSG_BOX: BUTTON "MSG Box"
+        (
+            do show_mailbox.cmm
+        )
+
+        POS 60. 3. 10. 1.
+MEM_TRC: BUTTON "MemTrace"
+        (
+            do show_ap_meminfo.cmm
+        )
+
+        POS 71. 3. 10. 1.
+MEM_SUM: BUTTON "MemSummary"
+        (
+            do show_ap_meminfo_sum.cmm
+        )
+
+        POS 109. 3. 6. 1.
+BTN_CLEAN: BUTTON "Clear"
+        (
+            AREA.CLEAR PrintData
+        )
+
+        ; Close button
+        POS 115. 3. 6. 1.
+CLS_CLEAN: BUTTON "Close" "goto closeDialog"
+
+        ; Handle [X] and Escape
+        CLOSE "goto closeDialog"
+  )
+
+; Initially disable analysis buttons
+  DIALOG.DISABLE BACK_TRACE
+  DIALOG.DISABLE SHOW_THREAD
+  DIALOG.DISABLE THREAD_BT
+  DIALOG.DISABLE ALL_THREAD_BT
+  DIALOG.DISABLE MSG_BOX
+  DIALOG.DISABLE MEM_TRC
+  DIALOG.DISABLE MEM_SUM
+
+  STOP
+
+; ---- Dialog Callbacks ----
+closeDialog:
+  DIALOG.END
+  AREA.CLOSE PrintData
+  ENDDO
+
+set_ramdump_path:
+  LOCAL &str
+  &str=DIALOG.STRing(RAMDUMP)
+  &ramdump_path="&str"
+  RETURN
+
+set_elf_file:
+  LOCAL &str
+  &str=DIALOG.STRing(ELF)
+  &elf_file="&str"
+  RETURN
+
+browse_path:
+  ENTRY &label &item
+  LOCAL &str
+  LOCAL &directory
+  &directory="&last_path"+"\"+"*"
+  DIALOG.DIR &directory
+  ENTRY &str
+  IF (("&str"==""))
+    RETURN
+  &assignment="&"+"&item"+"="+"""&str"""
+  &assignment
+  DIALOG.Set &label "&str"
+  &last_path="&str"
+  RETURN
+
+browse_file:
+  LOCAL &str &label &item
+  ENTRY &label &item &ext
+  &str=DIALOG.STRing(&label)
+  &str=OS.FILE.PATH("&str")
+  IF (("&str"!=""))
+    &str="&last_path"+"\"+"&ext"
+  DIALOG.File "&str"
+  ENTRY &str
+  IF (("&str"==""))
+    RETURN
+  &assignment="&"+"&item"+"="+"""&str"""
+  &assignment
+  DIALOG.Set &label "&str"
+  &last_path=OS.FILE.PATH("&str")
+  RETURN
+
+load_ramdump:
+  LOCAL &str
+
+  IF (("&ramdump_path"==""))
+  (
+    PRINT "<Not select ramdump directory>"
+    RETURN
+  )
+  IF (("&elf_file"==""))
+  (
+    PRINT "<Not select elf file>"
+    RETURN
+  )
+
+  ; Open print log
+  &str="&ramdump_path"+"\"+"stm32f407_PrintData.txt"
+  AREA.Open  PrintData &str /Append
+
+  ; Load dumps
+  do restore.cmm &ramdump_path &elf_file
+
+  ; Enable analysis buttons
+  DIALOG.Enable BACK_TRACE
+  DIALOG.Enable SHOW_THREAD
+  DIALOG.Enable THREAD_BT
+  DIALOG.Enable ALL_THREAD_BT
+  DIALOG.Enable MSG_BOX
+  DIALOG.Enable MEM_TRC
+  DIALOG.Enable MEM_SUM
+
+  ; Open register and frame views
+  Frame.view /Locals /Args
+
+  ; Show sysinfo and error info
+  do show_sysinfo.cmm
+  ENTRY &sysinfo
+  DIALOG.SET SYSINFO "SYSINFO : "+"&sysinfo"
+
+  do errinfo.cmm
+  ENTRY &erinfo
+  DIALOG.SET ERRINFO "ERRINFO : "+"&erinfo"
+
+  RETURN
+
+ENDDO

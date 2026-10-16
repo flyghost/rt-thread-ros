@@ -1,0 +1,822 @@
+---------LM620 Ramdump Tool------------------
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005528]
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+No valid exception record (magic mismatch)
+===================================================================================================
+==================================== BACK TRACE ==========================================
+==========================================================================================
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+No valid exception record (magic mismatch)
+===================================================================================================
+Crashed thread:
+  Name: h1
+  SP:   0x0001AAB8
+=============================================
+  Crashed Thread Backtrace
+=============================================
+==================================== BACK TRACE ==========================================
+==========================================================================================
+=============================================
+  Mailbox / IPC Analysis
+=============================================
+Not yet implemented for STM32F407 RT-Thread.
+To implement: iterate rt_object_container[RT_Object_Class_MailBox]
+and display message counts.
+=============================================
+No valid hardware frame pointer in exception record.
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0xFAE0]
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005528]
+Registers restored from frame at 0x20005528
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005528]
+Fault Status Register details:
+Registers restored from frame at 0x20008058
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x9522]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+==================================== BACK TRACE ==========================================
+==========================================================================================
+Registers restored from frame at 0x20008058
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    tshell
+  Tick:      38178
+  SP:        0x20007FEC
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x080322D8
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x08037644
+  LR  = 0x0800E49D
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+=== Stack Dump (32 words around SP) ===
+20007FAC: 23232323 23232323 00000000 08022239
+20007FBC: DEADBEEF DEADBEEF 20007FF8 DEADBEEF
+20007FCC: DEADBEEF DEADBEEF DEADBEEF 200012BC
+20007FDC: 0000000A 200012BC 00000064 000004FE
+20007FEC: 00000000 DEADBEEF DEADBEEF DEADBEEF
+20007FFC: 20008030 DEADBEEF DEADBEEF DEADBEEF
+2000800C: DEADBEEF 00000000 10000000 200042DC
+2000801C: 00000001 08037644 40011000 40011000
+2000802C: 080322D8 FFFFFFFD FFFFFFFD DEADBEEF
+2000803C: DEADBEEF DEADBEEF 20008078 DEADBEEF
+2000804C: DEADBEEF DEADBEEF DEADBEEF 40011000
+2000805C: 080322D8 00000020 00000020 08037644
+2000806C: 0800E49D 0800CFEA 01000000 0000023E
+2000807C: 08032708 00000001 200070A0 20008090
+2000808C: 0802B24F 00343735 00000000 00000010
+2000809C: 00000000 200080A8 0800D7E3 200080CC
+200080AC: 00000001 200080B8 08023A47 00000000
+200080BC: 20008110 00000012 20007036 200080D0
+200080CC: 20007036 00000000 00000000 00000000
+200080DC: 00000000 00000000 00000000 00000000
+200080EC: 00000000 00000000 00000001 0800D7C1
+200080FC: 00000012 20008108 08023AAF 00000012
+2000810C: 20007036 00000000 20006F08 20008120
+2000811C: 0802581D DEADBEEF 00000000 00000000
+2000812C: 0000000D 200012BC 00000000 00000000
+2000813C: 0802AC6B DEADBEEF 0802AC6B 200054F9
+2000814C: 00002C78 00001C08 00180018 20008164
+2000815C: 001E001E 00000000 0D0D0D0D 65680D0D
+2000816C: 630D706C 725F646D 75646D61 615F706D
+2000817C: 72657373 00000D74 00000000 00000000
+2000818C: 00000000 00000000 00000000 00000000
+2000819C: 00000000 00000000 00002D38 200054F9
+===================================================================================================
+Crashed thread:
+  Name: tshell
+  SP:   0x20007FEC
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    tshell
+  Tick:      38178
+  SP:        0x20007FEC
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x080322D8
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x08037644
+  LR  = 0x0800E49D
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+=== Stack Dump (32 words around SP) ===
+20007FAC: 23232323 23232323 00000000 08022239
+20007FBC: DEADBEEF DEADBEEF 20007FF8 DEADBEEF
+20007FCC: DEADBEEF DEADBEEF DEADBEEF 200012BC
+20007FDC: 0000000A 200012BC 00000064 000004FE
+20007FEC: 00000000 DEADBEEF DEADBEEF DEADBEEF
+20007FFC: 20008030 DEADBEEF DEADBEEF DEADBEEF
+2000800C: DEADBEEF 00000000 10000000 200042DC
+2000801C: 00000001 08037644 40011000 40011000
+2000802C: 080322D8 FFFFFFFD FFFFFFFD DEADBEEF
+2000803C: DEADBEEF DEADBEEF 20008078 DEADBEEF
+2000804C: DEADBEEF DEADBEEF DEADBEEF 40011000
+2000805C: 080322D8 00000020 00000020 08037644
+2000806C: 0800E49D 0800CFEA 01000000 0000023E
+2000807C: 08032708 00000001 200070A0 20008090
+2000808C: 0802B24F 00343735 00000000 00000010
+2000809C: 00000000 200080A8 0800D7E3 200080CC
+200080AC: 00000001 200080B8 08023A47 00000000
+200080BC: 20008110 00000012 20007036 200080D0
+200080CC: 20007036 00000000 00000000 00000000
+200080DC: 00000000 00000000 00000000 00000000
+200080EC: 00000000 00000000 00000001 0800D7C1
+200080FC: 00000012 20008108 08023AAF 00000012
+2000810C: 20007036 00000000 20006F08 20008120
+2000811C: 0802581D DEADBEEF 00000000 00000000
+2000812C: 0000000D 200012BC 00000000 00000000
+2000813C: 0802AC6B DEADBEEF 0802AC6B 200054F9
+2000814C: 00002C78 00001C08 00180018 20008164
+2000815C: 001E001E 00000000 0D0D0D0D 65680D0D
+2000816C: 630D706C 725F646D 75646D61 615F706D
+2000817C: 72657373 00000D74 00000000 00000000
+2000818C: 00000000 00000000 00000000 00000000
+2000819C: 00000000 00000000 00002D38 200054F9
+===================================================================================================
+Registers restored from frame at 0x20008058
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x9522]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      38178
+  SP:        0x20007FEC
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x080322D8
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x08037644
+  LR  = 0x0800E49D
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+=== Stack Dump (32 words around SP) ===
+20007FAC: 23232323 23232323 00000000 08022239
+20007FBC: DEADBEEF DEADBEEF 20007FF8 DEADBEEF
+20007FCC: DEADBEEF DEADBEEF DEADBEEF 200012BC
+20007FDC: 0000000A 200012BC 00000064 000004FE
+20007FEC: 00000000 DEADBEEF DEADBEEF DEADBEEF
+20007FFC: 20008030 DEADBEEF DEADBEEF DEADBEEF
+2000800C: DEADBEEF 00000000 10000000 200042DC
+2000801C: 00000001 08037644 40011000 40011000
+2000802C: 080322D8 FFFFFFFD FFFFFFFD DEADBEEF
+2000803C: DEADBEEF DEADBEEF 20008078 DEADBEEF
+2000804C: DEADBEEF DEADBEEF DEADBEEF 40011000
+2000805C: 080322D8 00000020 00000020 08037644
+2000806C: 0800E49D 0800CFEA 01000000 0000023E
+2000807C: 08032708 00000001 200070A0 20008090
+2000808C: 0802B24F 00343735 00000000 00000010
+2000809C: 00000000 200080A8 0800D7E3 200080CC
+200080AC: 00000001 200080B8 08023A47 00000000
+200080BC: 20008110 00000012 20007036 200080D0
+200080CC: 20007036 00000000 00000000 00000000
+200080DC: 00000000 00000000 00000000 00000000
+200080EC: 00000000 00000000 00000001 0800D7C1
+200080FC: 00000012 20008108 08023AAF 00000012
+2000810C: 20007036 00000000 20006F08 20008120
+2000811C: 0802581D DEADBEEF 00000000 00000000
+2000812C: 0000000D 200012BC 00000000 00000000
+2000813C: 0802AC6B DEADBEEF 0802AC6B 200054F9
+2000814C: 00002C78 00001C08 00180018 20008164
+2000815C: 001E001E 00000000 0D0D0D0D 65680D0D
+2000816C: 630D706C 725F646D 75646D61 615F706D
+2000817C: 72657373 00000D74 00000000 00000000
+2000818C: 00000000 00000000 00000000 00000000
+2000819C: 00000000 00000000 00002D38 200054F9
+===================================================================================================
+Registers restored from frame at 0x20005530
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005530]
+========================================
+Exception: Unknown
+Thread:    h1
+CFSR:      0x00000000
+HFSR:      0x0000008C
+MMFAR:     0x10000470
+BFAR:      0x10000470
+PC:        0x20005D88
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    h1
+  Tick:      536892720
+  SP:        0x0001AAB0
+  PC:        0x20005D88
+  CFSR:      0x00000000
+  HFSR:      0x0000008C
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x200054F9
+  R1  = 0x00000038
+  R2  = 0x00000000
+  R3  = 0x00000800
+  R12 = 0x20005578
+  LR  = 0x00000800
+  PC  = 0x20005D88
+  xPSR= 0x00000026
+
+=== Stack Dump (32 words around SP) ===
+0001AA70: 00000000 00000000 00000000 00000000
+0001AA80: 00000000 00000000 00000000 00000000
+0001AA90: 00000000 00000000 00000000 00000000
+0001AAA0: 00000000 00000000 00000000 00000000
+0001AAB0: 00000000 00000000 00000000 00000000
+0001AAC0: 00000000 00000000 00000000 00000000
+0001AAD0: 00000000 00000000 00000000 00000000
+0001AAE0: 00000000 00000000 00000000 00000000
+0001AAF0: 00000000 00000000 00000000 00000000
+0001AB00: 00000000 00000000 00000000 00000000
+0001AB10: 00000000 00000000 00000000 00000000
+0001AB20: 00000000 00000000 00000000 00000000
+0001AB30: 00000000 00000000 00000000 00000000
+0001AB40: 00000000 00000000 00000000 00000000
+0001AB50: 00000000 00000000 00000000 00000000
+0001AB60: 00000000 00000000 00000000 00000000
+0001AB70: 00000000 00000000 00000000 00000000
+0001AB80: 00000000 00000000 00000000 00000000
+0001AB90: 00000000 00000000 00000000 00000000
+0001ABA0: 00000000 00000000 00000000 00000000
+0001ABB0: 00000000 00000000 00000000 00000000
+0001ABC0: 00000000 00000000 00000000 00000000
+0001ABD0: 00000000 00000000 00000000 00000000
+0001ABE0: 00000000 00000000 00000000 00000000
+0001ABF0: 00000000 00000000 00000000 00000000
+0001AC00: 00000000 00000000 00000000 00000000
+0001AC10: 00000000 00000000 00000000 00000000
+0001AC20: 00000000 00000000 00000000 00000000
+0001AC30: 00000000 00000000 00000000 00000000
+0001AC40: 00000000 00000000 00000000 00000000
+0001AC50: 00000000 00000000 00000000 00000000
+0001AC60: 00000000 00000000 00000000 00000000
+===================================================================================================
+Registers restored from frame at 0x20005530
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005530]
+========================================
+Exception: HardFault
+Thread:    h1
+CFSR:      0x00000000
+HFSR:      0x0000008C
+MMFAR:     0x10000470
+BFAR:      0x10000470
+PC:        0x20005D88
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    h1
+  Tick:      536892720
+  SP:        0x0001AAB0
+  PC:        0x20005D88
+  CFSR:      0x00000000
+  HFSR:      0x0000008C
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x200054F9
+  R1  = 0x00000038
+  R2  = 0x00000000
+  R3  = 0x00000800
+  R12 = 0x20005578
+  LR  = 0x00000800
+  PC  = 0x20005D88
+  xPSR= 0x00000026
+
+rt_object_container symbol not found. Load ELF first.
+===================================================================================================
+Crashed thread:
+  Name: h1
+  SP:   0x0001AAB0
+========================================================================
+                    ALL THREAD BACKTRACE
+========================================================================
+
+=== Crashed Thread ===
+Thread: h1        SP:0x0001AAB0
+========================================================================
+g_ramdump_exception addr: 0x200054F4
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    h1
+  Tick:      536892720
+  SP:        0x0001AAB0
+  PC:        0x20005D88
+  CFSR:      0x00000000
+  HFSR:      0x0000008C
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x200054F9
+  R1  = 0x00000038
+  R2  = 0x00000000
+  R3  = 0x00000800
+  R12 = 0x20005578
+  LR  = 0x00000800
+  PC  = 0x20005D88
+  xPSR= 0x00000026
+
+g_ramdump_thread_list_head symbol not found. Load ELF first.
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x00000000  0x00000000  536899796  0      0  %   ??     2   
+  mmcsd_de?  0x00000000  0xFFFFFFFC  536890604  0      0  %   ??     0   
+  ulog_as   0x20003E24  0x00000004  536887956  0      0  %   ??     0   
+  tidle0    0x00000000  0x00000000  536892596  0      0  %   SUSP   0   
+  main      0x00000000  0xFFFFFFFC  536895380  0      0  %   CLOSE  2   
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x00000000  0x00000000  536899796  0      0  %   ??     2   
+  mmcsd_de?  0x00000000  0xFFFFFFFC  536890604  0      0  %   ??     0   
+  ulog_as   0x20003E24  0x00000004  536887956  0      0  %   ??     0   
+  tidle0    0x00000000  0x00000000  536892596  0      0  %   SUSP   0   
+  main      0x00000000  0xFFFFFFFC  536895380  0      0  %   CLOSE  2   
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x20007FF4  0x20007150  4096      0      0  %   ??     20  
+  mmcsd_de?  0x20004C1C  0x200048D8  1024      820    80 %   ??     22  
+  ulog_as   0x20006C14  0x200068C8  1024      368    35 %   ??     30  
+  tidle0    0x2000525C  0x20004EB8  1024      136    13 %   READY  31  
+  main      0x200066AC  0x20006010  2048      1244   60 %   ??     10  
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x20007FF4  0x20007150  4096      0      0  %   RUN    20  
+  mmcsd_de?  0x20004C1C  0x200048D8  1024      820    80 %   RUN-S  22  
+  ulog_as   0x20006C14  0x200068C8  1024      368    35 %   RUN-S  30  
+  tidle0    0x2000525C  0x20004EB8  1024      136    13 %   READY  31  
+  main      0x200066AC  0x20006010  2048      1244   60 %   INI-S  10  
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x20007FF4  0x20007150  4096      0      0  %   RUN    20  
+  mmcsd_de?  0x20004C1C  0x200048D8  1024      820    80 %   RUN-S  22  
+  ulog_as   0x20006C14  0x200068C8  1024      368    35 %   RUN-S  30  
+  tidle0    0x2000525C  0x20004EB8  1024      136    13 %   READY  31  
+  main      0x200066AC  0x20006010  2048      1244   60 %   INI-S  10  
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20008060
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[tshell]  FAULT[Assert]  TICK[0x4F4B4]
+========================================
+Exception: Assert
+Thread:    tshell
+CFSR:      0x00010000
+HFSR:      0x00000000
+MMFAR:     0xE000ED34
+BFAR:      0xE000ED38
+PC:        0x0800CFEA
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     Assert
+  Thread:    tshell
+  Tick:      324788
+  SP:        0x20007FF4
+  PC:        0x0800CFEA
+  CFSR:      0x00010000
+  HFSR:      0x00000000
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x40011000
+  R1  = 0x08032338
+  R2  = 0x00000020
+  R3  = 0x00000020
+  R12 = 0x080376A4
+  LR  = 0x0800E4C9
+  PC  = 0x0800CFEA
+  xPSR= 0x01000000
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x20007FF4  0x20007150  4096      348    8  %   RUNNING  20  
+  mmcsd_de?  0x20004C1C  0x200048D8  1024      188    18 %   RUNNING|SUSPEND  22  
+  ulog_as   0x20006C14  0x200068C8  1024      180    17 %   RUNNING|SUSPEND  30  
+  tidle0    0x2000525C  0x20004EB8  1024      92     8  %   READY  31  
+  main      0x200066AC  0x20006010  2048      356    17 %   INIT|SUSPEND  10  
+  Total: 5 threads
+===================================================================================================
+Registers restored from frame at 0x20005538
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005538]
+========================================
+Exception: HardFault
+Thread:    h1
+CFSR:      0x00000000
+HFSR:      0x0000008C
+MMFAR:     0x10000470
+BFAR:      0x10000470
+PC:        0x20005D90
+========================================
+===================================================================================================
+                                RT-Thread Crash Analysis
+---------------------------------------------------------------------------------------------------
+=== Crash Summary ===
+  Fault:     HardFault
+  Thread:    h1
+  Tick:      536892728
+  SP:        0x0001AAA8
+  PC:        0x20005D90
+  CFSR:      0x00000000
+  HFSR:      0x0000008C
+
+=== Hardware Exception Frame (arm_hw_stack_frame_t) ===
+  R0  = 0x20005501
+  R1  = 0x00000038
+  R2  = 0x00000000
+  R3  = 0x00000800
+  R12 = 0x20005580
+  LR  = 0x00000800
+  PC  = 0x20005D90
+  xPSR= 0x00000026
+
+
+===================================================================================================
+  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio
+---------------------------------------------------------------------------------------------------
+  tshell    0x20007FF4  0x20007150  4096      348    8  %   RUNNING  20  
+  mmcsd_d   0x20004C1C  0x200048D8  1024      188    18 %   RUNNING|SUSPEND  22  
+  ulog_as   0x20006C14  0x200068C8  1024      180    17 %   RUNNING|SUSPEND  30  
+  tidle0    0x2000525C  0x20004EB8  1024      92     8  %   READY  31  
+  main      0x200066AC  0x20006010  2048      356    17 %   INIT|SUSPEND  10  
+  Total: 5 threads
+===================================================================================================
+Crashed thread:
+  Name: h1
+  SP:   0x0001AAA8
+==================================== BACK TRACE ==========================================
+==========================================================================================
+Registers restored from frame at 0x20005538
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Registers restored from frame at 0x20005538
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005538]
+========================================
+Exception: HardFault
+Thread:Registers restored from frame at 0x20005538
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005538]
+========================================
+Exception: HardFault
+Thread:    h1
+CFSR:      0x00000000
+HFSR:      0x0000008C
+MMFAR:     0x10000470
+BFAR:      0x10000470
+PC:        0x20005D90
+========================================
+Crashed thread:
+  Name: h1
+  SP:   0x0001AAA8
+Registers restored from frame at 0x20005538
+  R0-R3, R12, LR, PC, xPSR recovered from hardware frame
+  SP approximated (actual SP was higher due to R4-R11 save)
+Restore STM32F407 Ramdump Files Complete!!
+SYSINFO: THREAD[h1]  FAULT[HardFault]  TICK[0x20005538]
+========================================
+Exception: HardFault
+Thread:    h1
+CFSR:      0x00000000
+HFSR:      0x0000008C
+MMFAR:     0x10000470
+BFAR:      0x10000470
+PC:        0x20005D90
+========================================
+Invalid thread SP in exception record.
+Invalid thread SP in exception record.

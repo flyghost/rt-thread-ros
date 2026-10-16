@@ -1,0 +1,64 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Ramdump Frame Recovery Script
+; @Description:
+;   Restores ARM Cortex-M registers from the hardware-stacked exception frame.
+;   The frame is automatically pushed by the CPU on exception entry.
+;
+;   Frame layout (arm_hw_stack_frame_t, 8 registers, 32 bytes):
+;     [+0x00] R0
+;     [+0x04] R1
+;     [+0x08] R2
+;     [+0x0C] R3
+;     [+0x10] R12
+;     [+0x14] LR  (EXC_RETURN value when entering handler)
+;     [+0x18] PC  (faulting instruction address)
+;     [+0x1C] xPSR
+;
+;   Additionally, R4-R11 and EXC_RETURN are saved by the RT-Thread assembly
+;   handler BEFORE calling rt_hw_hard_fault_exception(). These are saved
+;   on the current stack (MSP or PSP depending on EXC_RETURN[2]).
+; @Target: STM32F407ZG (ARM Cortex-M4)
+; @Usage:  do frame.cmm <hw_frame_ptr>
+; --------------------------------------------------------------------------------
+
+ENTRY &cpu_frame
+
+IF (&cpu_frame==0x0)
+(
+    PRINT "<invalid frame addr>"
+    ENDDO
+)
+
+; ---- Restore from hardware-stacked frame (8 registers) ----
+; R0-R3
+Register.Set R0  Data.Long(D:&cpu_frame+0x0)
+Register.Set R1  Data.Long(D:&cpu_frame+0x4)
+Register.Set R2  Data.Long(D:&cpu_frame+0x8)
+Register.Set R3  Data.Long(D:&cpu_frame+0xC)
+
+; R12
+Register.Set R12 Data.Long(D:&cpu_frame+0x10)
+
+; LR (EXC_RETURN value at exception entry)
+Register.Set R14 Data.Long(D:&cpu_frame+0x14)
+
+; PC (faulting instruction address)
+Register.Set R15 Data.Long(D:&cpu_frame+0x18)
+
+; xPSR → CPSR (simplified: just set the PSR flags)
+&xpsr=Data.Long(D:&cpu_frame+0x1C)
+Register.Set xPSR &xpsr
+
+; SP: the hardware frame sits ON the stack. We can compute the SP
+; as &cpu_frame + 32 (the frame is 32 bytes). This is approximate
+; because R4-R11 and EXC_RETURN were pushed before the hardware frame
+; by the RT-Thread handler, so the actual SP at crash time was higher.
+; For display purposes, this gives a reasonable stack pointer.
+&sp=&cpu_frame+0x20
+Register.Set R13 &sp
+
+PRINTF "Registers restored from frame at 0x%08X" &cpu_frame
+PRINT "  R0-R3, R12, LR, PC, xPSR recovered from hardware frame"
+PRINT "  SP approximated (actual SP was higher due to R4-R11 save)"
+
+ENDDO

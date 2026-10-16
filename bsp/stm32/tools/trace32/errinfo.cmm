@@ -1,0 +1,87 @@
+; --------------------------------------------------------------------------------
+; errinfo.cmm — Decode g_ramdump_exception using direct memory access
+;
+; IMPORTANT: Var.Value() is UNRELIABLE for .noinit variables (see TRACE32-SPEC).
+; All fields are read via Data.Long(D:&exc+offset) instead.
+;
+; ramdump_exception_t offsets:
+;   +0x00: magic           +0x1C: hw_frame_ptr
+;   +0x04: fault_type      +0x20: current_thread_sp
+;   +0x08: cfsr            +0x24: thread_name[8]
+;   +0x0C: hfsr            +0x2C: tick
+;   +0x10: mmfar           +0x30: checksum
+;   +0x14: bfar
+; --------------------------------------------------------------------------------
+
+LOCAL &info &exc
+&info="Unknown fault"
+
+IF !sYmbol.EXIST(g_ramdump_exception)
+(
+    PRINT "<no symbol g_ramdump_exception>"
+    ENDDO "<no ramdump>"
+)
+
+&exc=ADDRESS.OFFSET(g_ramdump_exception)
+
+; Check magic
+&magic=Data.Long(D:&exc+0x0)
+IF ((&magic!=0x52414D44))
+(
+    &info="No valid exception record (magic mismatch)"
+    ENDDO "&info"
+)
+
+; Read fields via direct memory access (NOT Var.Value!)
+&fault_type=Data.Long(D:&exc+0x4)
+&cfsr=Data.Long(D:&exc+0x8)
+&hfsr=Data.Long(D:&exc+0xC)
+&mmfar=Data.Long(D:&exc+0x10)
+&bfar=Data.Long(D:&exc+0x14)
+&hw_frame=Data.Long(D:&exc+0x1C)
+
+; Thread name (string at +0x24, max 8 chars)
+&thread_name=Data.STRing(D:&exc+0x24)
+
+; PC from hardware-stacked frame if available
+LOCAL &pc
+&pc=0x0
+IF ((&hw_frame!=0x0))
+    &pc=Data.Long(D:&hw_frame+0x18)
+
+; Decode fault type
+LOCAL &fault_name
+&fault_name="HardFault"
+IF (&fault_type==0x0)
+    &fault_name="HardFault"
+IF (&fault_type==0x1)
+    &fault_name="MemManage"
+IF (&fault_type==0x2)
+    &fault_name="BusFault"
+IF (&fault_type==0x3)
+    &fault_name="UsageFault"
+IF (&fault_type==0x4)
+    &fault_name="Assert"
+
+; Build info string
+IF ((&bfar!=0x0))
+    &info="&fault_name on thread &thread_name. PC: &pc, BFAR: &bfar"
+ELSE
+(
+    IF ((&mmfar!=0x0))
+        &info="&fault_name on thread &thread_name. PC: &pc, MMFAR: &mmfar"
+    ELSE
+        &info="&fault_name on thread &thread_name. PC: &pc"
+)
+
+PRINT "========================================"
+PRINT "Exception: &fault_name"
+PRINT "Thread:    &thread_name"
+PRINTF "CFSR:      0x%08X" &cfsr
+PRINTF "HFSR:      0x%08X" &hfsr
+PRINTF "MMFAR:     0x%08X" &mmfar
+PRINTF "BFAR:      0x%08X" &bfar
+PRINTF "PC:        0x%08X" &pc
+PRINT "========================================"
+
+ENDDO "&info"

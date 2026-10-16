@@ -1,0 +1,101 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 IPC Object Display
+; @Description:
+;   Displays RT-Thread IPC objects from the dump:
+;   mailboxes and message queues.
+;   Traverses rt_object_container for IPC object classes.
+; @Target: STM32F407ZG + RT-Thread
+; --------------------------------------------------------------------------------
+
+PRINT "========================================================================"
+PRINT "                    IPC OBJECTS (Mailbox / Message Queue)"
+PRINT "========================================================================"
+
+; ---- rt_object_container indices ----
+; RT_Object_Class_MailBox       = 3
+; RT_Object_Class_MessageQueue  = 5
+; Container entry size = 16 bytes (type+list+object_size)
+
+IF sYmbol.EXIST(rt_object_container)
+(
+    LOCAL &container_base &container &list_head &node &obj &name_str &count
+    LOCAL &entry &msg_size &max_msgs
+
+    &container_base=ADDRESS.OFFSET(rt_object_container)
+
+    ; ---- Mailboxes (index 3) ----
+    &container=&container_base+(0x3*0x10)
+    &node=Data.Long(D:&container+0x4)
+    &list_head=&container+0x4
+    &count=0x0
+
+    PRINT ""
+    PRINT "--- Mailboxes ---"
+
+    WHILE ((&node!=&list_head)&&(&node!=0x0)&&(&count<0x20))
+    (
+        ; rt_ipc_object is embedded at offset 0 in rt_mailbox
+        ; rt_ipc_object has rt_object at +0, then list at +0x14
+        ; rt_object.list is at +0x0C
+        ; So mailbox = node - 0x0C
+        &obj=&node-0xC
+
+        &name_str=Data.STRing(D:&obj)
+
+        ; rt_mailbox layout (approximate, RT-Thread v5):
+        ;   +0x00: parent (rt_ipc_object), size ~0x18
+        ;   +0x18: msg_pool (void*)
+        ;   +0x1C: size     (rt_uint32_t) — max messages
+        ;   +0x20: entry    (rt_uint16_t) — current count
+        ;   +0x22: in_offset (rt_uint16_t)
+        ;   +0x24: out_offset(rt_uint16_t)
+
+        &entry=Data.Word(D:&obj+0x20)
+        &msg_size=Data.Word(D:&obj+0x1C)
+
+        PRINTF "  MBX: %-8s  msgs:%d/%d" "&name_str" &entry &msg_size
+
+        &node=Data.Long(D:&node)
+        &count=&count+0x1
+    )
+
+    IF (&count==0x0)
+        PRINT "  (none)"
+
+    ; ---- Message Queues (index 5) ----
+    &container=&container_base+(0x5*0x10)
+    &node=Data.Long(D:&container+0x4)
+    &list_head=&container+0x4
+    &count=0x0
+
+    PRINT ""
+    PRINT "--- Message Queues ---"
+
+    WHILE ((&node!=&list_head)&&(&node!=0x0)&&(&count<0x20))
+    (
+        &obj=&node-0xC
+        &name_str=Data.STRing(D:&obj)
+
+        ; rt_messagequeue layout (approximate, RT-Thread v5):
+        ;   +0x00: parent (rt_ipc_object)
+        ;   +0x18: msg_pool (void*)
+        ;   +0x1C: msg_size (rt_uint16_t)
+        ;   +0x1E: max_msgs (rt_uint16_t)
+        ;   +0x20: entry    (rt_uint16_t) — current count
+
+        &entry=Data.Word(D:&obj+0x20)
+        &msg_size=Data.Word(D:&obj+0x1E)
+
+        PRINTF "  MSQ: %-8s  msgs:%d/%d" "&name_str" &entry &msg_size
+
+        &node=Data.Long(D:&node)
+        &count=&count+0x1
+    )
+
+    IF (&count==0x0)
+        PRINT "  (none)"
+)
+
+PRINT "========================================================================"
+
+ENDDO

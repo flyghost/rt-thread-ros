@@ -1,0 +1,14 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Memory Summary
+; @Description:
+;   Placeholder -- memory summary for STM32F407.
+; @Target: STM32F407ZG
+; --------------------------------------------------------------------------------
+
+PRINT "============================================="
+PRINT "  Memory Summary (STM32F407)"
+PRINT "============================================="
+PRINT "See show_ap_meminfo.cmm for memory layout info."
+PRINT "============================================="
+
+ENDDO

@@ -1,0 +1,14 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Heap Analyzer (Stub)
+; @Description: Placeholder for RT-Thread small memory heap analysis.
+; @Target: STM32F407ZG
+; --------------------------------------------------------------------------------
+PRINT "============================================="
+PRINT "  Heap Analysis (Small Memory)"
+PRINT "============================================="
+PRINT "RT-Thread uses small memory algorithm on STM32F407."
+PRINT "Heap start/end: check rt_system_heap symbols in ELF."
+PRINT "For detailed heap analysis, extend this script to parse"
+PRINT "struct rt_small_mem_item from the heap region."
+PRINT "============================================="
+ENDDO

@@ -1,0 +1,8 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Memory Info (Single Core)
+; @Description: Stub -- STM32F407 is single core, no CP.
+; @Target: STM32F407ZG
+; --------------------------------------------------------------------------------
+PRINT "STM32F407 is a single-core MCU (Cortex-M4 only)."
+PRINT "Use show_ap_meminfo.cmm for memory analysis."
+ENDDO

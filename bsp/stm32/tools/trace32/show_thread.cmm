@@ -1,0 +1,172 @@
+; --------------------------------------------------------------------------------
+; show_thread.cmm — RT-Thread Thread List + Crash Analysis
+;
+; Uses direct Data.Long(D:) access for .noinit fields (Var.Value is unreliable).
+;
+; ramdump_exception_t offsets:
+;   +0x00: magic      +0x04: fault_type  +0x08: cfsr    +0x0C: hfsr
+;   +0x10: mmfar      +0x14: bfar        +0x1C: hw_frame_ptr
+;   +0x20: sp         +0x24: thread_name[8]  +0x2C: tick
+; --------------------------------------------------------------------------------
+
+PRINT "==================================================================================================="
+PRINT "                                RT-Thread Crash Analysis"
+PRINT "---------------------------------------------------------------------------------------------------"
+
+IF sYmbol.EXIST(g_ramdump_exception)
+(
+    &exc=ADDRESS.OFFSET(g_ramdump_exception)
+    &magic=Data.Long(D:&exc+0x0)
+
+    IF (&magic==0x52414D44)
+    (
+        &fault_type=Data.Long(D:&exc+0x4)
+        &cfsr=Data.Long(D:&exc+0x8)
+        &hfsr=Data.Long(D:&exc+0xC)
+        &frame=Data.Long(D:&exc+0x1C)
+        &sp=Data.Long(D:&exc+0x20)
+        &thread_name=Data.STRing(D:&exc+0x24)
+        &tick=Data.Long(D:&exc+0x2C)
+
+        &pc=0x0
+        IF ((&frame!=0x0))
+            &pc=Data.Long(D:&frame+0x18)
+
+        ; Fault name
+        LOCAL &fault_str
+        &fault_str="HardFault"
+        IF (&fault_type==0x1)
+            &fault_str="MemManage"
+        IF (&fault_type==0x2)
+            &fault_str="BusFault"
+        IF (&fault_type==0x3)
+            &fault_str="UsageFault"
+        IF (&fault_type==0x4)
+            &fault_str="Assert"
+
+        PRINT "=== Crash Summary ==="
+        PRINTF "  Fault:     %s" "&fault_str"
+        PRINTF "  Thread:    %s" "&thread_name"
+        PRINTF "  Tick:      %d" &tick
+        PRINTF "  SP:        0x%08X" &sp
+        PRINTF "  PC:        0x%08X" &pc
+        PRINTF "  CFSR:      0x%08X" &cfsr
+        PRINTF "  HFSR:      0x%08X" &hfsr
+        PRINT  ""
+
+        ; Hardware exception frame
+        IF ((&frame!=0x0))
+        (
+            PRINT "=== Hardware Exception Frame (arm_hw_stack_frame_t) ==="
+            PRINTF "  R0  = 0x%08X"  Data.Long(D:&frame+0x0)
+            PRINTF "  R1  = 0x%08X"  Data.Long(D:&frame+0x4)
+            PRINTF "  R2  = 0x%08X"  Data.Long(D:&frame+0x8)
+            PRINTF "  R3  = 0x%08X"  Data.Long(D:&frame+0xC)
+            PRINTF "  R12 = 0x%08X"  Data.Long(D:&frame+0x10)
+            PRINTF "  LR  = 0x%08X"  Data.Long(D:&frame+0x14)
+            PRINTF "  PC  = 0x%08X"  Data.Long(D:&frame+0x18)
+            PRINTF "  xPSR= 0x%08X"  Data.Long(D:&frame+0x1C)
+            PRINT  ""
+        )
+    )
+    ELSE
+    (
+        PRINT "No valid exception record (magic mismatch)"
+    )
+)
+ELSE
+(
+    PRINT "g_ramdump_exception symbol not found."
+)
+
+; ---- Full thread list via g_ramdump_thread_list_head ----
+; rt_object_container is static, so we use g_ramdump_thread_list_head
+; which caches the thread object_list address at boot time.
+IF sYmbol.EXIST(g_ramdump_thread_list_head)
+(
+    LOCAL &head_addr &list_head &node &thr &thr_name &thr_sp &thr_stack &thr_ssize
+    LOCAL &thr_stat &thr_prio &count &stack_used &perc &tmp &ctr &susp &stat_base
+    &count=0x0
+
+    ; g_ramdump_thread_list_head holds the address of object_list
+    &head_addr=ADDRESS.OFFSET(g_ramdump_thread_list_head)
+    &list_head=Data.Long(D:&head_addr)
+    &node=Data.Long(D:&list_head)
+
+    PRINT ""
+    PRINT "==================================================================================================="
+    PRINT "  Name       SP         StackAddr   StackSize  Used    %Used  Stat   Prio"
+    PRINT "---------------------------------------------------------------------------------------------------"
+
+    WHILE ((&node!=&list_head)&&(&node!=0x0)&&(&count<0x40))
+    (
+        &thr=&node-0xC
+        ; Read name. Note: when name fills all RT_NAME_MAX=8 bytes,
+        ; rt_strncpy won't add \0, so Data.STRing may read past name[7].
+        ; We accept the occasional trailing garbage character here;
+        ; the fix belongs in rt_object_init() adding a \0 at name[7].
+        &thr_name=Data.STRing(D:&thr)
+        &thr_sp=Data.Long(D:&thr+0x14)
+        &thr_stack=Data.Long(D:&thr+0x20)
+        &thr_ssize=Data.Long(D:&thr+0x24)
+        &thr_stat=Data.Byte(D:&thr+0x34)
+        &thr_prio=Data.Byte(D:&thr+0x40)
+
+        ; Stack usage: computed from SP position (stack grows downward)
+        &stack_used=0x0
+        IF ((&thr_ssize>0x0)&&(&thr_sp>&thr_stack)&&(&thr_sp<(&thr_stack+&thr_ssize)))
+            &stack_used=(&thr_stack+&thr_ssize)-&thr_sp
+
+        ; Percentage via repeated add/subtract
+        &perc=0x0
+        IF ((&thr_ssize>0x0)&&(&stack_used>0x0))
+        (
+            &ctr=0x64
+            &tmp=0x0
+            WHILE (&ctr>0x0)
+            (
+                &tmp=&tmp+&stack_used
+                &ctr=&ctr-0x1
+            )
+            WHILE (&tmp>=&thr_ssize)
+            (
+                &tmp=&tmp-&thr_ssize
+                &perc=&perc+0x1
+            )
+        )
+
+        ; Decode stat (RT-Thread v5.x bitmask: bits[1:0]=base, bit[2]=SUSPEND)
+        LOCAL &stat_str &stat_base
+        &stat_str="??"
+        &stat_base=&thr_stat&0x3
+        &susp=&thr_stat&0x4
+        IF (&stat_base==0x0)
+            &stat_str="INIT"
+        IF (&stat_base==0x1)
+            &stat_str="CLOSE"
+        IF (&stat_base==0x2)
+            &stat_str="READY"
+        IF (&stat_base==0x3)
+            &stat_str="RUNNING"
+        IF ((&susp!=0x0))
+            &stat_str="&stat_str"+"|SUSPEND"
+
+        PRINTF "  %-8s  0x%08X  0x%08X  %-8d  %-5d  %-3d%%   %-5s  %-4d" "&thr_name" &thr_sp &thr_stack &thr_ssize &stack_used &perc "&stat_str" &thr_prio
+
+        &node=Data.Long(D:&node)
+        &count=&count+0x1
+    )
+
+    IF (&count==0x0)
+        PRINT "  (no threads found)"
+    ELSE
+        PRINTF "  Total: %d threads" &count
+)
+ELSE
+(
+    PRINT "g_ramdump_thread_list_head symbol not found. Load ELF first."
+)
+
+PRINT "==================================================================================================="
+
+ENDDO

@@ -1,0 +1,21 @@
+; --------------------------------------------------------------------------------
+; @Title: STM32F407 Memory Info
+; @Description:
+;   Placeholder -- memory heap analysis for STM32F407.
+;   Can be extended to parse RT-Thread memheap/smallmem structures.
+; @Target: STM32F407ZG
+; --------------------------------------------------------------------------------
+
+PRINT "============================================="
+PRINT "  Memory Info (STM32F407)"
+PRINT "============================================="
+PRINT "Memory layout:"
+PRINT "  SRAM:  0x20000000 - 0x20020000 (128KB)"
+PRINT "  CCM:   0x10000000 - 0x10010000 (64KB)"
+PRINT "  Flash: 0x08000000 - 0x08100000 (1MB)"
+PRINT ""
+PRINT "Heap analysis requires RT-Thread memheap symbol resolution."
+PRINT "Check rt_system_heap for small memory heap boundaries."
+PRINT "============================================="
+
+ENDDO

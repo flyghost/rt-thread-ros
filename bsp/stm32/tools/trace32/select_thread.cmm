@@ -1,0 +1,89 @@
+; --------------------------------------------------------------------------------
+; select_thread.cmm — Thread selector with dropdown (DYNPULLDOWN)
+;
+; Uses DIALOG with DYNPULLDOWN to present all threads from the RT-Thread
+; thread list.  Returns the selected thread's SP via GLOBAL variables.
+; Based on RISC-V reference implementation.
+; @Target: STM32F407ZG + RT-Thread
+; --------------------------------------------------------------------------------
+
+GLOBAL &g_sel_sp &g_sel_name &g_sel_stack_end
+
+  GOTO main
+
+main:
+  LOCAL &head_addr &list_head &node &thr &thr_name &thr_sp &thr_stack &thr_ssize
+  LOCAL &thread_list &selected_name
+
+  &g_sel_sp=0x0
+  &g_sel_name=""
+  &g_sel_stack_end=0x0
+  &thread_list=""
+
+  IF !sYmbol.EXIST(g_ramdump_thread_list_head)
+  (
+      PRINT "g_ramdump_thread_list_head not found. Load SRAM.bin and ELF first."
+      ENDDO
+  )
+
+  ; Collect thread names into comma-separated string
+  &head_addr=ADDRESS.OFFSET(g_ramdump_thread_list_head)
+  &list_head=Data.Long(D:&head_addr)
+  &node=Data.Long(D:&list_head)
+
+  WHILE ((&node!=&list_head)&&(&node!=0x0))
+  (
+      &thr=&node-0xC
+      &thr_name=Data.STRing(D:&thr)
+      IF ("&thread_list"=="")
+          &thread_list="&thr_name"
+      ELSE
+          &thread_list="&thread_list"+" "+"&thr_name"
+      &node=Data.Long(D:&node)
+  )
+
+  ; Show dropdown dialog
+  DIALOG
+  (
+      HEADER "Select Thread"
+
+      POS 0. 0. 27. 1.
+  THREAD_LIST: DYNPULLDOWN ",,," "CONTinue"
+  )
+
+  ; Set the dropdown options
+  DIALOG.Set THREAD_LIST "&thread_list"
+
+  ; Wait for user selection
+  STOP
+
+  ; User clicked Continue — get selection
+  &selected_name=DIALOG.STRING(THREAD_LIST)
+
+  ; Find the selected thread and read its SP/stack
+  &node=Data.Long(D:&list_head)
+  WHILE ((&node!=&list_head)&&(&node!=0x0))
+  (
+      &thr=&node-0xC
+      &thr_name=Data.STRing(D:&thr)
+      IF (("&thr_name"=="&selected_name"))
+      (
+          &g_sel_sp=Data.Long(D:&thr+0x14)
+          &g_sel_name=&thr_name
+          &thr_stack=Data.Long(D:&thr+0x20)
+          &thr_ssize=Data.Long(D:&thr+0x24)
+          &g_sel_stack_end=&thr_stack+&thr_ssize
+          BREAK
+      )
+      &node=Data.Long(D:&node)
+  )
+
+  DIALOG.END
+
+  PRINTF "Selected: %s  SP=0x%08X  Stack=%d" "&g_sel_name" &g_sel_sp &thr_ssize
+
+ENDDO
+
+cancel:
+  DIALOG.END
+ENDDO

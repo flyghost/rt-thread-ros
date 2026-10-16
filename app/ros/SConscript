@@ -1,0 +1,16 @@
+# RT-Thread building script for component
+
+import SCons, os
+from building import *
+
+group = []
+# Return('group')
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+
+CPPPATH = [cwd, os.path.join(cwd, 'ros')]
+
+group = DefineGroup('ros', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')
