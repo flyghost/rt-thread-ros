@@ -242,7 +242,7 @@ int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf)
     buf->f_blocks = fs_stat.f_blocks;
     buf->f_bfree = fs_stat.f_bfree;
 
-    MTP_LOGD_SHELL("Filesystem stats for %s: bsize=%zu, blocks=%zu, bfree=%zu", path, buf->f_bsize, buf->f_blocks, buf->f_bfree);
+    MTP_LOGD_SHELL("Filesystem stats for %s: bsize=%d, blocks=%d, bfree=%d", path, buf->f_bsize, buf->f_blocks, buf->f_bfree);
     return 0; // 获取成功
 #endif
 }

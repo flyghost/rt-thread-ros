@@ -1591,6 +1591,8 @@ static int mtp_send_object_data2(struct mtp_header *hdr)
         g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
         return mtp_send_response(MTP_RESPONSE_TRANSACTION_CANCELLED, hdr->trans_id);
     }
+
+    return 0;
 }
 
 // 获取设备属性描述
