@@ -1,0 +1,17 @@
+# app/usb/SConscript — USB 栈总入口
+#
+# 只做一件事：按固定顺序加载各栈子目录的 SConscript。
+# 顺序用 sorted() 固定住，避免 os.listdir 的不确定顺序影响全局 CPPPATH
+# （仓里已有两份同名 usb_config.h 的教训，见 app/usb/README.md）。
+import os
+from building import *
+
+cwd  = GetCurrentDir()
+objs = []
+
+for item in sorted(os.listdir(cwd)):
+    sub = os.path.join(cwd, item)
+    if os.path.isfile(os.path.join(sub, 'SConscript')):
+        objs += SConscript(os.path.join(sub, 'SConscript'))
+
+Return('objs')

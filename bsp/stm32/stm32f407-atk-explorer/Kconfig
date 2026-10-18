@@ -28,3 +28,7 @@ endif
 # Project-local component (ramdump): kept out of components/Kconfig so that
 # the upstream component list stays pristine and upgrade-safe.
 rsource "../../../app/ramdump/Kconfig"
+
+# Project-local USB stacks (app/usb): one submenu per stack, each stack keeps
+# its own Kconfig next to its code.
+rsource "../../../app/usb/Kconfig"

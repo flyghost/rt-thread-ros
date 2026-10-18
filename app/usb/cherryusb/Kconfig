@@ -1,0 +1,15 @@
+# app/usb/cherryusb/Kconfig — CherryUSB 设备栈
+#
+# 只决定「编不编」。行为参数（控制器 / FIFO / 打印重定向 / DWC2 端口）全部在
+# 同目录的 common/usb_config.h 里，便于写编译期断言。
+
+config USB_USE_CHERRYUSB
+    bool "CherryUSB device stack (FS controller, app/usb/cherryusb)"
+    default n
+    help
+        Build CherryUSB's device stack from app/usb/cherryusb
+        (core/usbd_core.c + class/cdc/usbd_cdc_acm.c + port/dwc2/usb_dc_dwc2.c).
+
+        At present this stack serves the ramdump USB CDC channel
+        (RT_USING_RAMDUMP_USB), running OTG_FS in polling mode.
+        Parameters live in app/usb/cherryusb/common/usb_config.h.

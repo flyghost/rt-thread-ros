@@ -1,0 +1,22 @@
+# app/usb/Kconfig — USB 栈选择
+#
+# 只管「编不编哪个栈」。每个栈自己的行为参数（控制器 / FIFO / 优先级 /
+# 回环开关）放在该栈目录下的配置头里（st/usb_st_config.h），不进 menuconfig。
+# 这样做的好处：参数带单位、带数值约束，能在头文件里写编译期断言。
+
+menu "USB Stack Selection"
+
+config USB_HAL_PCD
+    bool
+    default n
+    help
+        Internal switch: pull stm32f4xx_hal_pcd.c / stm32f4xx_hal_pcd_ex.c /
+        stm32f4xx_ll_usb.c into the build (bsp/stm32/libraries/STM32F4xx_HAL).
+        Selected automatically by a stack that needs the HAL PCD driver.
+        Do NOT enable RT_USING_USB instead — that bundle also pulls
+        hal_hcd.c / hal_pccard.c which are not part of this trimmed HAL tree.
+
+rsource "cherryusb/Kconfig"
+rsource "st/Kconfig"
+
+endmenu

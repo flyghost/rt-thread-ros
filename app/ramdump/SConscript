@@ -35,22 +35,25 @@ if GetDepend('RT_USING_RAMDUMP'):
     ]
 
     if GetDepend('RAMDUMP_ENABLE_STORAGE'):
-        src += ['ramdump_storage.c']
+        src += [
+            'ramdump_storage.c',
+            'port/rtthread/ramdump_port_storage.c',
+        ]
 
-    # USB CDC ACM channel
+    # USB CDC ACM channel（只编 ramdump 自己的通道；栈本体在 app/usb/cherryusb）
     if GetDepend('RT_USING_RAMDUMP_USB'):
         path += [cwd + '/transport/usb']
-        path += [cwd + '/transport/usb/common']
-        path += [cwd + '/transport/usb/core']
-        path += [cwd + '/transport/usb/class/cdc']
-        path += [cwd + '/transport/usb/port/dwc2']
 
-        src += [
-            'transport/usb/core/usbd_core.c',
-            'transport/usb/class/cdc/usbd_cdc_acm.c',
-            'transport/usb/port/dwc2/usb_dc_dwc2.c',
-            'transport/usb/ramdump_usb_cdc.c',
-        ]
+        # 栈由 app/usb/cherryusb 的 group 提供，但本组先于它定义，
+        # 所以要自己把这几个头目录挂上（顺序与上游目录一致）
+        cherryusb = cwd + '/../usb/cherryusb'
+        path += [cherryusb,
+                 cherryusb + '/common',
+                 cherryusb + '/core',
+                 cherryusb + '/class/cdc',
+                 cherryusb + '/port/dwc2']
+
+        src += ['transport/usb/ramdump_usb_cdc.c']
 
 group = DefineGroup('ramdump', src, depend=['RT_USING_RAMDUMP'],
                     CPPPATH=path)

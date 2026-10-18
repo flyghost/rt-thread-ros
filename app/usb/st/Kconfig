@@ -1,0 +1,22 @@
+# app/usb/st/Kconfig — ST USB Device 栈（本栈私有配置）
+#
+# 类比 app/ramdump/Kconfig：本栈的所有可见配置项都在这里，不散落到 BSP。
+
+menu "ST USB Device Stack (app/usb/st)"
+
+config USB_USE_ST
+    bool "Enable ST USB Device stack (OTG_HS + ULPI/USB3300)"
+    default n
+    select USB_HAL_PCD
+    help
+        Build app/usb/st: ST's official USB Device library (HAL port) driving
+        OTG_HS through the external USB3300 ULPI PHY, interrupt mode.
+
+        Not the same controller as the CherryUSB polling port in
+        app/ramdump/transport/usb (that one uses OTG_FS built-in PHY), so
+        both can coexist — but never enable two stacks on the same controller.
+
+        Behaviour knobs (controller, FIFO split, IRQ priority, echo test) are
+        plain C macros in app/usb/st/usb_st_config.h, NOT menuconfig items.
+
+endmenu

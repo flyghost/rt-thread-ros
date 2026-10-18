@@ -1,0 +1,31 @@
+# app/usb/cherryusb/SConscript — CherryUSB（本仓裁剪版）设备栈
+#
+# 只有 USB_USE_CHERRYUSB=y 时才编译。目录结构与文件内容保持上游原样
+# （core/ common/ class/cdc/ port/dwc2/），唯一的本仓适配是
+#   common/usb_config.h        —— 配置（FIFO / 打印 / DWC2 端口开关）
+#   app/ramdump/transport/usb/ramdump_usb_printf.h —— 把 CONFIG_USB_PRINTF 钉到
+#                                 ramdump 的 printf（HardFault 里也能打印）
+#
+# 依赖方向：本目录不 include 任何 rtthread.h / board.h，OS 能力全部由
+# ramdump 侧以宏/MALLOC 钩子注入（见 usb_config.h）。
+import os
+from building import *
+
+cwd  = GetCurrentDir()
+src  = []
+path = []
+
+if GetDepend(['USB_USE_CHERRYUSB']):
+    src += ['core/usbd_core.c',
+            'class/cdc/usbd_cdc_acm.c',
+            'port/dwc2/usb_dc_dwc2.c']
+
+    path += [cwd,
+             os.path.join(cwd, 'common'),
+             os.path.join(cwd, 'core'),
+             os.path.join(cwd, 'class', 'cdc'),
+             os.path.join(cwd, 'port', 'dwc2')]
+
+group = DefineGroup('USB_CHERRYUSB', src, depend = ['USB_USE_CHERRYUSB'], CPPPATH = path)
+
+Return('group')

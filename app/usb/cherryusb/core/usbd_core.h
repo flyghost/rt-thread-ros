@@ -16,6 +16,10 @@ extern "C" {
 #include <stdlib.h>
 
 #include "usb_config.h"
+/* Must come after usb_config.h: pins CONFIG_USB_PRINTF to ramdump_dbg_printf,
+ * because the BSP board copy of usb_config.h maps it to rt_kprintf (MSH console).
+ * See ramdump_usb_printf.h for the full explanation. */
+#include "ramdump_usb_printf.h"
 #include "usb_util.h"
 #include "usb_errno.h"
 #include "usb_def.h"

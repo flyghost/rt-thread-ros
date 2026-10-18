@@ -1,0 +1,42 @@
+# app/usb/st/SConscript — ST USB Device 栈
+#
+# 只有 USB_USE_ST=y 时才编译。行为开关（控制器/FIFO/中断优先级/回环）不在
+# Kconfig 里，全部集中在同目录的 usb_st_config.h —— 见 README.md。
+#
+# 目录为什么是扁平的（Core/ 与 CDC/ 里 .c 和 .h 混放）：
+#   本仓 app/ramdump/transport/usb/core/ 也有一份 usbd_core.h（CherryUSB），
+#   两套栈同名头文件靠 CPPPATH 顺序无法可靠隔离（ramdump 组先注册，ST 的头
+#   会被 CherryUSB 抢走，反之亦然）。GCC 的引号包含规则是「先查包含者所在
+#   目录」，所以让 ST 的 .c 与自己的 .h 同目录，即可与 CherryUSB 完全隔离，
+#   且不必修改 ST 官方源码一个字符。
+import os
+from building import *
+
+cwd  = GetCurrentDir()
+src  = []
+path = []
+
+if GetDepend(['USB_USE_ST']):
+    # Core/ 与 CDC/ 是 ST 官方文件，逐字节复制、未做任何修改
+    src += Glob('Core/*.c')
+    src += Glob('CDC/*.c')
+
+    # App/ 与 target/ 是本仓适配层（改动点见各文件头注释）
+    src += ['App/usb_device.c',
+            'App/usbd_desc.c',
+            'App/usbd_cdc_if.c',
+            'target/usbd_conf.c']
+
+    # port/ 是唯一的 OS 依赖层
+    src += ['port/rtthread/usb_st_port_rtthread.c']
+
+    path += [cwd,
+             os.path.join(cwd, 'Core'),
+             os.path.join(cwd, 'CDC'),
+             os.path.join(cwd, 'App'),
+             os.path.join(cwd, 'target'),
+             os.path.join(cwd, 'port')]
+
+group = DefineGroup('USB_ST', src, depend = ['USB_USE_ST'], CPPPATH = path)
+
+Return('group')

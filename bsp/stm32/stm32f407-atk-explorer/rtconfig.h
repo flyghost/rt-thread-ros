@@ -185,6 +185,12 @@
 #define RAMDUMP_ENABLE_CLI
 #define RT_USING_RAMDUMP_USB
 /* end of Ramdump */
+
+/* USB stacks (app/usb). Knobs live in app/usb/<stack>/<stack>_config.h */
+#define USB_HAL_PCD
+#define USB_USE_ST
+#define USB_USE_CHERRYUSB
+/* end of USB stacks */
 #define ULOG_OUTPUT_LVL_D
 #define ULOG_OUTPUT_LVL 7
 #define ULOG_USING_ISR_LOG

@@ -13,6 +13,7 @@
 /* STM32F4 hardware access (RCC, NVIC, DWT) */
 #include <stm32f4xx.h>
 #include "ramdump_utils.h"
+#include "ramdump_port.h"   /* ramdump_deadline_ms/expired (used before line 447) */
 
 /* ---- STM32F407 USB OTG FS base ---- */
 #define USB_OTG_FS_BASE  0x50000000U
@@ -395,12 +396,9 @@ int ramdump_usb_send(const uint8_t *data, uint32_t len)
      * the data has been ACKed by the host (or aborted on timeout).
      */
     {
-        uint32_t t0 = RAMDUMP_USB_DWT_CYCCNT;
-        uint32_t timeout = SystemCoreClock / 10;  /* ~100ms */
-        while (g_ep_tx_busy) {
+        uint32_t deadline = ramdump_deadline_ms(100);   /* ~100 ms */
+        while (g_ep_tx_busy && !ramdump_deadline_expired(deadline)) {
             ramdump_usb_poll();
-            if ((RAMDUMP_USB_DWT_CYCCNT - t0) > timeout)
-                break;
         }
         if (g_ep_tx_busy)
             ramdump_usb_abort_tx();
@@ -467,28 +465,26 @@ static void usb_put_bytes(const uint8_t *data, uint32_t len)
 
 static int usb_getc(uint32_t timeout_ms)
 {
+    int ch;
+    uint32_t deadline;
+
     if (!g_usb_active)
         return -1;
 
-    if (timeout_ms == 0) {
+    /* One poll always happens, so timeout_ms == 0 keeps its
+     * "look once, do not wait" meaning. */
+    ramdump_usb_poll();
+    ch = ramdump_usb_getc();
+    if (ch >= 0 || timeout_ms == 0)
+        return ch;
+
+    deadline = ramdump_deadline_ms(timeout_ms);
+    do {
         ramdump_usb_poll();
-        return ramdump_usb_getc();
-    }
+        ch = ramdump_usb_getc();
+    } while (ch < 0 && !ramdump_deadline_expired(deadline));
 
-    uint32_t remaining = timeout_ms;
-    while (remaining > 0) {
-        uint32_t chunk = (remaining > 5) ? 5 : remaining;
-        remaining -= chunk;
-
-        uint32_t t0 = RD_DWT_CYCCNT;
-        uint32_t dt = SystemCoreClock / 1000 * chunk;
-        while ((RD_DWT_CYCCNT - t0) < dt) {
-            ramdump_usb_poll();
-            int ch = ramdump_usb_getc();
-            if (ch >= 0) return ch;
-        }
-    }
-    return -1;
+    return ch;
 }
 
 static void usb_poll(void)
