@@ -9,9 +9,12 @@ from building import *
 cwd  = GetCurrentDir()
 objs = []
 
+# 注意：这里必须用「裸目录名」拼 SConscript 路径（相对路径），不能用 cwd 拼绝对路径。
+# RT-Thread 的 variant_dir 只对相对路径的源文件生效：用绝对路径调 SConscript() 会让
+# SCons 把 .o 直接生成在源码目录里（上游 components/drivers/SConscript 也是这么写的）。
+# 绝对路径写法曾导致 app/usb/** 下散落 12 个 .o，见 commit 记录。
 for item in sorted(os.listdir(cwd)):
-    sub = os.path.join(cwd, item)
-    if os.path.isfile(os.path.join(sub, 'SConscript')):
-        objs += SConscript(os.path.join(sub, 'SConscript'))
+    if os.path.isfile(os.path.join(cwd, item, 'SConscript')):
+        objs += SConscript(os.path.join(item, 'SConscript'))
 
 Return('objs')

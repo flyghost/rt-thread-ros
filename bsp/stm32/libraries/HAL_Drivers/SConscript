@@ -15,7 +15,11 @@ if not GetDepend('PKG_USING_CMSIS_CORE'):
 #   drv_common.c / drv_gpio.c / drv_sdio.c / drv_usart.c
 # 已删除的驱动（drv_spi/drv_can/drv_rtc/drv_tim/drv_crypto/drv_usbd/drv_flash/nano ...）
 # 需要时用 git 从历史版本恢复对应目录，并在 drivers/SConscript 里加回对应的 GetDepend 分支。
-group = group + SConscript(os.path.join(cwd, 'drivers', 'SConscript'))
+#
+# 这里必须传相对路径（'drivers/SConscript'），不能写 os.path.join(cwd, ...)：
+# variant_dir 只对相对路径生效，绝对路径会让 .o 生成在 drivers/ 源码目录里
+# （上游 components/drivers/SConscript 同样是 os.path.join(d, 'SConscript') 这种相对写法）。
+group = group + SConscript('drivers/SConscript')
 group = group + DefineGroup('Drivers', src, depend = [''], CPPPATH = path)
 
 Return('group')

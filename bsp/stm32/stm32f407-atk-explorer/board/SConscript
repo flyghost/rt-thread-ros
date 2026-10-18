@@ -1,8 +1,5 @@
 import os
-import rtconfig
 from building import *
-
-Import('SDK_LIB')
 
 cwd = GetCurrentDir()
 
@@ -47,14 +44,10 @@ if GetDepend(['BSP_USING_TOUCH_RES']):
     src += Glob('ports/touch/drv_xpt2046_init.c')
     path += [cwd + '/ports/touch']
 
-startup_path_prefix = SDK_LIB
-
-if rtconfig.PLATFORM in ['gcc']:
-    src += [startup_path_prefix + '/STM32F4xx_HAL/CMSIS/Device/ST/STM32F4xx/Source/Templates/gcc/startup_stm32f407xx.s']
-elif rtconfig.PLATFORM in ['armcc', 'armclang']:
-    src += [startup_path_prefix + '/STM32F4xx_HAL/CMSIS/Device/ST/STM32F4xx/Source/Templates/arm/startup_stm32f407xx.s']
-elif rtconfig.PLATFORM in ['iccarm']:
-    src += [startup_path_prefix + '/STM32F4xx_HAL/CMSIS/Device/ST/STM32F4xx/Source/Templates/iar/startup_stm32f407xx.s']
+# startup_stm32f407xx.s 挪到了 libraries/STM32F4xx_HAL/SConscript 里编译。
+# 原因：这里若用 SDK_LIB（绝对路径）引用 libraries 下的 .s，SCons 无法把它映射进
+# variant_dir，会直接在 libraries/.../Templates/gcc/ 下生成 startup_stm32f407xx.o。
+# 放到 HAL 库的 SConscript 里用相对路径写，对象文件就落在 build/libraries/STM32F4xx_HAL/ 下。
 
 CPPDEFINES = ['STM32F407xx']
 group = DefineGroup('Drivers', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)

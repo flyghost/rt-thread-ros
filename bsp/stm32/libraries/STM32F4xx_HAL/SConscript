@@ -131,6 +131,16 @@ if GetDepend(['USB_HAL_PCD']):
     src += ['STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c']
     src += ['STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c']
 
+# 启动汇编文件在这里编译（原来由 board/SConscript 用 SDK_LIB 绝对路径拼进来）。
+# 只有**相对路径**的源文件才会被 SCons 按 variant_dir 映射进 build/；用绝对路径时
+# 对象文件会直接生成在 CMSIS/Device/ST/STM32F4xx/Source/Templates/<toolchain>/ 旁边。
+if rtconfig.PLATFORM in ['gcc']:
+    src += ['CMSIS/Device/ST/STM32F4xx/Source/Templates/gcc/startup_stm32f407xx.s']
+elif rtconfig.PLATFORM in ['armcc', 'armclang']:
+    src += ['CMSIS/Device/ST/STM32F4xx/Source/Templates/arm/startup_stm32f407xx.s']
+elif rtconfig.PLATFORM in ['iccarm']:
+    src += ['CMSIS/Device/ST/STM32F4xx/Source/Templates/iar/startup_stm32f407xx.s']
+
 path = [cwd + '/STM32F4xx_HAL_Driver/Inc',
     cwd + '/CMSIS/Device/ST/STM32F4xx/Include']
 
