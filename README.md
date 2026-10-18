@@ -12,10 +12,10 @@
 | `app/` | 自有代码，与上游物理分离 | `ramdump/`（崩溃诊断）、`ros/`（`ANO_DT` 数据透传） |
 | `scripts/` | 自有 PC 端脚本 | `ramdump/`（采集 + 解析）、`serial_hub/`（串口服务器） |
 | `docs/` | 设计文档（含外来原始方案与已归档设计稿） | 见 `docs/` 索引说明 |
-| `out/` | 编译产物 + dump 输出 | 不进版本库 |
+| `out/` | 中间文件 `build/<board>/`、最终 bin、dump、trace32 样本 | 不进版本库 |
 
 构建接入：`bsp/stm32/<board>/SConstruct` 默认 `RTT_ROOT` 指向 `os/rt-thread`（可用环境变量覆盖），
-并额外加载 `app/`。
+并额外加载 `app/`；中间文件目录由 `RT_BUILD_DIR` 控制，脚本里默认指到 `out/build/<board>`。
 
 ## 索引（先看哪一份）
 

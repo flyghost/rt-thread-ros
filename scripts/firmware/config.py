@@ -44,3 +44,11 @@ TARGET_BIN = BSP_DIR / "rtthread.bin"
 TARGET_ELF = BSP_DIR / "rt-thread.elf"
 TARGET_MAP = BSP_DIR / "rt-thread.map"
 OUT_BIN_DIR = REPO_ROOT / "out" / "bin"
+
+# ---- 中间文件（.o/.d）目录 ---------------------------------------------
+# 统一收到仓内 out/build/<board>/，不再散落在 bsp/.../build 下。
+# SCons 的 variant_dir 只能写「相对顶层 SConstruct 目录」的路径，所以这里换算成
+# 从 BSP 目录出发的相对路径，通过 RT_BUILD_DIR 传给 SConstruct/building.py。
+# 不设该变量时构建系统仍退回上游默认的 build/。
+BUILD_DIR = REPO_ROOT / "out" / "build" / BSP_DIR.name
+RT_BUILD_DIR = os.path.relpath(BUILD_DIR, BSP_DIR).replace("\\", "/")

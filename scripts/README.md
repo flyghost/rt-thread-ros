@@ -60,6 +60,29 @@ python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 
 `status` 打印：BSP 路径、`rtthread.bin` 大小与时间、pyocd 版本、芯片 pack 是否存在、目标芯片。
 
+### 中间文件（`.o`/`.d`）在哪
+
+统一收在**仓库根的 `out/build/<board>/`**（已被 `/out/` 忽略），不再散落在 `bsp/.../build`：
+
+```
+out/build/stm32f407-atk-explorer/
+├── kernel/        ← os/rt-thread 内核与组件
+├── libraries/     ← STM32F4xx_HAL（含 startup_stm32f407xx.o）+ HAL_Drivers
+├── app/           ← app/ramdump、app/usb
+├── board/
+└── applications/
+```
+
+最终 `rt-thread.elf` / `rtthread.bin` / `rt-thread.map` 仍在 `bsp/stm32/stm32f407-atk-explorer/`
+（那是链接输出目录），`flash` 成功后它们会被复制一份到 `out/bin/`。
+
+实现方式：`scripts/firmware/config.py` 算出 `out/build/<board>`，用环境变量 `RT_BUILD_DIR`
+（相对 BSP 目录，如 `../../../out/build/stm32f407-atk-explorer`）传给 SCons；
+`os/rt-thread/tools/building.py` 与各 BSP 的 `SConstruct` 认这个变量。
+**直接敲 `scons` 时**不设该变量，行为与上游一致（仍用 `bsp/<board>/build`）。
+
+`clean` 会把 `out/build/<board>` 和遗留的 `bsp/<board>/build` 一起删掉。
+
 ## 3. 烧录
 
 | 目的 | Python 命令 | bat 等价 |
@@ -174,6 +197,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `PYOCD_PY` | 当前解释器 | 跑 `-m pyocd` 的解释器（要与 `pkg/` 里二进制 wheel 的 ABI 一致，即 CPython 3.13） |
 | `PYOCD_TARGET` | `STM32F407VE` | pyocd 目标名 |
 | `SCONS_JOBS` | `20` | 并行编译数 |
+| `RT_BUILD_DIR` | `../../../out/build/<board>`（由脚本设） | SCons 中间文件目录，**相对 BSP 目录**；不设则回到上游默认的 `build/` |
 | `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | 仅 `ai_services.bat` 用 |
 | `FLASH_GUARD_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |

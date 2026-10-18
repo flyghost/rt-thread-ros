@@ -14,11 +14,13 @@ app/                     # 自有代码（与上游物理分离）
   └── ros/               # ANO_DT 等业务
 scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；flash_guard/ 沙箱外守卫；
                          #   ramdump/ 采集与解析；serial_hub/ 串口服务器）
-out/                     # 编译产物 + dump 输出
+out/                     # 中间文件 out/build/<board>/、最终 bin、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
 构建接入：`bsp/stm32/<board>/SConstruct:8` 默认 `RTT_ROOT = <bsp>/../../../os/rt-thread`（可用 `RTT_ROOT` 环境变量覆盖）；
-`SConstruct:59-61` 额外加载 `app/`（`variant_dir=build/app`）。BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`。
+`SConstruct:59-63` 额外加载 `app/`。中间文件目录由环境变量 `RT_BUILD_DIR` 控制（相对 BSP 目录，
+`scripts/firmware/` 设成 `../../../out/build/<board>`；不设则退回上游默认的 `build/`），
+认这个变量的是 `os/rt-thread/tools/building.py` 与各 BSP 的 `SConstruct`。BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`。
 
 ## Build & Flash
 ```bash

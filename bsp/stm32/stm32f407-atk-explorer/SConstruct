@@ -51,14 +51,16 @@ stm32_library = 'STM32F4xx_HAL'
 rtconfig.BSP_LIBRARY_TYPE = stm32_library
 
 # include libraries
-objs.extend(SConscript(os.path.join(libraries_path_prefix, stm32_library, 'SConscript'), variant_dir='build/libraries/'+stm32_library, duplicate=0))
+# 中间文件目录：默认 'build'，可用 RT_BUILD_DIR 指到仓内别处（如 ../../../out/build/<board>）
+BUILD_DIR = os.environ.get('RT_BUILD_DIR') or 'build'
+objs.extend(SConscript(os.path.join(libraries_path_prefix, stm32_library, 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'libraries', stm32_library), duplicate=0))
 # include drivers
-objs.extend(SConscript(os.path.join(libraries_path_prefix, 'HAL_Drivers', 'SConscript'),variant_dir='build/libraries/'+'HAL_Drivers', duplicate=0))
+objs.extend(SConscript(os.path.join(libraries_path_prefix, 'HAL_Drivers', 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'libraries', 'HAL_Drivers'), duplicate=0))
 
 # own code (app/) lives outside the upstream tree (os/rt-thread)
 app_root = os.path.normpath(os.getcwd() + '/../../../app')
 if os.path.exists(os.path.join(app_root, 'SConscript')):
-    objs.extend(SConscript(os.path.join(app_root, 'SConscript'), variant_dir='build/app', duplicate=0))
+    objs.extend(SConscript(os.path.join(app_root, 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'app'), duplicate=0))
 
 # make a building
 DoBuilding(TARGET, objs)

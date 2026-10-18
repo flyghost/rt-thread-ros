@@ -14,8 +14,8 @@ import subprocess
 import sys
 
 from firmware.config import (
-    BSP_DIR, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS, PYOCD_PACK, PYOCD_PKG_DIR,
-    PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RTT_EXEC_PATH, SCONS_JOBS, TARGET_BIN,
+    BSP_DIR, BUILD_DIR, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS, PYOCD_PACK, PYOCD_PKG_DIR,
+    PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RT_BUILD_DIR, RTT_EXEC_PATH, SCONS_JOBS, TARGET_BIN,
     TARGET_ELF, TARGET_MAP, VENV_PY,
 )
 
@@ -28,6 +28,8 @@ def _scons_env() -> dict:
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    # 中间文件统一放 out/build/<board>/（SCons 从 BSP 目录出发的相对路径）
+    env["RT_BUILD_DIR"] = RT_BUILD_DIR
     # arm-none-eabi-gcc 放进 PATH 前置，SCons 的 toolchain 探测依赖它
     env["PATH"] = str(RTT_EXEC_PATH) + os.pathsep + env.get("PATH", "")
     return env
@@ -63,8 +65,15 @@ def build(jobs: int | None = None) -> int:
 
 
 def clean() -> int:
-    print("[clean] SCons -c")
-    return _run([VENV_PY, "-m", "SCons", "-c"], BSP_DIR, _scons_env())
+    print(f"[clean] SCons -c  (中间文件目录: {BUILD_DIR})")
+    rc = _run([VENV_PY, "-m", "SCons", "-c"], BSP_DIR, _scons_env())
+    # SCons -c 只删它这次认知的目标；换过 variant_dir、或历史遗留的 bsp/.../build
+    # 不会自动消失，这里兜底清掉，避免“清了还有残留”。
+    for stale in (BUILD_DIR, BSP_DIR / "build"):
+        if stale.exists():
+            shutil.rmtree(stale, ignore_errors=True)
+            print(f"[clean] 已删除 {stale}")
+    return rc
 
 
 def menuconfig() -> int:
@@ -140,6 +149,7 @@ def build_and_flash(jobs: int | None = None) -> bool:
 
 def status() -> int:
     print(f"BSP        : {BSP_DIR}")
+    print(f"中间文件   : {BUILD_DIR}  ({'存在' if BUILD_DIR.exists() else '未编译'})")
     print(f"固件       : {TARGET_BIN}  "
           f"({'%.0f KB' % (TARGET_BIN.stat().st_size / 1024) if TARGET_BIN.exists() else '缺失'})")
     if TARGET_BIN.exists():

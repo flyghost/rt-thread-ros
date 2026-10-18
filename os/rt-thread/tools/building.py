@@ -370,8 +370,11 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     # we need to seperate the variant_dir for BSPs and the kernels. BSPs could
     # have their own components etc. If they point to the same folder, SCons
     # would find the wrong source code to compile.
-    bsp_vdir = 'build'
-    kernel_vdir = 'build/kernel'
+    # 本仓改动：允许用 RT_BUILD_DIR 环境变量统一中间文件目录（例如 ../../../out/build/<board>）。
+    # 必须是相对 BSP 目录（顶层 SConstruct 所在目录）的路径，SCons 的 variant_dir 就是这么解释的；
+    # 不设置时行为与上游一致（'build'）。
+    bsp_vdir = os.environ.get('RT_BUILD_DIR') or 'build'
+    kernel_vdir = os.path.join(bsp_vdir, 'kernel')
     # board build script
     objs = SConscript('SConscript', variant_dir=bsp_vdir, duplicate=0)
     # include kernel
