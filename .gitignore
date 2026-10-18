@@ -84,3 +84,9 @@ os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
 
 # scripts/ramdump/build/ 是入库的源码目录，别被上面的 build 规则吃掉
 !scripts/ramdump/build/
+
+# 临时脚本与日志（不进库）
+/scratch/
+
+# 官方参考资料（1.5 GB，仅本地只读参考）
+/third-party/
