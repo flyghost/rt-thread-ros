@@ -5,7 +5,7 @@
 这是"把渲染搬进 sink"（TUI 第 1 步）的回归测试：直接构造 hub 的输出侧，
 喂事件进去，断言 `.raw` / `.log` / 本窗口输出与重构前的格式一致。
 
-跑法：python tools/serial_hub/tests/sink_check.py
+跑法：python scripts/serial_hub/tests/sink_check.py
 """
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
@@ -24,7 +24,7 @@ import time
 from contextlib import redirect_stdout
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_HERE))          # tools/serial_hub
+sys.path.insert(0, os.path.dirname(_HERE))          # scripts/serial_hub
 
 from core.events import EV_HUB, EV_RX, EV_TX, Event   # noqa: E402
 from core.relay import SerialHub                      # noqa: E402

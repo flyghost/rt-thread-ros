@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """离线验 codec：不接串口、不需要 COM 口，只驱动 protocols 里的 codec。
 
-    python tools/serial_hub/tests/codec_check.py
+    python scripts/serial_hub/tests/codec_check.py
 """
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
@@ -15,7 +15,7 @@ import os
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_HERE))          # tools/serial_hub
+sys.path.insert(0, os.path.dirname(_HERE))          # scripts/serial_hub
 
 from protocols import RawCodec, TelnetCodec          # noqa: E402
 

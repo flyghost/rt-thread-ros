@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 """构建入口：编译 / 下载 / 清理 / menuconfig（BSP = stm32f407-atk-explorer）。
 
-    python tools/ramdump/build/build.py                 # 只编译
-    python tools/ramdump/build/build.py --flash         # 编译 + 下载
-    python tools/ramdump/build/build.py --flash-only    # 只下载（不编译）
-    python tools/ramdump/build/build.py --clean         # 清理产物
-    python tools/ramdump/build/build.py --menuconfig    # 进 menuconfig
-    python tools/ramdump/build/build.py --new-console   # 弹独立 cmd 窗口看编译输出
+    python scripts/ramdump/build/build.py                 # 只编译
+    python scripts/ramdump/build/build.py --flash         # 编译 + 下载
+    python scripts/ramdump/build/build.py --flash-only    # 只下载（不编译）
+    python scripts/ramdump/build/build.py --clean         # 清理产物
+    python scripts/ramdump/build/build.py --menuconfig    # 进 menuconfig
+    python scripts/ramdump/build/build.py --new-console   # 弹独立 cmd 窗口看编译输出
 
 实现都在 lib/builder.py（scons 与 pyocd 的封装）与 BSP 自带的 build_and_flash.bat；
 本文件只做参数解析与分发，不重复实现编译逻辑。
@@ -27,7 +27,7 @@ import os
 import subprocess
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # tools/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
 from lib import builder                                                # noqa: E402

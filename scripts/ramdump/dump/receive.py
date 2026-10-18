@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """只收：设备侧已经在跑，本脚本只负责「下发 dump 命令 → YMODEM 收 → 落盘」。
 
-    python tools/ramdump/dump/receive.py --com COM46                # 触发一次并收
-    python tools/ramdump/dump/receive.py --com COM46 --no-trigger    # 设备已在发 YMODEM，直接收
-    python tools/ramdump/dump/receive.py --region sram               # 只收 SRAM
-    python tools/ramdump/dump/receive.py                             # 自动找口
+    python scripts/ramdump/dump/receive.py --com COM46                # 触发一次并收
+    python scripts/ramdump/dump/receive.py --com COM46 --no-trigger    # 设备已在发 YMODEM，直接收
+    python scripts/ramdump/dump/receive.py --region sram               # 只收 SRAM
+    python scripts/ramdump/dump/receive.py                             # 自动找口
 
 和 dump.py 的区别：不编译、不下载、不进 ramdump（除 --no-check 外会先探一次 MSH）。
 """
@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # tools/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
 from lib import console, serial_utils, ymodem_receiver                 # noqa: E402

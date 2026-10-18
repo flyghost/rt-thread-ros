@@ -80,8 +80,8 @@ USB 是主机驱动的总线，设备不能主动发送。软件只负责在 TXF
 ### 编译烧录（必须用脚本）
 
 ```bash
-python tools/ramdump/build/build.py            # 只编译
-python tools/ramdump/build/build.py --flash    # 编译 + 烧录
+python scripts/ramdump/build/build.py            # 只编译
+python scripts/ramdump/build/build.py --flash    # 编译 + 烧录
 ```
 
 ### USB 回环测试（在 dump CLI 内）
@@ -91,7 +91,7 @@ USB 回环不再是独立线程，而是 `@ramdump>` 下的 `vcom` 命令，与�
 
 1. UART MSH（**COM46**，CH340）输入 `cmd_ramdump` → 触发断言进入 HardFault
 2. 等待 ~3 秒让 USB 枚举完成
-3. 切换到新出现的 **USB CDC ACM 虚拟串口**（VID:PID 为占位 `FFFF:FFFF`，端口号由系统分配，用 `python tools/ramdump/test/test_serial.py --list` 查）
+3. 切换到新出现的 **USB CDC ACM 虚拟串口**（VID:PID 为占位 `FFFF:FFFF`，端口号由系统分配，用 `python scripts/ramdump/test/test_serial.py --list` 查）
 4. 输入 `vcom` → 进入 echo 回环，Ctrl+C 退出
 
 ```python
@@ -117,8 +117,8 @@ ser.close()
 ### 完整 dump
 
 ```bash
-python tools/ramdump/dump/dump.py --com COM46 --crash          # UART 侧触发（默认路径）
-python tools/ramdump/dump/dump.py --com COM46 --transport usb  # 走 USB CDC 收 dump
+python scripts/ramdump/dump/dump.py --com COM46 --crash          # UART 侧触发（默认路径）
+python scripts/ramdump/dump/dump.py --com COM46 --transport usb  # 走 USB CDC 收 dump
 ```
 
 ## 常见错误

@@ -65,7 +65,7 @@ def build_and_flash(new_console: bool = False) -> bool:
         return False
 
     # ---- Flash ----
-    pyocd_exe = PROJECT_ROOT / "bsp" / "PyOCD" / "0.1.3" / "pyocd.exe"
+    pyocd_exe = PROJECT_ROOT / "tools" / "pyocd" / "0.1.3" / "pyocd.exe"
     if not pyocd_exe.exists():
         print(f"[FLASH] ERROR: pyocd not found at {pyocd_exe}")
         return False

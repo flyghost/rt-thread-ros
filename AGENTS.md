@@ -12,7 +12,7 @@ bsp/stm32/<board>/       # 板级：SConstruct / board/ / applications/ / Keil/i
 app/                     # 自有代码（与上游物理分离）
   ├── ramdump/           # 崩溃诊断：UART轮询+YMODEM+CLI+断言（port/ 层隔离 OS）
   └── ros/               # ANO_DT 等业务
-tools/                   # 自有脚本（ramdump/ 采集与解析；serial_hub/ 串口服务器）
+scripts/                   # 自有脚本（ramdump/ 采集与解析；serial_hub/ 串口服务器）
 out/                     # 编译产物 + dump 输出
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
@@ -42,13 +42,13 @@ pyocd flash --target=STM32F407VE rtthread.bin           # 下载
 | Ramdump OS 适配层 | `app/ramdump/port/rtthread/` |
 | Ramdump 异常转发 | `bsp/stm32/stm32f407-atk-explorer/board/ramdump_handlers.c` |
 | Trace32 脚本 | `bsp/stm32/tools/trace32/` |
-| 采集/解析工具 | `tools/ramdump/`（`lib/` + `build/` `dump/` `test/` + `analyzer/`） |
-| 串口服务器 | `tools/serial_hub/`（一个进程独占串口，人 + 脚本同时连） |
+| 采集/解析工具 | `scripts/ramdump/`（`lib/` + `build/` `dump/` `test/` + `analyzer/`） |
+| 串口服务器 | `scripts/serial_hub/`（一个进程独占串口，人 + 脚本同时连） |
 
-## Ramdump 采集 / 解析（`tools/ramdump/`）
+## Ramdump 采集 / 解析（`scripts/ramdump/`）
 分层：`lib/`（配置、串口、控制台、YMODEM、编译下载的实现）、`build/` `dump/` `test/` 三个动作桶
 （**只依赖 lib，桶之间不互相 import**）、`analyzer/`（离线解析 dump）。
-命令、端口号、依赖环境、USB 收包注意事项、串口被占用怎么办——全在 `tools/ramdump/README.md`。
+命令、端口号、依赖环境、USB 收包注意事项、串口被占用怎么办——全在 `scripts/ramdump/README.md`。
 
 ## Trace32
 ```bash
@@ -61,6 +61,6 @@ do STM32F407_Restore.cmm                                    # GUI界面
 | 范围 | 文档 |
 |------|------|
 | 组件级：异常链路 / 传输层 / 协议 / 脚本 | `app/ramdump/AGENTS.md` |
-| 采集与解析用法 | `tools/ramdump/README.md` |
-| 串口服务器 | `tools/serial_hub/README.md` |
+| 采集与解析用法 | `scripts/ramdump/README.md` |
+| 串口服务器 | `scripts/serial_hub/README.md` |
 | 设计文档 | `docs/`：`reference/Ramdump方案设计文档.md`（外来原始方案，RISC-V 双核）、`archive/ramdump-decouple-plan.md`（已落地）、`Ramdump实现设计方案.md`（历史计划稿，路径与协议已过时） |

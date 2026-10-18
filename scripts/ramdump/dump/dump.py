@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """采集入口（全流程）：编译 → 下载 → 等 MSH → 触发 ramdump → YMODEM 收 → 落盘。
 
-    python tools/ramdump/dump/dump.py                      # 自动找口，全流程
-    python tools/ramdump/dump/dump.py --com COM46 --skip-build
-    python tools/ramdump/dump/dump.py --region sram         # 只收 SRAM
-    python tools/ramdump/dump/dump.py --crash               # 用 RAMDUMP_ASSERT 走真异常路径
-    python tools/ramdump/dump/dump.py --transport usb       # UART 触发 + USB CDC 收
+    python scripts/ramdump/dump/dump.py                      # 自动找口，全流程
+    python scripts/ramdump/dump/dump.py --com COM46 --skip-build
+    python scripts/ramdump/dump/dump.py --region sram         # 只收 SRAM
+    python scripts/ramdump/dump/dump.py --crash               # 用 RAMDUMP_ASSERT 走真异常路径
+    python scripts/ramdump/dump/dump.py --transport usb       # UART 触发 + USB CDC 收
 
 落盘位置：out/dump/<YYYYmmdd_HHMMSS>/（--out-dir 可指定）。
 只收不触发请用 dump/receive.py。
@@ -25,7 +25,7 @@ import sys
 import time
 from pathlib import Path
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # tools/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
 from lib import builder, console, serial_utils, ymodem_receiver        # noqa: E402

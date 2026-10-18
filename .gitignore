@@ -70,8 +70,8 @@ __pycache__/
 /trace32_tmp/
 
 # 上位机临时脚本目录：脚本本身可入库，产物不入库
-tools/tmp/*
-!tools/tmp/*.py
+scripts/tmp/*
+!scripts/tmp/*.py
 
 # 本地工具与上传缓存
 .claude/
@@ -82,5 +82,5 @@ tools/tmp/*
 os/rt-thread/components/drivers/usb/cherryusb/class/mtp/hello.txt
 os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
 
-# tools/ramdump/build/ 是入库的源码目录，别被上面的 build 规则吃掉
-!tools/ramdump/build/
+# scripts/ramdump/build/ 是入库的源码目录，别被上面的 build 规则吃掉
+!scripts/ramdump/build/

@@ -10,7 +10,7 @@
 | `os/rt-thread/` | 上游 RT-Thread 内核与组件 | 自有改动应尽量收敛，便于整树替换/升级 |
 | `bsp/stm32/<board>/` | 板级工程：`SConstruct` / `board/` / `applications/` / Keil 工程 | 现有 `stm32f407-atk-explorer`、`stm32f103c8t6-remoter`、`stm32f103-100ask-mini` |
 | `app/` | 自有代码，与上游物理分离 | `ramdump/`（崩溃诊断）、`ros/`（`ANO_DT` 数据透传） |
-| `tools/` | 自有 PC 端脚本 | `ramdump/`（采集 + 解析）、`serial_hub/`（串口服务器） |
+| `scripts/` | 自有 PC 端脚本 | `ramdump/`（采集 + 解析）、`serial_hub/`（串口服务器） |
 | `docs/` | 设计文档（含外来原始方案与已归档设计稿） | 见 `docs/` 索引说明 |
 | `out/` | 编译产物 + dump 输出 | 不进版本库 |
 
@@ -23,8 +23,8 @@
 |---|---|
 | 仓库分层 / 构建烧录 / 关键路径 | `AGENTS.md` |
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
-| ramdump 采集与解析的完整用法 | `tools/ramdump/README.md` |
-| 串口服务器（一个进程独占串口，人 + 脚本同连） | `tools/serial_hub/README.md` |
+| ramdump 采集与解析的完整用法 | `scripts/ramdump/README.md` |
+| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/serial_hub/README.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
 > 命令与端口号以 `AGENTS.md` 为准，本 README 不重述——历史版本曾在此处抄一份用法，
@@ -38,5 +38,5 @@ cd bsp/stm32/stm32f407-atk-explorer
 build_and_flash.bat
 
 # 或走统一脚本（编译 / 烧录 / 采集 / 解析四个桶）
-python tools/ramdump/build/build.py --flash
+python scripts/ramdump/build/build.py --flash
 ```

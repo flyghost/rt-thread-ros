@@ -7,12 +7,12 @@ Windows 的 COM 口默认**独占**：SecureCRT 打开后脚本再打开就是 `
 ## 跑起来
 
 ```bash
-python tools/serial_hub/serial_hub.py                       # 按探测规则自动选串口（规则见 discovery/）
-python tools/serial_hub/serial_hub.py --com COM46 --baud 115200
-python tools/serial_hub/serial_hub.py --list                # 只列候选串口后退出
-python tools/serial_hub/serial_hub.py --stdout hex           # 本窗口按 hex+ASCII 实时显示
-python tools/serial_hub/serial_hub.py --stdout rxtx          # 本窗口也打 PC->串口 的内容
-python tools/serial_hub/serial_hub.py --ui tui               # 全屏界面（零依赖 ANSI TUI）
+python scripts/serial_hub/serial_hub.py                       # 按探测规则自动选串口（规则见 discovery/）
+python scripts/serial_hub/serial_hub.py --com COM46 --baud 115200
+python scripts/serial_hub/serial_hub.py --list                # 只列候选串口后退出
+python scripts/serial_hub/serial_hub.py --stdout hex           # 本窗口按 hex+ASCII 实时显示
+python scripts/serial_hub/serial_hub.py --stdout rxtx          # 本窗口也打 PC->串口 的内容
+python scripts/serial_hub/serial_hub.py --ui tui               # 全屏界面（零依赖 ANSI TUI）
 ```
 
 ## 客户端怎么连
@@ -41,11 +41,11 @@ python tools/serial_hub/serial_hub.py --ui tui               # 全屏界面（�
 判定强度：**VID:PID > 硬件ID关键字 > 描述关键字 > 串口名 glob**；同级再比 `priority`。
 
 ```bash
-python tools/serial_hub/serial_hub.py --list             # 候选串口 + 当前规则表
-python tools/serial_hub/serial_hub.py --prefer 1A86:7523  # 按 VID:PID 点名
-python tools/serial_hub/serial_hub.py --prefer name:COM7  # 按串口名（支持 * 通配）
-python tools/serial_hub/serial_hub.py --prefer desc:ch340
-python tools/serial_hub/serial_hub.py --prefer hwid:USB
+python scripts/serial_hub/serial_hub.py --list             # 候选串口 + 当前规则表
+python scripts/serial_hub/serial_hub.py --prefer 1A86:7523  # 按 VID:PID 点名
+python scripts/serial_hub/serial_hub.py --prefer name:COM7  # 按串口名（支持 * 通配）
+python scripts/serial_hub/serial_hub.py --prefer desc:ch340
+python scripts/serial_hub/serial_hub.py --prefer hwid:USB
 ```
 
 同时有两个同级候选（板上一个、外接一个）时 hub 不会瞎猜，会直接让你用 `--com` 指定。
@@ -62,9 +62,9 @@ python tools/serial_hub/serial_hub.py --prefer hwid:USB
 ## 界面（可选；默认行为与无界面时逐字节相同）
 
 ```bash
-python tools/serial_hub/serial_hub.py --ui tui     # 全屏：状态行 + 数据面板 + 输入行
-python tools/serial_hub/serial_hub.py --ui stream  # 默认：现在的滚动输出
-python tools/serial_hub/serial_hub.py --ui none    # 完全静默（只写日志文件）
+python scripts/serial_hub/serial_hub.py --ui tui     # 全屏：状态行 + 数据面板 + 输入行
+python scripts/serial_hub/serial_hub.py --ui stream  # 默认：现在的滚动输出
+python scripts/serial_hub/serial_hub.py --ui none    # 完全静默（只写日志文件）
 ```
 
 | 键 | 作用 |

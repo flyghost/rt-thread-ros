@@ -61,7 +61,7 @@ if not defined PATH_QEMU (
 
 :: ---- PyOCD flash tool ----
 if not defined PYOCD_DIR (
-    set "PYOCD_DIR=%~dp0..\..\PyOCD\0.1.3"
+    set "PYOCD_DIR=%~dp0..\..\..\tools\pyocd\0.1.3"
 )
 if not defined PYOCD_TARGET (
     set "PYOCD_TARGET=STM32F407VE"

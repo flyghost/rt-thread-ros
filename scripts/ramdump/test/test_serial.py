@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 """串口探针：列口 / 探控制台 / 回显自检（不碰 ramdump 逻辑）。
 
-    python tools/ramdump/test/test_serial.py --list
-    python tools/ramdump/test/test_serial.py --probe                 # 自动找口，看是否在 MSH
-    python tools/ramdump/test/test_serial.py --probe --com COM46 --seconds 5
-    python tools/ramdump/test/test_serial.py --echo --com COM46      # 发一行看是否回显
+    python scripts/ramdump/test/test_serial.py --list
+    python scripts/ramdump/test/test_serial.py --probe                 # 自动找口，看是否在 MSH
+    python scripts/ramdump/test/test_serial.py --probe --com COM46 --seconds 5
+    python scripts/ramdump/test/test_serial.py --echo --com COM46      # 发一行看是否回显
 
 为什么不再有 kill_com.bat / test_com3.py 那种 `taskkill /F /IM python.exe`：
-那会把别的脚本一起杀掉。端口被占时请用 `python tools/serial_hub/serial_hub.py --list`
-看是谁，或用串口中枢接管该口（见 tools/serial_hub/）。
+那会把别的脚本一起杀掉。端口被占时请用 `python scripts/serial_hub/serial_hub.py --list`
+看是谁，或用串口中枢接管该口（见 scripts/serial_hub/）。
 """
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
@@ -24,7 +24,7 @@ import sys
 import os
 import time
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # tools/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
 from lib import serial_utils                                           # noqa: E402
@@ -54,7 +54,7 @@ def probe(port, baud, seconds):
         ser = serial_utils.open_serial(port, baud)
     except Exception as exc:
         print("[PROBE] 打不开 %s：%s" % (port, exc))
-        print("        口被占用时用 tools/serial_hub/serial_hub.py --list 查占用者（别 taskkill python）")
+        print("        口被占用时用 scripts/serial_hub/serial_hub.py --list 查占用者（别 taskkill python）")
         return 1
     print("[PROBE] 已打开 %s @ %d 8N1，%ds 内尝试敲回车 ..." % (port, baud, seconds))
     try:

@@ -12,8 +12,8 @@
 import os
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__))      # tools/ramdump/lib
-_ROOT = os.path.dirname(_HERE)                          # tools/ramdump
+_HERE = os.path.dirname(os.path.abspath(__file__))      # scripts/ramdump/lib
+_ROOT = os.path.dirname(_HERE)                          # scripts/ramdump
 
 for _p in (_HERE, _ROOT):
     if _p not in sys.path:

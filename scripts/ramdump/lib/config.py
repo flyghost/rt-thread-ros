@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 SCRIPT_DIR   = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent  # lib/ → ramdump/ → tools/ → 仓库根
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent  # lib/ → ramdump/ → scripts/ → 仓库根
 BSP_DIR      = PROJECT_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
 
 # ---- Toolchain (from build_and_flash.bat defaults) ----
@@ -17,7 +17,7 @@ RTT_EXEC_PATH = Path(os.environ.get("RTT_EXEC_PATH", ENV_ROOT / "tools" / "gnu_g
 VENV_DIR      = Path(os.environ.get("VENV", ENV_ROOT / ".venv"))
 
 # ---- PyOCD ----
-PYOCD_DIR    = PROJECT_ROOT / "bsp" / "PyOCD" / "0.1.3"
+PYOCD_DIR    = PROJECT_ROOT / "tools" / "pyocd" / "0.1.3"
 PYOCD_TARGET = os.environ.get("PYOCD_TARGET", "STM32F407VE")
 PYOCD_FLASH_OPTS = os.environ.get("PYOCD_FLASH_OPTS", "--erase=auto --frequency=1000000").split()
 
