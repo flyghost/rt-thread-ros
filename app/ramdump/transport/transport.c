@@ -23,6 +23,11 @@ int ramdump_io_init(void)
 {
     const ramdump_transport_ops_t *ops = NULL;
 
+    /* Arm the cycle counter first: every transport's polled timeout is
+     * expressed as a ramdump_deadline_*().  Doing it here (not in a
+     * transport) keeps UART-only builds working. */
+    ramdump_dwt_enable();
+
 #if RAMDUMP_TRANSPORT == RAMDUMP_TRANSPORT_UART
     ops = &ramdump_transport_uart;
 #elif RAMDUMP_TRANSPORT == RAMDUMP_TRANSPORT_USB

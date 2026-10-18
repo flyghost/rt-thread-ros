@@ -18,6 +18,7 @@
 
 #include "ramdump_uart.h"
 #include "ramdump_config.h"
+#include "ramdump_port.h"   /* ramdump_deadline_ms/expired (DWT time base) */
 
 /*
  * Convenience: cast base address to USART_TypeDef pointer.
@@ -174,34 +175,34 @@ void ramdump_uart_putc(uint32_t base, uint8_t ch)
 }
 
 /**
- * Receive one byte with timeout — busy-wait for RXNE.
+ * Receive one byte with timeout — poll RXNE until a cycle-count deadline.
  *
- * Uses a simple software count-down.  On STM32F4 at 168 MHz a ~10-cycle
- * inner loop gives roughly 6M iterations/second.  We calibrate the
- * timeout loop so that each iteration ≈ 1 µs when possible, but fall
- * back to a hard-coded large count when rt_tick_get() is unavailable
- * (exception context).
+ * The time base is the DWT cycle counter, armed once by ramdump_io_init().
+ * This replaces a hand-calibrated "iterations ≈ µs" count-down, which was
+ * tied to 168 MHz and to the compiler's code generation.
+ *
+ * timeout_ms == 0 keeps its "look once, do not wait" meaning.
  */
 int ramdump_uart_getc(uint32_t base, uint32_t timeout_ms)
 {
     ramdump_usart_t *u = UART(base);
-    volatile uint32_t count;
+    uint32_t deadline;
 
-    /* Rough calibration: ~1 ms ≈ 6000 tight-loop iterations at 168 MHz.
-     * This is intentionally conservative — a few extra ms of timeout
-     * has no impact on YMODEM protocol correctness. */
-    count = timeout_ms * 6000;
+    if (u->SR & UART_SR_RXNE)
+        return (int)(u->DR & 0xFF);
 
-    if (count == 0)
-        count = 1;   /* prevent immediate exit when timeout_ms == 0 */
+    if (timeout_ms == 0)
+        return -1;
 
-    while (count--)
+    deadline = ramdump_deadline_ms(timeout_ms);
+
+    do
     {
         if (u->SR & UART_SR_RXNE)
         {
             return (int)(u->DR & 0xFF);
         }
-    }
+    } while (!ramdump_deadline_expired(deadline));
 
     return -1;   /* timeout */
 }
@@ -319,17 +320,7 @@ static void uart_put_bytes(const uint8_t *data, uint32_t len)
 static int uart_getc(uint32_t timeout_ms)
 {
     if (!g_uart_base) return -1;
-    if (timeout_ms == 0)
-        return ramdump_uart_getc(g_uart_base, 0);
-
-    uint32_t remaining = timeout_ms;
-    while (remaining > 0) {
-        uint32_t chunk = (remaining > 5) ? 5 : remaining;
-        remaining -= chunk;
-        int ch = ramdump_uart_getc(g_uart_base, chunk);
-        if (ch >= 0) return ch;
-    }
-    return -1;
+    return ramdump_uart_getc(g_uart_base, timeout_ms);
 }
 
 static void uart_poll(void)           { /* UART is always ready, no poll needed */ }

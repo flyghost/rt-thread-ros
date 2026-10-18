@@ -26,6 +26,9 @@ typedef struct {
 /** Register a command table (NULL-terminated).  Call before ramdump_enter(). */
 void ramdump_cli_register_cmds(const cli_cmd_t *cmds);
 
+/** Register the built-in command table (implemented in ramdump_commands.c). */
+int ramdump_commands_init(void);
+
 /**
  * Enter the ramdump CLI loop.
  *
@@ -50,6 +53,15 @@ void ramdump_enter(void);
  * then enter the interactive CLI loop.
  */
 void ramdump_cli_loop(void);
+
+/**
+ * Shell entry point for the 'ramdump' command.
+ *
+ * Implemented here but registered by the OS port layer, which owns the
+ * shell dependency -- this keeps the core free of any shell reference.
+ * Runs in thread context, not in exception context.
+ */
+int ramdump_msh_entry(int argc, char **argv);
 
 #ifdef __cplusplus
 }

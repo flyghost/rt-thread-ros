@@ -6,14 +6,14 @@
  * OS-specific wrappers that differ between RTOS / bare-metal targets.
  *
  * Usage:
- *   // Files needing OS services:
+ *   // Core files (anything outside port/): standard C plus this header only
  *   #include "ramdump_port.h"
- *   #include "port/rtthread/ramdump_port_rtthread.h"   // RT-Thread macros
  *
- *   // Files only needing standard C:
- *   #include <stdint.h>
- *   #include <stdbool.h>
- *   #include <string.h>
+ *   // Port files (port/rtthread/ ONLY): add the private port header
+ *   #include "ramdump_port_rtthread.h"
+ *
+ * Core code must never include a header from port/: the dependency arrow
+ * points outward, so the core can be moved to another OS or to bare metal.
  */
 
 #ifndef RAMDUMP_PORT_H__
@@ -28,7 +28,26 @@ extern "C" {
 #endif
 
 /* ---- DWT cycle counter (Cortex-M3/4/7) ---- */
+#define RD_DWT_DEMCR   (*(volatile uint32_t *)0xE000EDFCU)
+#define RD_DWT_CTRL    (*(volatile uint32_t *)0xE0001000U)
 #define RD_DWT_CYCCNT  (*(volatile uint32_t *)0xE0001004U)
+
+/**
+ * Enable the DWT cycle counter.
+ *
+ * Must be called once before any ramdump_deadline_*() use.  Idempotent, so
+ * calling it again (e.g. from a transport init) is harmless.
+ *
+ * Only TRCENA is needed -- no ITM/TPIU is involved -- so this is safe with
+ * no debugger attached.  Deliberately independent of the transport: a
+ * UART-only build needs the same polled time base as a USB one.
+ */
+static inline void ramdump_dwt_enable(void)
+{
+    RD_DWT_DEMCR |= (1U << 24);   /* TRCENA     */
+    RD_DWT_CYCCNT = 0;
+    RD_DWT_CTRL  |= (1U << 0);    /* CYCCNTENA  */
+}
 
 /** Set a deadline in ms from now.  Returns DWT cycle count at expiry. */
 static inline uint32_t ramdump_deadline_ms(uint32_t ms)

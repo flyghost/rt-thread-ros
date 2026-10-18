@@ -77,8 +77,18 @@ typedef struct {
 #endif
 
 /* ===== Feature Switches ===== */
-#ifndef RAMDUMP_ENABLE_LOCAL_STORAGE
-#define RAMDUMP_ENABLE_LOCAL_STORAGE  0
+/*
+ * Names match app/ramdump/Kconfig, so menuconfig actually takes effect.
+ *
+ * Kconfig emits these as *valueless* defines (e.g. "#define RAMDUMP_ENABLE_STORAGE"),
+ * so they must be tested with #ifdef — never with "#if RAMDUMP_ENABLE_STORAGE",
+ * which expands to "#if" with no expression and fails to compile.
+ * Do not give them a C-side numeric default here: that would make #ifdef true
+ * even when the feature is switched off in Kconfig.
+ */
+
+#ifndef RAMDUMP_STORAGE_PATH
+#define RAMDUMP_STORAGE_PATH    "/sd"
 #endif
 
 #ifndef RAMDUMP_ENABLE_EXCEPTION_AUTO

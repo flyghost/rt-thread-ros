@@ -11,6 +11,9 @@
 #include "ramdump_config.h"
 #include "ramdump_exception.h"
 #include "ramdump_utils.h"
+#ifdef RAMDUMP_ENABLE_STORAGE
+#include "ramdump_storage.h"   /* must precede its use in cli_cmd_ramdump_storage */
+#endif
 
 static int ramdump_send_crash(void);
 extern const cli_cmd_t cli_commands[];
@@ -201,7 +204,7 @@ int cli_cmd_ramdump_storage(int argc, char **argv)
     (void)argc;
     (void)argv;
 
-#if RAMDUMP_ENABLE_LOCAL_STORAGE
+#ifdef RAMDUMP_ENABLE_STORAGE
     ramdump_put_bytes((const uint8_t *)
         "Saving dump to local storage...\r\n", 35);
 
@@ -362,9 +365,5 @@ int ramdump_commands_init(void)
     ramdump_cli_register_cmds(cli_commands);
     return 0;
 }
-
-#if RAMDUMP_ENABLE_LOCAL_STORAGE
-#include "ramdump_storage.h"
-#endif
 
 /* ---- CLI Command Implementations ---- */

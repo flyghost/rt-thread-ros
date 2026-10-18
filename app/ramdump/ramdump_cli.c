@@ -10,12 +10,12 @@
  * It uses polled UART I/O through ramdump_io, so it does NOT depend on
  * any RT-Thread services (no semaphores, no threads, no malloc).
  *
- * In normal operation, the MSH commands 'ramdump' and 'ramdump_test'
- * are registered for manual testing.
+ * In normal operation this is entered through the shell command 'ramdump'.
+ * That registration lives in the OS port layer (port/rtthread/), so nothing
+ * in this file refers to the shell or to any RT-Thread service.
  */
 
 #include "ramdump_port.h"
-#include "port/rtthread/ramdump_port_rtthread.h"
 #include <string.h>
 #include "ramdump_cli.h"
 #include "ramdump_exception.h"
@@ -24,19 +24,6 @@
 #include "ramdump_config.h"
 #include "ramdump_assert.h"
 #include "ramdump_utils.h"
-#if RAMDUMP_ENABLE_LOCAL_STORAGE
-#include "ramdump_storage.h"
-#endif
-
-#ifdef RT_USING_FINSH
-#include <finsh.h>
-#endif
-
-#ifdef ULOG_USING_ASYNC_OUTPUT
-#include <ulog.h>
-#endif
-
-/* RT-Thread's configurable assert hook (see rtthread.h) */
 
 /* SCB AIRCR register for system reset */
 #define SCB_AIRCR       (*(volatile unsigned long *)0xE000ED0C)
@@ -45,11 +32,6 @@
 #define CLI_PROMPT     "@ramdump> "
 #define CLI_BUF_SIZE   128
 #define CLI_MAX_ARGS   8
-
-/* Always 0 — ramdump only runs in exception context (IRQs off).
- * Formerly set by cmd_ramdump cli, which no longer exists.
- * All paths now go through RAMDUMP_ASSERT → HardFault → ramdump_enter. */
-static int g_ramdump_cli_msh_mode = 0;
 
 /* ---- Command table (registered by commands.c) ---- */
 static const cli_cmd_t *g_cmds;
@@ -84,7 +66,7 @@ void ramdump_cli_loop(void)
     /* Init debug UART first — safe in exception context */
     ramdump_dbg_init();
 
-    /* Register commands (also done via RAMDUMP_INIT_EXPORT in normal mode) */
+    /* Register commands (also done by ramdump_init() at startup) */
     ramdump_commands_init();
 
     /* Initialize I/O — transport selection is internal to ramdump_io */
@@ -188,7 +170,14 @@ void ramdump_cli_loop(void)
     }
 }
 
-static int cmd_ramdump(int argc, char **argv)
+/**
+ * Shell entry point (registered by the OS port layer, not here).
+ *
+ * Ramdump runs in thread context when invoked this way; the delay below is
+ * therefore a real sleep rather than a busy-wait.  'ramdump busfault' and
+ * 'ramdump errorlog' exercise the fault path without rebooting.
+ */
+int ramdump_msh_entry(int argc, char **argv)
 {
     const char *sub = (argc >= 2) ? argv[1] : "";
 
@@ -223,6 +212,4 @@ static int cmd_ramdump(int argc, char **argv)
     RAMDUMP_ASSERT(0);
     /* never returns */
 }
-#ifdef RT_USING_FINSH
-RAMDUMP_CMD_EXPORT(cmd_ramdump, ramdump: enter ramdump via assertion);
-#endif /* RT_USING_FINSH */
+
