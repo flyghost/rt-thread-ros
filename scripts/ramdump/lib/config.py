@@ -1,30 +1,40 @@
 """
-Paths and toolchain configuration for STM32F407 ATK Explorer.
+Paths for the STM32F407 ATK Explorer BSP.
 
-All paths in one place — import from any script that needs them.
+真正的常量住在 scripts/firmware/config.py（构建与烧录的唯一事实来源），
+这里只做转发，免得 ramdump 的各个脚本各自写一份路径。
 """
 
-import os
+import sys
 from pathlib import Path
 
-SCRIPT_DIR   = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent  # lib/ → ramdump/ → scripts/ → 仓库根
-BSP_DIR      = PROJECT_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
+_SCRIPTS = Path(__file__).resolve().parents[2]      # scripts/
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 
-# ---- Toolchain (from build_and_flash.bat defaults) ----
-ENV_ROOT      = Path(os.environ.get("ENV_ROOT", r"E:\software\EnvEdition\rt-thread-env\env-windows"))
-RTT_EXEC_PATH = Path(os.environ.get("RTT_EXEC_PATH", ENV_ROOT / "tools" / "gnu_gcc" / "arm_gcc" / "mingw" / "bin"))
-VENV_DIR      = Path(os.environ.get("VENV", ENV_ROOT / ".venv"))
+from firmware import config as _fc                  # noqa: E402
 
-# ---- PyOCD ----
-PYOCD_DIR    = PROJECT_ROOT / "tools" / "pyocd" / "0.1.3"
-PYOCD_TARGET = os.environ.get("PYOCD_TARGET", "STM32F407VE")
-PYOCD_FLASH_OPTS = os.environ.get("PYOCD_FLASH_OPTS", "--erase=auto --frequency=1000000").split()
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = _fc.REPO_ROOT
 
-# ---- Build outputs ----
-SCONS_JOBS = int(os.environ.get("SCONS_JOBS", "20"))
-TARGET_BIN = BSP_DIR / "rtthread.bin"
-TARGET_ELF = BSP_DIR / "rt-thread.elf"
-TARGET_MAP = BSP_DIR / "rt-thread.map"
-OUT_BIN_DIR  = PROJECT_ROOT / "out" / "bin"
+BSP_DIR = _fc.BSP_DIR
+
+# ---- 工具链 ----
+ENV_ROOT = _fc.ENV_ROOT
+RTT_EXEC_PATH = _fc.RTT_EXEC_PATH
+VENV_DIR = _fc.VENV_DIR
+
+# ---- pyocd（唯一来源：tools/pyocd）----
+PYOCD_DIR = _fc.PYOCD_DIR
+PYOCD_PKG_DIR = _fc.PYOCD_PKG_DIR
+PYOCD_PACK = _fc.PYOCD_PACK
+PYOCD_TARGET = _fc.PYOCD_TARGET
+PYOCD_FLASH_OPTS = _fc.PYOCD_FLASH_OPTS
+
+# ---- 构建产物 ----
+SCONS_JOBS = _fc.SCONS_JOBS
+TARGET_BIN = _fc.TARGET_BIN
+TARGET_ELF = _fc.TARGET_ELF
+TARGET_MAP = _fc.TARGET_MAP
+OUT_BIN_DIR = _fc.OUT_BIN_DIR
 OUT_DUMP_DIR = PROJECT_ROOT / "out" / "dump"

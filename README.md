@@ -21,22 +21,30 @@
 
 | 想了解 | 看这里 |
 |---|---|
+| **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/README.md` |
 | 仓库分层 / 构建烧录 / 关键路径 | `AGENTS.md` |
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
 | ramdump 采集与解析的完整用法 | `scripts/ramdump/README.md` |
 | 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/serial_hub/README.md` |
+| 烧录守卫（信箱协议 / 白名单 / 排错） | `scripts/flash_guard/README.md` |
+| pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
-> 命令与端口号以 `AGENTS.md` 为准，本 README 不重述——历史版本曾在此处抄一份用法，
-> 结果是脚本改名后 README 指的目录已不存在（见 `docs/` 归档说明）。
+> **脚本怎么用一律看 `scripts/README.md`**（命令总表）；本 README 与 `AGENTS.md` 只留方向性结论，
+> 避免出现第二份会过期的副本。
 
 ## 快速开始
 
 ```bash
-# 构建 + 烧录（STM32F407 板，内置工具链默认值）
-cd bsp/stm32/stm32f407-atk-explorer
-build_and_flash.bat
+# 构建 + 烧录（STM32F407 板，工具链与 pyocd 路径都在脚本里）
+python scripts/firmware/build.py build-flash
+python scripts/firmware/build.py status        # 固件 / pyocd / pack 状态
 
-# 或走统一脚本（编译 / 烧录 / 采集 / 解析四个桶）
+# 人手动用：双击 ai_services.bat（菜单：编译 / 烧录 / 守卫 / 串口 hub / 状态）
+
+# 走统一脚本（编译 / 烧录 / 采集 / 解析四个桶）
 python scripts/ramdump/build/build.py --flash
 ```
+
+> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/flash_guard/`
+> 是**可选**的长任务执行器（信箱 + 完整日志 + 改脚本自动重启 + 无人值守）。

@@ -3,10 +3,10 @@
 """flash_guard.py — 烧录守卫：把「沙箱里跑不了」的硬件动作交给一个由人手动启动的进程。
 
 问题不是权限不够，而是进程位置不对：
-  `tools/pyocd/0.1.3/pyocd.exe` 是 PyInstaller 单文件包，启动时要把 VCRUNTIME140.dll
+  `pyocd`（在 `tools/pyocd/pkg`，用 `python -m pyocd` 跑）启动时要把随包的 DLL / 临时文件
   解压到临时目录；DSH 的受限文件沙箱（workspace-write）只允许写工作区，于是它必然报
-  `VCRUNTIME140.dll could not be extracted! / fopen: Permission denied`。
-  提权（danger-full-access）不但没解决，还把 job runner 拖挂（0xC0000142）。
+  `VCRUNTIME140.dll could not be extracted! / fopen: Permission denied`（0.27 的 PyInstaller 单文件
+  exe 时代是同一堵墙）。提权（danger-full-access）不但没解决，还把 job runner 拖挂（0xC0000142）。
 
 所以这里换一条路：**AI 不越界，改由人开一个不受限的窗口**。
   人        启动本脚本（双击仓根 `ai_services.bat`），窗口开着就行；
@@ -48,19 +48,18 @@ PROTOCOL = 1
 REPO = Path(__file__).resolve().parents[2]
 
 # ---------------------------------------------------------------- 板级事实（改这里）
-PYOCD_DIR = REPO / "tools" / "pyocd" / "0.1.3"
-PYOCD_EXE = PYOCD_DIR / "pyocd.exe"
-# 第二套 pyocd：`pip install --target` 装进仓库的新版。仓里自带的 pyocd.exe 是 0.27（2020 年），
-# 对新探针（CMSIS-DAP v2 / WinUSB）识别不了；新版由 `python -m pyocd` 走同一份解释器。
-# 为什么不装进 site-packages：那是工作区外，沙箱写不了，而且不该污染本机 Python。
-PY_PKG_DIR = REPO / "out" / "pyocd_pkg"
-PY_PKG_HOME = REPO / "out" / "pyocd_home"
+# 唯一 pyocd：pip 装进 tools/pyocd/pkg（gitignore），用 `python -m pyocd` 运行。
+# 不再有"自带 exe 兜底"：0.27 的 pyocd.exe 认不到 CMSIS-DAP v2（WinUSB/bulk）探针，
+# 留着只会让调用方选错实现。装法见 tools/pyocd/install.py。
+PYOCD_DIR = REPO / "tools" / "pyocd"
+PYOCD_PKG_DIR = PYOCD_DIR / "pkg"
+# pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，必须用同 ABI 的解释器。
 PY_PKG_PY = Path(r"E:\software\InstallerEdition\DevTools\Python\Python313\python.exe")
-# 新版 pyocd 不再内置芯片定义，必须给 pack。仓里本来就有 F4/F1 两份精简 pack（给自带 0.27
-# 用的），新版直接 `--pack` 指过去即可 —— 这样既不用 `pyocd pack install`（那会往
-# C:\Users\<me>\AppData\Local\cmsis-pack-manager 下 100+ MB 的全球厂商索引），
-# 烧录也重新变成「完全离线、可复现」。
-REPO_PACK = PYOCD_DIR / "packs" / "Keil.STM32F4xx_DFP.2.14.0-small.pack"
+# 新版 pyocd 不内置芯片定义，必须显式给仓内精简 pack（100% 离线、可复现）。
+PYOCD_PACK = PYOCD_DIR / "packs" / "Keil.STM32F4xx_DFP.2.14.0-small.pack"
+PYOCD = [str(PY_PKG_PY), "-m", "pyocd"]
+# 编译/烧录统一入口（build_and_flash.bat 已删）
+BUILD_ENTRY = REPO / "scripts" / "firmware" / "build.py"
 BSP_DIR = REPO / "bsp" / "stm32" / "stm32f407-atk-explorer"
 DEFAULT_BIN = BSP_DIR / "rtthread.bin"
 DEFAULT_TARGET = "STM32F407VE"
@@ -72,14 +71,13 @@ ARM_GCC_BIN = ENV_ROOT / "tools" / "gnu_gcc" / "arm_gcc" / "mingw" / "bin"
 # 动作白名单：action -> (单次总时长上限秒, 说明)
 ACTIONS = {
     "flash": (180, "pyocd flash：把 rtthread.bin 烧进板子"),
-    "build_flash": (1100, "scons 编译 + pyocd flash"),
+    "build_flash": (1100, "编译 + 烧录（都走 scripts/firmware/build.py）"),
     "build": (900, "只在守卫里编译（沙箱内其实也能编，留着给环境异常时用）"),
-    "list": (60, "pyocd list：看看调试器认不认得到"),
+    "list": (60, "pyocd list -v：看看调试器认不认得到"),
     "erase": (180, "pyocd erase --chip：整片擦除"),
     "reset": (60, "pyocd reset：复位目标"),
-    "probe": (90, "环境自检：TEMP 能不能写、pyocd.exe 能不能解包自己"),
+    "probe": (90, "环境自检：TEMP 能不能写、pyocd 版本、pkg 在不在"),
     "usb": (60, "用 pyusb/libusb 枚举 USB 设备（看 libusb 到底能看见谁）"),
-    "pack": (600, "【已不需要】装 pyocd 芯片支持包——现在用 --pack 指仓内 pack，留着以防要换芯片"),
     "selftest": (30, "守卫自检：只跑一条无害的 python -c，用来验证信箱协议"),
 }
 
@@ -103,13 +101,25 @@ for k in ("TEMP", "TMP", "TMPDIR"):
 try:
     d = tempfile.mkdtemp(prefix="guardprobe_")
     print("mkdtemp  : ok ->", d)
-    os.rmdir(d)
+    try:
+        with open(os.path.join(d, "probe.tmp"), "w", encoding="utf-8") as fp:
+            fp.write("ok")
+        print("写入     : ok")
+        os.remove(os.path.join(d, "probe.tmp"))
+        os.rmdir(d)
+        print("清理     : ok")
+    except Exception as exc:
+        # 沙箱会给 mkdtemp 造出来的目录挂一个本进程不可写的 ACL；能建不能写就说明这里有问题，
+        # pyocd/pip 这类"先解包到临时目录"的程序会因此失败。
+        print("写入/清理: FAILED ->", exc)
 except Exception as exc:
     print("mkdtemp  : FAILED ->", exc)
-exe = sys.argv[1]
-print("pyocd    :", exe, "exists=%s" % os.path.isfile(exe))
+pkg = sys.argv[1]
+print("pyocd pkg:", pkg, "is_dir=%s" % os.path.isdir(pkg))
+env = dict(os.environ); env["PYTHONPATH"] = pkg
 try:
-    r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=60)
+    r = subprocess.run([sys.executable, "-m", "pyocd", "--version"], env=env,
+                       capture_output=True, text=True, timeout=120)
     print("  rc     :", r.returncode)
     print("  out    :", (r.stdout or "").strip()[:400])
     print("  err    :", (r.stderr or "").strip()[:400])
@@ -260,7 +270,7 @@ def validate_request(req: dict) -> tuple[dict | None, str]:
     raw = req.get("args") or {}
     if not isinstance(raw, dict):
         return None, "args 必须是对象"
-    extra = set(raw) - {"target", "bin", "note", "pyocd"}
+    extra = set(raw) - {"target", "bin", "note"}
     if extra:
         return None, f"多余的参数名：{sorted(extra)}"
 
@@ -269,11 +279,6 @@ def validate_request(req: dict) -> tuple[dict | None, str]:
     if not isinstance(target, str) or not SAFE_NAME.match(target):
         return None, "target 只许字母数字与 _ . + -"
     args["target"] = target
-
-    impl = raw.get("pyocd", "bundled")
-    if impl not in ("bundled", "package"):
-        return None, "pyocd 只能是 bundled（仓里自带 0.27）或 package（仓库内新版 0.45）"
-    args["pyocd"] = impl
 
     if "bin" in raw:
         b = raw["bin"]
@@ -305,47 +310,34 @@ def _bin_path(args: dict) -> Path:
 
 
 def _pyocd_prefix(args: dict) -> list[str]:
-    """两套 pyocd 实现：仓里自带的 0.27 单文件 exe，或仓库内 pip 装的新版。"""
-    if args.get("pyocd") == "package":
-        return [str(PY_PKG_PY), "-m", "pyocd"]
-    return [str(PYOCD_EXE)]
+    """唯一 pyocd：`python -m pyocd`（tools/pyocd/pkg 里的 0.45）。"""
+    return list(PYOCD)
 
 
 def _pack_opt(args: dict) -> list[str]:
-    """新版 pyocd 要显式给 pack；指仓内那份，别让它去用户目录找缓存。
-
-    自带 0.27 从 pyocd.yaml 读 packs/，不需要这个参数（它也不认）。
-    """
-    if args.get("pyocd") != "package":
+    """显式给仓内 pack —— 新版 pyocd 不内置 STM32F407VE 的芯片定义。"""
+    if not PYOCD_PACK.is_file():
         return []
-    if not REPO_PACK.is_file():
-        return []
-    return ["--pack", str(REPO_PACK)]
+    return ["--pack", str(PYOCD_PACK)]
 
 
 def build_argv(action: str, args: dict) -> tuple[list[list[str]], Path]:
     """返回 (命令序列, 工作目录)。build_flash 是两条命令。"""
     tgt = args["target"]
     if action == "probe":
-        return ([[sys.executable, "-c", PROBE_SRC, str(PYOCD_EXE)]], REPO)
-    if action == "pack":
-        # 新版 pyocd 不再内置芯片定义，必须先装 CMSIS pack；它只会写用户缓存目录，所以
-        # 这一步必须在守卫里（沙箱外）跑，沙箱内它连 index 都下不下来。
-        return ([[str(PY_PKG_PY), "-m", "pyocd", "pack", "install", DEFAULT_TARGET.lower()]], REPO)
+        return ([[sys.executable, "-c", PROBE_SRC, str(PYOCD_PKG_DIR)]], REPO)
     if action == "usb":
         return ([[str(PY_PKG_PY), "-c", USB_SRC]], REPO)
     if action == "selftest":
         return ([[sys.executable, "-c", "print('flash_guard selftest ok')"]], REPO)
     if action == "list":
-        # 自带 0.27 的 list 不认 -v；新版 0.45 认，且 -v 能列出每个探针的接口/固件信息
-        extra = ["-v"] if args.get("pyocd") == "package" else []
-        return ([[*_pyocd_prefix(args), "list", *extra, *_pack_opt(args)]], REPO)
+        return ([[*_pyocd_prefix(args), "list", "-v", *_pack_opt(args)]], REPO)
     if action == "reset":
         return ([[*_pyocd_prefix(args), "reset", *_pack_opt(args), "--target", tgt]], REPO)
     if action == "erase":
         return ([[*_pyocd_prefix(args), "erase", *_pack_opt(args), "--target", tgt, "--chip"]], REPO)
     if action == "build":
-        return ([[str(VENV_PY), "-m", "SCons", "-j20"]], BSP_DIR)
+        return ([[str(VENV_PY), str(BUILD_ENTRY), "build"]], REPO)
 
     flash_cmd = [
         *_pyocd_prefix(args),
@@ -359,7 +351,7 @@ def build_argv(action: str, args: dict) -> tuple[list[list[str]], Path]:
     ]
     if action == "flash":
         return ([flash_cmd], REPO)
-    return ([[str(VENV_PY), "-m", "SCons", "-j20"], flash_cmd], BSP_DIR)
+    return ([[str(VENV_PY), str(BUILD_ENTRY), "build"], flash_cmd], REPO)
 
 
 def _cmd_label(argv: list[str]) -> str:
@@ -508,14 +500,10 @@ class Guard:
         status = "ok"
         message = "完成"
         env = child_env()
-        if req["action"] == "usb" or any(a == "pyocd" and "-m" in argv for argv in cmds for a in argv):
-            # 新版 pyocd 装在 out/pyocd_pkg（pip --target），用 PYTHONPATH 让它可见；
-            # 顺手把它的 pack 缓存钉进仓库，别去写 C:\Users\<me>\.pyocd。
-            PY_PKG_DIR.mkdir(parents=True, exist_ok=True)
-            PY_PKG_HOME.mkdir(parents=True, exist_ok=True)
+        if req["action"] == "usb" or any("pyocd" in argv for argv in cmds):
+            # pyocd 与它的依赖都装在 tools/pyocd/pkg，用 PYTHONPATH 让它可见。
             old = env.get("PYTHONPATH")
-            env["PYTHONPATH"] = str(PY_PKG_DIR) + ((os.pathsep + old) if old else "")
-            env["PYOCD_HOME"] = str(PY_PKG_HOME)
+            env["PYTHONPATH"] = str(PYOCD_PKG_DIR) + ((os.pathsep + old) if old else "")
             if req["action"] == "usb":
                 env["LIBUSB_DEBUG"] = "4"   # 让 libusb 自己说清楚「为什么没看见某个设备」
 
@@ -661,7 +649,7 @@ class Guard:
         _say(f" 仓库      : {REPO}")
         _say(f" 信箱      : {self.mb.root}   ← 会话侧往这里写 req_NNNN.json")
         _say(f" 应答      : rep_NNNN.json ＋ rep_NNNN.log（退出码与完整日志）")
-        _say(f" 调试器    : {PYOCD_EXE if PYOCD_EXE.exists() else '!! 找不到 pyocd.exe'}")
+        _say(f" 调试器    : pyocd {PYOCD_PKG_DIR} "f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python tools/pyocd/install.py'}")
         _say(f" 固件      : {DEFAULT_BIN if DEFAULT_BIN.exists() else '!! 还没有 rtthread.bin，先编译'}")
         _say(f" 轮询      : 每 {POLL_SECONDS:.0f}s 一次；心跳每 {HEARTBEAT_SECONDS:.0f}s")
         _say(f" 子进程TEMP: {CHILD_TMP}  (pyocd 解包用，不继承窗口 TEMP={os.environ.get('TEMP')!r})")
@@ -768,10 +756,8 @@ def cmd_list(mb: Mailbox) -> int:
     return 0
 
 
-def cmd_request(mb: Mailbox, action: str, target: str | None, binrel: str | None, note: str, expires: int, wait: bool, wait_timeout: float, pyocd: str = "bundled") -> int:
+def cmd_request(mb: Mailbox, action: str, target: str | None, binrel: str | None, note: str, expires: int, wait: bool, wait_timeout: float) -> int:
     args: dict = {}
-    if pyocd and pyocd != "bundled":
-        args["pyocd"] = pyocd
     if target:
         args["target"] = target
     if binrel:
@@ -852,7 +838,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--expires", type=int, default=DEFAULT_EXPIRES, help=f"请求有效期秒数（默认 {DEFAULT_EXPIRES}）")
     ap.add_argument("--wait", action="store_true", help="等到应答并回显日志尾")
     ap.add_argument("--wait-timeout", type=float, default=DEFAULT_WAIT, help=f"会话侧等待上限秒（默认 {DEFAULT_WAIT:.0f}）")
-    ap.add_argument("--pyocd", choices=["bundled", "package"], default="bundled", help="用哪套 pyocd: bundled=0.27 exe, package=repo pip")
     ap.add_argument("--once", action="store_true", help="守卫模式：处理完积压就退")
     ap.add_argument("--timeout", type=float, default=None, help="守卫模式：覆盖单次执行上限秒")
     ap.add_argument("--stall", type=float, default=STALL_SECONDS, help=f"守卫模式：停滞判据秒（0=关闭，默认 {int(STALL_SECONDS)}）")
@@ -865,7 +850,7 @@ def main(argv: list[str] | None = None) -> int:
     if ns.list:
         return cmd_list(mb)
     if ns.request:
-        return cmd_request(mb, ns.request, ns.target, ns.binrel, ns.note, ns.expires, ns.wait, ns.wait_timeout, ns.pyocd)
+        return cmd_request(mb, ns.request, ns.target, ns.binrel, ns.note, ns.expires, ns.wait, ns.wait_timeout)
     return Guard(mb, ns.once, ns.timeout, ns.stall).loop()
 
 
