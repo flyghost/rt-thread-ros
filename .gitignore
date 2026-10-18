@@ -90,3 +90,6 @@ os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
 
 # 官方参考资料（1.5 GB，仅本地只读参考）
 /third-party/
+
+# pyocd 安装产物（pip 装到 pkg/，50 MB，用 tools/pyocd/install.py 复现）
+/tools/pyocd/pkg/

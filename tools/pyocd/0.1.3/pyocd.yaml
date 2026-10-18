@@ -1,7 +1,0 @@
-# Only the STM32F4xx and STM32F1xx device family packs are kept in this repo.
-# pyocd reads this file with the system locale codec, so keep it ASCII only.
-# To flash another chip: put its .pack back into packs/ and list it here
-# (packs/update_yaml.py regenerates this file from the .pack files).
-pack:
-  - ./packs/Keil.STM32F4xx_DFP.2.14.0-small.pack
-  - ./packs/Keil.STM32F1xx_DFP.2.3.0-small.pack
