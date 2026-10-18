@@ -1,8 +1,4 @@
-import os
-import rtconfig
 from building import *
-
-Import('SDK_LIB')
 
 cwd = GetCurrentDir()
 
@@ -19,14 +15,10 @@ path =  [cwd]
 path += [cwd + '/CubeMX_Config/Inc']
 path += [cwd + '/ports']
 
-startup_path_prefix = SDK_LIB
-
-if rtconfig.PLATFORM in ['gcc']:
-    src += [startup_path_prefix + '/STM32F1xx_HAL/CMSIS/Device/ST/STM32F1xx/Source/Templates/gcc/startup_stm32f103xb.s']
-elif rtconfig.PLATFORM in ['armcc', 'armclang']:
-    src += [startup_path_prefix + '/STM32F1xx_HAL/CMSIS/Device/ST/STM32F1xx/Source/Templates/arm/startup_stm32f103xb.s']
-elif rtconfig.PLATFORM in ['iccarm']:
-    src += [startup_path_prefix + '/STM32F1xx_HAL/CMSIS/Device/ST/STM32F1xx/Source/Templates/iar/startup_stm32f103xb.s']
+# startup_stm32f103xb.s 挪到了 libraries/STM32F1xx_HAL/SConscript 里编译：
+# 这里若用 SDK_LIB（绝对路径）引用 libraries 下的 .s，SCons 无法映射进 variant_dir，
+# 会直接在 libraries/.../Templates/gcc/ 下生成 startup_stm32f103xb.o。
+# 放到 HAL 库的 SConscript 里用相对路径写，对象文件就落在 build/libraries/STM32F1xx_HAL/ 下。
 
 # STM32F100xB || STM32F100xE || STM32F101x6
 # STM32F101xB || STM32F101xE || STM32F101xG
