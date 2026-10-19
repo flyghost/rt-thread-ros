@@ -1,10 +1,10 @@
 # Python 质量门 + 固件编译回归
 #
 # 与本地完全同源：
-#   * 质量检查 = `python scripts/quality.py all`（ruff / ruff format / mypy / pytest，
+#   * 质量检查 = `python -X utf8 scripts/tools/run.py quality all`（ruff / ruff format / mypy / pytest，
 #     配置在 scripts/pyproject.toml，版本与 scripts/tools/pyquality/install.py 一致）
-#   * .bat 约束 = `python scripts/check_bat.py`（纯 ASCII + CRLF）
-#   * 固件编译 = `python scripts/run_rtros.py build build`（不需要烧录器）
+#   * .bat 约束 = `python scripts/tools/run.py check-bat`（纯 ASCII + CRLF）
+#   * 固件编译 = `python scripts/tools/run.py build build`（不需要烧录器）
 #
 # 说明：本地工具装在 scripts/tools/pyquality/pkg（gitignore），CI 里改成装到 site-packages，
 # 版本号保持一致；quality.py 通过 `python -m <tool>` 调用，两种安装位置都能找到。
@@ -42,13 +42,13 @@ jobs:
           python -m pip install ruff==0.14.3 mypy==1.18.2 pytest==8.4.2 pyserial pyelftools
 
       - name: doctor（工具是否齐）
-        run: python scripts/quality.py doctor
+        run: python -X utf8 scripts/tools/run.py quality doctor
 
       - name: 质量门
-        run: python scripts/quality.py all
+        run: python -X utf8 scripts/tools/run.py quality all
 
       - name: .bat 必须纯 ASCII + CRLF
-        run: python -X utf8 scripts/check_bat.py
+        run: python -X utf8 scripts/tools/run.py check-bat
 
   firmware-build:
     name: 固件编译（projects/base）
@@ -74,7 +74,7 @@ jobs:
           RTT_EXEC_PATH: /usr/bin
           VENV: ${{ env.pythonLocation }}
           SCONS_JOBS: "4"
-        run: python scripts/run_rtros.py build build
+        run: python scripts/tools/run.py build build
 
       - name: 产物摘要
         run: |

@@ -35,13 +35,13 @@ BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`（仅 menuconfig 使用
 
 ## Build & Flash
 ```bash
-python scripts/run_rtros.py build build-flash   # 编译 + 烧录（默认项目 projects/base）
-python scripts/run_rtros.py build --board build # 直接编译板级 BSP（对照用）
+python scripts/tools/run.py build build-flash   # 编译 + 烧录（默认项目 projects/base）
+python scripts/tools/run.py build --board build # 直接编译板级 BSP（对照用）
 out\venv\Scripts\rtros.cmd build status      # 装过仓内 venv 后的正式入口（见 scripts/README.md §12.2）
 ai_services.bat                                # 人手动用：菜单（编译/烧录/守卫/串口 hub/状态）
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
-**改 `scripts/` 下的 Python：`python scripts/quality.py all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` §11）。**
+**改 `scripts/` 下的 Python：`python scripts/tools/run.py quality all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` §11）。**
 四条稳定事实（细节见 `scripts/tools/pyocd/README.md`、`scripts/src/rtros/firmware/` 与 `docs/upstream-patches.md`）：
 - 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
@@ -51,7 +51,7 @@ ai_services.bat                                # 人手动用：菜单（编译/
   （elf/map/bin，由 `RT_ARTIFACT_DIR` + 显式 `Default(TARGET)` 实现）；两者都在 `out/` 下，入口目录只留源码；
 - **pyocd 全仓只有一份**：pip 装进 `scripts/tools/pyocd/pkg`（已 gitignore，`python scripts/tools/pyocd/install.py` 复现），
   芯片定义用仓内 `scripts/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
-- **烧录两条路都通**：`python scripts/run_rtros.py build flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，
+- **烧录两条路都通**：`python scripts/tools/run.py build flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，
   不再有 PyInstaller 解包那堵墙，沙箱内实测可烧）；`scripts/src/rtros/guard/` 的守卫是**可选**的长任务执行器
   （信箱 + 完整日志 + 改脚本自动重启 + 无人值守），由人双击 `ai_services.bat` 启动。
 

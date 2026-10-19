@@ -117,8 +117,8 @@ ser.close()
 ### 完整 dump
 
 ```bash
-python scripts/run_rtros.py dump --com COM46 --crash          # UART 侧触发（默认路径）
-python scripts/run_rtros.py dump --com COM46 --transport usb  # 走 USB CDC 收 dump
+python scripts/tools/run.py dump --com COM46 --crash          # UART 侧触发（默认路径）
+python scripts/tools/run.py dump --com COM46 --transport usb  # 走 USB CDC 收 dump
 ```
 
 ## 常见错误

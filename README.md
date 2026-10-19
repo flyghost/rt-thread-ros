@@ -37,8 +37,8 @@
 
 ```bash
 # 构建 + 烧录（STM32F407 板，工具链与 pyocd 路径都在脚本里）
-python scripts/run_rtros.py build build-flash
-python scripts/run_rtros.py build status        # 固件 / pyocd / pack 状态
+python scripts/tools/run.py build build-flash
+python scripts/tools/run.py build status        # 固件 / pyocd / pack 状态
 
 # 人手动用：双击 ai_services.bat（菜单：编译 / 烧录 / 守卫 / 串口 hub / 状态）
 
