@@ -31,6 +31,7 @@ from pathlib import Path
 RUFF_VERSION = "0.14.3"
 MYPY_VERSION = "1.18.2"
 PYTEST_VERSION = "8.4.2"
+PRECOMMIT_VERSION = "4.3.0"
 
 HERE = Path(__file__).resolve().parent
 PKG_DIR = HERE / "pkg"
@@ -38,6 +39,7 @@ PACKAGES = (
     f"ruff=={RUFF_VERSION}",
     f"mypy=={MYPY_VERSION}",
     f"pytest=={PYTEST_VERSION}",
+    f"pre-commit=={PRECOMMIT_VERSION}",
 )
 
 
@@ -76,13 +78,14 @@ def _first_line(argv: list[str]) -> str | None:
 
 
 def versions() -> dict[str, str | None]:
-    """返回 {'ruff': ..., 'mypy': ..., 'pytest': ...}；未安装或跑不起来为 None。"""
+    """返回各工具版本；未安装或跑不起来为 None。"""
     if not PKG_DIR.is_dir():
-        return {"ruff": None, "mypy": None, "pytest": None}
+        return {"ruff": None, "mypy": None, "pytest": None, "pre-commit": None}
     return {
         "ruff": _first_line([sys.executable, "-m", "ruff", "--version"]),
         "mypy": _first_line([sys.executable, "-m", "mypy", "--version"]),
         "pytest": _first_line([sys.executable, "-m", "pytest", "--version"]),
+        "pre-commit": _first_line([sys.executable, "-m", "pre_commit", "--version"]),
     }
 
 
@@ -117,7 +120,12 @@ def install(force: bool, quiet: bool = False) -> int:
 def check() -> int:
     got = versions()
     ok = True
-    for name, want in (("ruff", RUFF_VERSION), ("mypy", MYPY_VERSION), ("pytest", PYTEST_VERSION)):
+    for name, want in (
+        ("ruff", RUFF_VERSION),
+        ("mypy", MYPY_VERSION),
+        ("pytest", PYTEST_VERSION),
+        ("pre-commit", PRECOMMIT_VERSION),
+    ):
         ver = got[name]
         if ver is None:
             print(f"[pyquality] {name}: 未安装")

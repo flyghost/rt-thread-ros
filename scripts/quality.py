@@ -31,6 +31,7 @@ from runtime.errors import ToolMissingError
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 PKG = REPO / "tools" / "pyquality" / "pkg"
+PRE_COMMIT_HOME = REPO / "out" / "precommit"
 
 
 def _env() -> dict[str, str]:
@@ -38,6 +39,9 @@ def _env() -> dict[str, str]:
     env["PYTHONPATH"] = str(PKG)
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    # pre-commit 默认把缓存放 ~/.cache/pre-commit；仓内固定到 out/precommit，
+    # 既避免写用户目录（受限环境会被拒），也让缓存可随时整体删除。
+    env["PRE_COMMIT_HOME"] = str(PRE_COMMIT_HOME)
     return env
 
 
@@ -96,6 +100,40 @@ def require_tools() -> int:
     return 0
 
 
+def _hooks_install() -> int:
+    """把 .pre-commit-config.yaml 装进 .git/hooks/pre-commit（每台机器一次）。"""
+    if not _have("pre_commit"):
+        print(f"缺少 pre-commit。安装：{sys.executable} {REPO / 'tools' / 'pyquality' / 'install.py'}")
+        return 2
+    PRE_COMMIT_HOME.mkdir(parents=True, exist_ok=True)
+    rc = _run("pre-commit install", [*_tool("pre_commit"), "install"], quiet=True)
+    if rc != 0:
+        return rc
+    # 生成的钩子由 git 直接调用，拿不到本进程的环境变量；把缓存目录钉进钩子，
+    # 这样「人 git commit」与「AI 跑 quality.py hooks」用的是同一个仓内缓存。
+    hook = REPO / ".git" / "hooks" / "pre-commit"
+    if hook.is_file():
+        text = hook.read_text(encoding="utf-8", errors="replace")
+        if "PRE_COMMIT_HOME" not in text:
+            lines = text.splitlines()
+            pinned = f'export PRE_COMMIT_HOME="{PRE_COMMIT_HOME}"  # 缓存放仓内，不写用户目录'
+            lines.insert(1 if lines and lines[0].startswith("#!") else 0, pinned)
+            hook.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            print(f"已把 PRE_COMMIT_HOME 钉进 {hook.relative_to(REPO)}")
+    return 0
+
+
+def _hooks(staged: bool = False) -> int:
+    """按配置跑钩子；staged=True 只检查暂存文件（提交时自动跑的就是这条）。"""
+    if not _have("pre_commit"):
+        print(f"缺少 pre-commit。安装：{sys.executable} {REPO / 'tools' / 'pyquality' / 'install.py'}")
+        return 2
+    PRE_COMMIT_HOME.mkdir(parents=True, exist_ok=True)
+    argv = [*_tool("pre_commit"), "run"]
+    argv += [] if staged else ["--all-files"]
+    return _run("pre-commit", argv, quiet=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="quality.py",
@@ -113,12 +151,19 @@ def main(argv: list[str] | None = None) -> int:
     p_tests.add_argument("args", nargs=argparse.REMAINDER, help="透传给 pytest 的参数")
     sub.add_parser("doctor", help="检查工具是否安装")
     sub.add_parser("all", help="全套：check + format-check + types + tests")
+    p_hooks = sub.add_parser("hooks", help="跑 pre-commit 钩子（默认全量）")
+    p_hooks.add_argument("--staged", action="store_true", help="只跑已暂存文件")
+    sub.add_parser("hooks-install", help="把钩子装进 .git/hooks（每台机器一次）")
 
     ns = ap.parse_args(argv)
     cmd = ns.cmd or "all"
 
     if cmd == "doctor":
         return doctor()
+    if cmd == "hooks-install":
+        return _hooks_install()
+    if cmd == "hooks":
+        return _hooks(staged=getattr(ns, "staged", False))
 
     if cmd != "all":
         rc = require_tools()

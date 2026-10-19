@@ -18,6 +18,7 @@
 | [8. 环境变量与依赖](#8-环境变量与依赖) | — | — |
 | [9. 常见菜谱](#9-常见菜谱) | — | — |
 | [10. 已废弃 / 兼容入口](#10-已废弃--兼容入口) | — | — |
+| [11. Python 质量门](#11-python-质量门) | `tools/pyquality/install.py`、`scripts/quality.py`、`scripts/check_bat.py` | — |
 
 ## 0. 速查
 
@@ -246,6 +247,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | `scripts\ai_services.py` 的 `hub`/`both` 条目读取（可覆盖默认值） |
 | `AI_SERVICES_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |
+| `PRE_COMMIT_HOME` | `out\precommit`（`quality.py` 自动设） | pre-commit 的缓存目录，避免写用户目录 |
 
 依赖一览：Python 3.13（PATH 上的 `python`）、pyserial（hub/采集）、pyocd 0.45.1 + 18 个依赖（`tools/pyocd/install.py` 装）、
 analyzer 额外要 pyelftools + numpy、编译要 `rt-thread-env` 里的 arm-none-eabi-gcc 与 SCons（4.8.x）。
@@ -289,6 +291,68 @@ python scripts\guard\guard.py --request build_flash --wait --wait-timeout 900
 | `--new-console` | 失效（无独立窗口逻辑） | 直接看当前终端输出 |
 | `tools/pyocd/0.1.3/pyocd.exe`（0.27） | **已删除** | `tools/pyocd/pkg` 里的 0.45.1 |
 | `tools/pyocd/0.1.3/pyocd.yaml` | 已删除 | 命令行显式 `--pack`（脚本里已内置） |
+
+## 11. Python 质量门
+
+工具链**不在 site-packages 里**，而是按仓内约定装到 `tools/pyquality/pkg/`（已 gitignore），版本固定在 `tools/pyquality/install.py`：
+换机器只需一条命令重建，不会因为 `pip install` 到全局而出现"我这能过、你那不能过"。
+
+### 11.1 安装（每台机器一次）
+
+```powershell
+python tools\pyquality\install.py           # ruff 0.14.3 / mypy 1.18.2 / pytest 8.4.2 / pre-commit 4.3.0
+python tools\pyquality\install.py --check   # 只检查版本，不动文件
+python scripts\quality.py doctor            # 打印解释器 + 工具目录 + 三个工具版本
+python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓存钉到 out\precommit）
+```
+
+| 步骤 | 为什么这样 |
+|---|---|
+| 装进 `tools/pyquality/pkg` | 版本唯一来源、可随时整体删除重建、CI 与本地同版本；`pip install` 到全局会与别的项目抢版本 |
+| `install.py` 内部替换 `tempfile.mkdtemp` | 受限环境里 `mkdtemp` 建出的目录不可写，pip 必失败（详见 `tools/pyocd/install.py` 同样手法） |
+| `hooks-install` 把 `PRE_COMMIT_HOME` 写进钩子 | 生成的钩子由 git 直接调用，拿不到当前进程环境变量；否则缓存会写 `~/.cache/pre-commit` |
+
+### 11.2 命令（`scripts/quality.py`）
+
+| 命令 | 作用 | 改文件？ |
+|---|---|---|
+| `python scripts\quality.py check` | `ruff check .` | 否 |
+| `python scripts\quality.py check --fix` | 自动修可修的（**只用这一种粒度**，不要跑全量 `--unsafe-fixes`） | 是 |
+| `python scripts\quality.py format` | `ruff format .` | 是 |
+| `python scripts\quality.py format-check` | 只检查排版 | 否 |
+| `python scripts\quality.py types` | `mypy`（配置在 `scripts/pyproject.toml`） | 否 |
+| `python scripts\quality.py tests` | `pytest`（透传参数：`tests -k ymodem -x`） | 否 |
+| `python scripts\quality.py all` | 全套并打汇总表（**提交前/CI 用这条**） | 否 |
+| `python scripts\quality.py hooks` | 跑 `pre-commit run --all-files` | 可能（钩子里带 `--fix`） |
+| `python scripts\quality.py hooks --staged` | 只跑暂存文件（= 提交时自动跑的那次） | 可能 |
+| `python scripts\quality.py hooks-install` | 安装 git 提交钩子 | 否 |
+| `python -X utf8 scripts\check_bat.py` | `.bat/.cmd` 必须纯 ASCII + CRLF | 否 |
+
+### 11.3 配置在哪（改规则只改一处）
+
+| 文件 | 管什么 |
+|---|---|
+| `scripts/pyproject.toml` | ruff 规则集/行长 110/LF/双引号；mypy 覆盖范围；pytest 测试目录与 marker |
+| `.pre-commit-config.yaml` | 4 个钩子：`ruff check --fix`、`ruff format`、TOML 可解析、`.bat` ASCII+CRLF |
+| `.github/workflows/ci.yml` | CI：质量门 + 固件编译 |
+| `.editorconfig` | 编辑器层面：Python LF/4 空格；`.bat` CRLF |
+
+### 11.4 CI（`.github/workflows/ci.yml`）
+
+| job | 内容 | 阻塞？ |
+|---|---|---|
+| `python-quality` | 装同版本工具 → `quality.py doctor` → `quality.py all` → `check_bat.py` | 是 |
+| `firmware-build` | `apt install gcc-arm-none-eabi` + `scons==4.8.1` → `python scripts/firmware/build.py build`（`RTT_EXEC_PATH=/usr/bin`、`VENV=$pythonLocation`） | **否**（软失败：本机是 Windows 工具链，Linux 构建尚未本地验证） |
+
+### 11.5 排错
+
+| 症状 | 原因 / 处理 |
+|---|---|
+| `PermissionError: C:\Users\<你>\.cache\pre-commit` | 钩子没被 `hooks-install` 改写 → 重跑 `python scripts\quality.py hooks-install` |
+| `ruff` 报一堆中文标点 "歧义 Unicode" | `RUF001-003` 已在 `ignore` 里；若手工跑请确认 cwd 是 `scripts/`（配置在那里） |
+| `pytest` 收集到 `tools/pyocd/pkg/**/tests` | 在仓根跑 pytest 了；必须在 `scripts/` 下（`quality.py` 会自动 `cwd=scripts`） |
+| 自动修复后行为变了 | **禁用全量 `--unsafe-fixes`**：它曾把 `print(...)` 整条删掉。删代码类修复必须人工过 diff |
+| 提交时报 `fatal error - NtCreateDirectoryObject(...msys-2.0S5-...): 0xC0000022` | Git 用 msys `sh` 跑钩子，受限环境里它建不了共享内存对象。此时**先 `python scripts\quality.py hooks` 手动跑一遍**（等价检查），再用 `git commit --no-verify` 提交；普通终端里不受影响 |
 
 ## 附：两个 bat 的定位
 
