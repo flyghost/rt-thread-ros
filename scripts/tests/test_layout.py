@@ -55,7 +55,13 @@ def test_bat_is_ascii_crlf(path: Path) -> None:
     assert raw.endswith(b"\r\n"), f"{path.name} 末尾缺 CRLF"
 
 
-ENTRY_FILES = [p for p in PRODUCTION if "pycache_prefix" in p.read_text(encoding="utf-8")]
+# 包内部（src/rtros）用 rtros.paths.pycache_prefix() 是正确写法，不参与本约束；
+# 这里管的是「散落在 scripts/ 各处的旧入口脚本」。
+ENTRY_FILES = [
+    p
+    for p in PRODUCTION
+    if "pycache_prefix" in p.read_text(encoding="utf-8") and "src" not in p.relative_to(SCRIPTS).parts[:1]
+]
 
 
 @pytest.mark.parametrize("path", ENTRY_FILES, ids=lambda p: str(p.relative_to(SCRIPTS)))

@@ -15,8 +15,10 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[1]
 REPO = SCRIPTS.parent
 
-# 三套导入根是历史遗留（不是本次重构引入的），测试里统一补齐
+# 导入根：src/ 是 rtros 包的源码位置（等价于 `pip install -e scripts` 后的效果）；
+# 其余三套是历史遗留（P2 搬包后会删掉），测试里先统一补齐。
 for _root in (
+    SCRIPTS / "src",
     SCRIPTS,
     SCRIPTS / "serial_hub",
     SCRIPTS / "ramdump",

@@ -27,7 +27,7 @@ dev = [
 [tool.ruff]
 line-length = 110
 target-version = "py311"
-src = ["."]
+src = [".", "src"]
 
 [tool.ruff.lint]
 # 规则集取舍原则：**只留能长期守住、且不逼着写废话的规则**。
@@ -81,7 +81,9 @@ line-ending = "lf"
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
-files = ["firmware", "guard", "runtime", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "serial_hub", "ramdump"]
+files = ["src", "firmware", "guard", "runtime", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "serial_hub", "ramdump"]
+# src 布局：包的真实位置在 src/ 下，mypy 需要它才认得出 rtros.* 模块
+mypy_path = "src"
 # 测试脚本由 pytest 与 ruff 覆盖；mypy 只看生产代码（它们多是「带 main() 的脚本」）
 exclude = '(^|.*/)(tests|test)/'
 ignore_missing_imports = true
@@ -112,3 +114,18 @@ markers = [
     "hw: 需要真实硬件（板子/串口/调试器）的测试，默认不跑",
     "slow: 超过 1 秒的测试",
 ]
+
+# ---------------------------------------------------------------------------
+# 打包：`pip install -e scripts` 之后得到 `rtros` 命令（未来独立仓库的入口）
+# ---------------------------------------------------------------------------
+[project.scripts]
+rtros = "rtros.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rtros = ["py.typed"]

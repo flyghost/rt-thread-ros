@@ -397,17 +397,43 @@ python scripts\cli.py hub --com COM46       # = python scripts\serial_hub\serial
 
 ### 12.1 `__pycache__` 落在 `out/pycache`
 
-入口脚本第一段都有一份**内联**的 4 行引导：
+入口脚本第一段都有一份**内联**的 3 行引导（仓库根由文件位置直接推出，`parents[N]` 的 N = 该文件在仓内的层数）：
 
 ```python
-_sys.pycache_prefix = str(
-    next(p for p in Path(__file__).resolve().parents if any((p / m).exists() for m in (".git", "AGENTS.md")))
-    / "out" / "pycache"
-)
+import sys as _sys
+from pathlib import Path as _Path
+
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycache")  # firmware/build.py 为例
 ```
 
-为什么内联、不抽成 `runtime/pycache.py`：**import 本身就会先在源码旁生成 `.pyc`**，等模块被导入时已经晚了。
-所以每个入口在 import 任何本地模块之前都要自己算一次；写法统一成上面这 4 行，靠「向上找 `.git`/`AGENTS.md`」避免写死父级层数（过去正是层数写错导致 `__pycache__` 漏进源码树）。
+三条规矩：
+
+1. **必须内联**：`import` 本身就会先在源码旁生成 `.pyc`，抽成公共模块再调用已经晚了。所以每个入口在 import 任何本地模块之前自己算一次。
+2. **用 `parents[N]`，不许搜索标记文件**：曾经写成「向上找 `.git` 或 `AGENTS.md`」，结果被 `scripts/AGENTS.md`（本仓自己的规范模板）骗到，字节码分裂成 `out/pycache` 与 `scripts/out/pycache` 两处。`tests/test_layout.py` 里有参数化用例守着这条。
+3. **子进程用环境变量**：`scripts/quality.py` 给子进程设 `PYTHONPYCACHEPREFIX=<repo>/out/pycache`，pytest/ruff/mypy 收集模块时不会再往源码树写。
+
+### 12.2 `rtros` 包（P1 骨架，迁移中）
+
+`scripts/src/rtros/` 是「未来独立仓库」的包本体；现在已能跑：
+
+| 命令 | 作用 |
+|---|---|
+| `python scripts/run_rtros.py --version` | 打印版本（装了 editable 就是 `rtros --version`，`python -m rtros` 也行） |
+| `python scripts/run_rtros.py paths` | 打印工具仓库根 / 工程根 / `out/{build,bin,pycache}`；`--json` 机器可读 |
+| 无工程根时（上面两条命令） | 退 1，并在 `project_root_error` 里说明该设 `RTROS_REPO` 还是放 `.rtros-root` |
+
+入口文件叫 `run_rtros.py` 而不是 `rtros.py`：后者会与包名 `rtros` 同名，`import rtros` 先命中脚本本身，把包遮住（实测报 `'rtros' is not a package`）。
+
+工程根解析规则（`src/rtros/paths.py`，全仓唯一来源）：`RTROS_REPO` 环境变量 → 从当前目录向上找 `.git` 或 `.rtros-root` → 报错。**不猜路径、不写死父级层数。**
+
+装成 `rtros` 命令（可选，P3 统一解释器后会固定下来）：
+
+```bash
+python tools/pyenv/install.py          # 以 editable 方式装进当前解释器
+python tools/pyenv/install.py --check  # 只查是否已装
+```
+
+注意：受限环境里 `pip` 的构建隔离会因临时目录 ACL 失败，所以这个安装器在调 pip 前替换了 `tempfile.mkdtemp`，并且走**进程内** pip（子进程管道会被拦）。
 
 
 ## 附：两个 bat 的定位
