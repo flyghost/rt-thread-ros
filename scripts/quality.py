@@ -19,14 +19,20 @@
 
 from __future__ import annotations
 
-import argparse
-import os
-import sys
-import time
-from pathlib import Path
+# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[1]），不做搜索
+import sys as _sys
+from pathlib import Path as _Path
 
-from runtime import proc
-from runtime.errors import ToolMissingError
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[1] / "out" / "pycache")
+
+import argparse  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from runtime import proc  # noqa: E402
+from runtime.errors import ToolMissingError  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -38,7 +44,9 @@ def _env() -> dict[str, str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(PKG)
     env.setdefault("PYTHONIOENCODING", "utf-8")
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    # 字节码统一写到 out/pycache：子进程（pytest/mypy 收集的模块）无论导入顺序如何
+    # 都不会在源码树里留 __pycache__；内部再自己设 prefix 的入口也不会分裂成两处。
+    env["PYTHONPYCACHEPREFIX"] = str(REPO / "out" / "pycache")
     # pre-commit 默认把缓存放 ~/.cache/pre-commit；仓内固定到 out/precommit，
     # 既避免写用户目录（受限环境会被拒），也让缓存可随时整体删除。
     env["PRE_COMMIT_HOME"] = str(PRE_COMMIT_HOME)

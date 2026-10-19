@@ -53,3 +53,20 @@ def test_bat_is_ascii_crlf(path: Path) -> None:
     assert not non_ascii, f"{path.name} 有 {len(non_ascii)} 个非 ASCII 字节（首个偏移 {non_ascii[0]}）"
     assert raw.count(b"\r\n") == raw.count(b"\n"), f"{path.name} 存在纯 LF 行"
     assert raw.endswith(b"\r\n"), f"{path.name} 末尾缺 CRLF"
+
+
+ENTRY_FILES = [p for p in PRODUCTION if "pycache_prefix" in p.read_text(encoding="utf-8")]
+
+
+@pytest.mark.parametrize("path", ENTRY_FILES, ids=lambda p: str(p.relative_to(SCRIPTS)))
+def test_pycache_prefix_uses_explicit_parent(path: Path) -> None:
+    """仓库根必须由文件位置直接推出（parents[N]），不许靠搜索标记文件。
+
+    搜索式写法（`next(p for p in parents if ...)`）曾被 scripts/AGENTS.md 骗到，
+    把 sys.pycache_prefix 指向 scripts/out/pycache，字节码分裂到两处。
+    """
+    text = path.read_text(encoding="utf-8")
+    assert "pycache_prefix" in text
+    assert "parents[" in text, f"{path.relative_to(SCRIPTS)} 没有用 parents[N] 推仓库根"
+    assert "next(p for p in" not in text, f"{path.relative_to(SCRIPTS)} 仍在搜索标记文件"
+    assert '".git"' not in text or "parents[" in text

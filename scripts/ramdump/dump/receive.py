@@ -9,15 +9,11 @@
 和 dump.py 的区别：不编译、不下载、不进 ramdump（除 --no-check 外会先探一次 MSH）。
 """
 
-# __pycache__ 统一写到仓库 out/pycache：sys.pycache_prefix 只影响之后的 import，
-# 因此必须放在任何本地 import 之前（docstring / from __future__ 之后）。
-import os as _os
+# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[3]），不做搜索
 import sys as _sys
+from pathlib import Path as _Path
 
-_d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
-    _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[3] / "out" / "pycache")
 
 import argparse  # noqa: E402
 import os  # noqa: E402

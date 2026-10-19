@@ -24,16 +24,11 @@
 退出码：0 成功，1 运行时失败，2 用法错误。
 """
 
-# __pycache__ 统一写到仓库的 out/pycache（必须在任何本地 import 之前设置）
-import pathlib as _pl
+# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[1]），不做搜索
 import sys as _sys
+from pathlib import Path as _Path
 
-_MARKS = (".git", "AGENTS.md")
-_sys.pycache_prefix = str(
-    next(p for p in _pl.Path(__file__).resolve().parents if any((p / m).exists() for m in _MARKS))
-    / "out"
-    / "pycache"
-)
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[1] / "out" / "pycache")
 
 import argparse  # noqa: E402
 import json  # noqa: E402

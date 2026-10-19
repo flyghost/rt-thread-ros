@@ -17,17 +17,14 @@
 退出码：0 成功，1 失败，2 用法错误。
 """
 
-# __pycache__ 统一写到仓库 out/pycache：sys.pycache_prefix 只影响之后的 import，
-# 因此必须放在任何本地 import 之前（docstring / from __future__ 之后）。
-import os as _os
+# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[2]），不做搜索
 import sys as _sys
+from pathlib import Path as _Path
 
-_d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
-    _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycache")
 
 import argparse  # noqa: E402
+import os  # noqa: E402
 import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
 
@@ -58,9 +55,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # config 在 import 时读取 PROJECT，所以必须先定好环境再导入业务模块
     if a.board:
-        _os.environ["PROJECT"] = "none"
+        os.environ["PROJECT"] = "none"
     elif a.project:
-        _os.environ["PROJECT"] = a.project
+        os.environ["PROJECT"] = a.project
 
     from firmware import pipeline, pyocd, scons, status
 
