@@ -19,7 +19,7 @@ ENV_ROOT = _fc.ENV_ROOT
 RTT_EXEC_PATH = _fc.RTT_EXEC_PATH
 VENV_DIR = _fc.VENV_DIR
 
-# ---- pyocd（唯一来源：tools/pyocd）----
+# ---- pyocd（唯一来源：scripts/tools/pyocd）----
 PYOCD_DIR = _fc.PYOCD_DIR
 PYOCD_PKG_DIR = _fc.PYOCD_PKG_DIR
 PYOCD_PACK = _fc.PYOCD_PACK

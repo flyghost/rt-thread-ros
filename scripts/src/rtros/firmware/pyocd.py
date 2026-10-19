@@ -1,7 +1,7 @@
 """pyocd 相关动作：查版本、烧录、擦除、复位。
 
 约定：
-- pyocd 只有一份实现（`tools/pyocd/pkg`，由 `tools/pyocd/install.py` 装），因此这里
+- pyocd 只有一份实现（`scripts/tools/pyocd/pkg`，由 `scripts/tools/pyocd/install.py` 装），因此这里
   固定用 `python -m pyocd`，并把 `PYTHONPATH` 指到该目录；
 - 芯片定义不读用户目录缓存，显式传仓内 pack（离线、可复现）。
 """

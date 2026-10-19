@@ -17,7 +17,8 @@ rem  .bat byte by byte: UTF-8 Chinese text gets mangled, and LF-only line ending
 rem  break goto/label parsing (it can loop forever).
 rem ============================================================================
 setlocal
-set "REPO=%~dp0"
+set "SCRIPTS=%~dp0"
+for %%I in ("%SCRIPTS%..") do set "REPO=%%~fI\"
 cd /d "%REPO%"
 
 set "VENV_PY=E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe"
@@ -33,7 +34,7 @@ set "PYTHONIOENCODING=utf-8"
 call :probe_py
 if not defined PY goto :no_python
 
-"%PY%" "%REPO%scripts\ai_services.py" %*
+"%PY%" "%SCRIPTS%ai_services.py" %*
 set "RC=%ERRORLEVEL%"
 
 if "%~1"=="" if not defined AI_SERVICES_NOPAUSE (

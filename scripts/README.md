@@ -8,7 +8,7 @@
 | 分类 | Python 入口 | bat 壳 |
 |---|---|---|
 | [0. 速查](#0-速查) | — | — |
-| [1. 环境搭建](#1-环境搭建) | `tools/pyocd/install.py`、`pip` | — |
+| [1. 环境搭建](#1-环境搭建) | `scripts/tools/pyocd/install.py`、`pip` | — |
 | [2. 编译 / 配置 / 状态](#2-编译--配置--状态) | `scripts/run_rtros.py build` | `ai_services.bat`、`ramdump.bat` |
 | [3. 烧录](#3-烧录) | `scripts/run_rtros.py build` | `ai_services.bat`、`ramdump.bat` |
 | [4. 守卫（可选）](#4-守卫可选) | `scripts/run_rtros.py guard` | `ai_services.bat` |
@@ -18,7 +18,7 @@
 | [8. 环境变量与依赖](#8-环境变量与依赖) | — | — |
 | [9. 常见菜谱](#9-常见菜谱) | — | — |
 | [10. 已废弃 / 兼容入口](#10-已废弃--兼容入口) | — | — |
-| [11. Python 质量门](#11-python-质量门) | `tools/pyquality/install.py`、`scripts/quality.py`、`scripts/check_bat.py` | — |
+| [11. Python 质量门](#11-python-质量门) | `scripts/tools/pyquality/install.py`、`scripts/quality.py`、`scripts/check_bat.py` | — |
 | [12. 统一入口](#12-统一入口) | `scripts/cli.py` | — |
 
 ## 0. 速查
@@ -61,14 +61,14 @@ python scripts/run_rtros.py hub --com COM46 --baud 115200 --ui tui
 
 | 目的 | Python 命令 | 备注 |
 |---|---|---|
-| 装/复现 pyocd（全仓唯一来源） | `python tools\pyocd\install.py` | pip 装 0.45.1 到 `tools/pyocd/pkg`（已 gitignore） |
-| 只检查是否装好 | `python tools\pyocd\install.py --check` | 打印版本 + pack 是否存在，exit 0/1 |
-| 重装 | `python tools\pyocd\install.py --force` | 先删 `pkg/` 再装 |
-| 指定版本 | `python tools\pyocd\install.py --version 0.45.1` | — |
-| 静默 | `python tools\pyocd\install.py --quiet` | — |
+| 装/复现 pyocd（全仓唯一来源） | `python scripts/tools/pyocd\install.py` | pip 装 0.45.1 到 `scripts/tools/pyocd/pkg`（已 gitignore） |
+| 只检查是否装好 | `python scripts/tools/pyocd\install.py --check` | 打印版本 + pack 是否存在，exit 0/1 |
+| 重装 | `python scripts/tools/pyocd\install.py --force` | 先删 `pkg/` 再装 |
+| 指定版本 | `python scripts/tools/pyocd\install.py --version 0.45.1` | — |
+| 静默 | `python scripts/tools/pyocd\install.py --quiet` | — |
 | 串口依赖（hub / 采集要） | `python -m pip install pyserial` | 本机 Python313 已有 3.5；`rt-thread-env` 的 venv **没有** |
 | 解析依赖（analyzer 要） | `python -m pip install -r scripts/src/rtros/ramdump/analyzer\requirements.txt` | `pyelftools>=0.30`、`numpy>=1.24.0` |
-| 维护 pack 清单 | `python tools\pyocd\packs\update_yaml.py` | 扫 `packs/` 重生成清单，非日常 |
+| 维护 pack 清单 | `python scripts/tools/pyocd\packs\update_yaml.py` | 扫 `packs/` 重生成清单，非日常 |
 
 工具链（arm-none-eabi-gcc、SCons）**不用手工配**：`scripts/src/rtros/firmware/tools.py` 会内置
 `ENV_ROOT`、`RTT_CC=gcc`、`RTT_EXEC_PATH`，并直接用 `ENV_ROOT\.venv` 里的解释器跑 SCons。
@@ -140,7 +140,7 @@ out/build/stm32f407-atk-explorer/    # 板级 BSP
 
 ```
 python -m pyocd flash --target STM32F407VE --erase=auto --frequency=1000000 \
-    --pack tools\pyocd\packs\Keil.STM32F4xx_DFP.2.14.0-small.pack <bin>
+    --pack scripts/tools/pyocd\packs\Keil.STM32F4xx_DFP.2.14.0-small.pack <bin>
 ```
 
 pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正常的（不代表失败，看退出码）。
@@ -250,7 +250,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |
 | `PRE_COMMIT_HOME` | `out\precommit`（`quality.py` 自动设） | pre-commit 的缓存目录，避免写用户目录 |
 
-依赖一览：Python 3.13（PATH 上的 `python`）、pyserial（hub/采集）、pyocd 0.45.1 + 18 个依赖（`tools/pyocd/install.py` 装）、
+依赖一览：Python 3.13（PATH 上的 `python`）、pyserial（hub/采集）、pyocd 0.45.1 + 18 个依赖（`scripts/tools/pyocd/install.py` 装）、
 analyzer 额外要 pyelftools + numpy、编译要 `rt-thread-env` 里的 arm-none-eabi-gcc 与 SCons（4.8.x）。
 
 ## 9. 常见菜谱
@@ -260,7 +260,7 @@ analyzer 额外要 pyelftools + numpy、编译要 `rt-thread-env` 里的 arm-non
 python scripts/run_rtros.py build build-flash
 
 # 换机器重建环境
-python tools\pyocd\install.py
+python scripts/tools/pyocd\install.py
 python scripts/run_rtros.py build status
 
 # 人手动：双击 ai_services.bat（菜单 1 编译 / 2 烧录 / 3 编译+烧录 / 4 板级 / 5 清理 / 6 状态 / 7 守卫 / 8 hub / 9 两个都起）
@@ -290,27 +290,27 @@ python scripts/run_rtros.py guard --request build_flash --wait --wait-timeout 90
 | `bsp/stm32/stm32f407-atk-explorer/build_and_flash.bat` | **已删除**（305 行 cmd） | `python scripts/run_rtros.py build ...` + `ai_services.bat` |
 | `scripts/ramdump.bat build` | 兼容壳（转发到 `scripts/src/rtros/firmware/`） | `python scripts/run_rtros.py build` |
 | `--new-console` | 失效（无独立窗口逻辑） | 直接看当前终端输出 |
-| `tools/pyocd/0.1.3/pyocd.exe`（0.27） | **已删除** | `tools/pyocd/pkg` 里的 0.45.1 |
-| `tools/pyocd/0.1.3/pyocd.yaml` | 已删除 | 命令行显式 `--pack`（脚本里已内置） |
+| `scripts/tools/pyocd/0.1.3/pyocd.exe`（0.27） | **已删除** | `scripts/tools/pyocd/pkg` 里的 0.45.1 |
+| `scripts/tools/pyocd/0.1.3/pyocd.yaml` | 已删除 | 命令行显式 `--pack`（脚本里已内置） |
 
 ## 11. Python 质量门
 
-工具链**不在 site-packages 里**，而是按仓内约定装到 `tools/pyquality/pkg/`（已 gitignore），版本固定在 `tools/pyquality/install.py`：
+工具链**不在 site-packages 里**，而是按仓内约定装到 `scripts/tools/pyquality/pkg/`（已 gitignore），版本固定在 `scripts/tools/pyquality/install.py`：
 换机器只需一条命令重建，不会因为 `pip install` 到全局而出现"我这能过、你那不能过"。
 
 ### 11.1 安装（每台机器一次）
 
 ```powershell
-python tools\pyquality\install.py           # ruff 0.14.3 / mypy 1.18.2 / pytest 8.4.2 / pre-commit 4.3.0
-python tools\pyquality\install.py --check   # 只检查版本，不动文件
+python scripts/tools/pyquality\install.py           # ruff 0.14.3 / mypy 1.18.2 / pytest 8.4.2 / pre-commit 4.3.0
+python scripts/tools/pyquality\install.py --check   # 只检查版本，不动文件
 python scripts\quality.py doctor            # 打印解释器 + 工具目录 + 三个工具版本
 python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓存钉到 out\precommit）
 ```
 
 | 步骤 | 为什么这样 |
 |---|---|
-| 装进 `tools/pyquality/pkg` | 版本唯一来源、可随时整体删除重建、CI 与本地同版本；`pip install` 到全局会与别的项目抢版本 |
-| `install.py` 内部替换 `tempfile.mkdtemp` | 受限环境里 `mkdtemp` 建出的目录不可写，pip 必失败（详见 `tools/pyocd/install.py` 同样手法） |
+| 装进 `scripts/tools/pyquality/pkg` | 版本唯一来源、可随时整体删除重建、CI 与本地同版本；`pip install` 到全局会与别的项目抢版本 |
+| `install.py` 内部替换 `tempfile.mkdtemp` | 受限环境里 `mkdtemp` 建出的目录不可写，pip 必失败（详见 `scripts/tools/pyocd/install.py` 同样手法） |
 | `hooks-install` 把 `PRE_COMMIT_HOME` 写进钩子 | 生成的钩子由 git 直接调用，拿不到当前进程环境变量；否则缓存会写 `~/.cache/pre-commit` |
 
 ### 11.2 命令（`scripts/quality.py`）
@@ -359,7 +359,7 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 |---|---|
 | `PermissionError: C:\Users\<你>\.cache\pre-commit` | 钩子没被 `hooks-install` 改写 → 重跑 `python scripts\quality.py hooks-install` |
 | `ruff` 报一堆中文标点 "歧义 Unicode" | `RUF001-003` 已在 `ignore` 里；若手工跑请确认 cwd 是 `scripts/`（配置在那里） |
-| `pytest` 收集到 `tools/pyocd/pkg/**/tests` | 在仓根跑 pytest 了；必须在 `scripts/` 下（`quality.py` 会自动 `cwd=scripts`） |
+| `pytest` 收集到 `scripts/tools/pyocd/pkg/**/tests` | 在仓根跑 pytest 了；必须在 `scripts/` 下（`quality.py` 会自动 `cwd=scripts`） |
 | 自动修复后行为变了 | **禁用全量 `--unsafe-fixes`**：它曾把 `print(...)` 整条删掉。删代码类修复必须人工过 diff |
 | 提交时报 `fatal error - NtCreateDirectoryObject(...msys-2.0S5-...): 0xC0000022` | Git 用 msys `sh` 跑钩子，受限环境里它建不了共享内存对象。此时**先 `python scripts\quality.py hooks` 手动跑一遍**（等价检查），再用 `git commit --no-verify` 提交；普通终端里不受影响 |
 
@@ -418,8 +418,8 @@ _sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycach
 
 | 用法 | 命令 | 适用 |
 |---|---|---|
-| 仓内 venv（推荐） | `python tools/pyenv/install.py --venv` 一次，之后 `out\venv\Scripts\rtros.cmd <子命令>` | 本机 / 受限环境；不碰系统 site-packages |
-| 当前解释器 editable | `python tools/pyenv/install.py` | 普通开发机（需要 pip 可写 site-packages） |
+| 仓内 venv（推荐） | `python scripts/tools/pyenv/install.py --venv` 一次，之后 `out\venv\Scripts\rtros.cmd <子命令>` | 本机 / 受限环境；不碰系统 site-packages |
+| 当前解释器 editable | `python scripts/tools/pyenv/install.py` | 普通开发机（需要 pip 可写 site-packages） |
 | 不安装直接跑 | `python scripts/run_rtros.py <子命令>` | 临时用、CI、其它脚本转发 |
 
 `--venv` 做三件事（都在仓内，`out/` 已 gitignore）：
@@ -445,22 +445,22 @@ _sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycach
 验证过的例子（仓内 venv）：
 
 ```powershell
-python tools/pyenv/install.py --venv          # 建环境 + rtros.cmd
-python tools/pyenv/install.py --check-venv    # [pyenv] 仓内 venv 可用：rtros 0.1.0
+python scripts/tools/pyenv/install.py --venv          # 建环境 + rtros.cmd
+python scripts/tools/pyenv/install.py --check-venv    # [pyenv] 仓内 venv 可用：rtros 0.1.0
 out\venv\Scripts\rtros.cmd --version        # rtros 0.1.0
 out\venv\Scripts\rtros.cmd build status     # 打印入口 / 中间目录 / 固件 / pyocd
 out\venv\Scripts\rtros.cmd build            # scons: out\bin\base\rt-thread.elf is up to date
 out\venv\Scripts\rtros.cmd hub --list       # 列串口
 ```
 
-**质量门**仍走 `quality.py`（它自己给子进程注入 `PYTHONPATH=tools/pyquality/pkg`）：
+**质量门**仍走 `quality.py`（它自己给子进程注入 `PYTHONPATH=scripts/tools/pyquality/pkg`）：
 
 ```powershell
 out\venv\Scripts\python.exe scripts\quality.py all   # 实测四门全 PASS
 ```
 
 已知限制：venv 里**没有** ruff / mypy / pytest 本体（它们是开发工具，装在
-`tools/pyquality/pkg`），所以 `out\venv\Scripts\python.exe -m pytest` 会报
+`scripts/tools/pyquality/pkg`），所以 `out\venv\Scripts\python.exe -m pytest` 会报
 `No module named pytest` —— 要么用 `quality.py`，要么用装了开发工具的解释器。
 SCons 也仍跑在 `rtros.toml` 的 `[build].toolchain_root` 那个 venv 里。
 
@@ -483,7 +483,7 @@ scons_jobs = 20
 
 [flash]
 target = "STM32F407VE"
-pack = "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
+pack = "scripts/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
 python = "E:/software/InstallerEdition/DevTools/Python/Python313/python.exe"
 opts = "--erase=auto --frequency=1000000"
 

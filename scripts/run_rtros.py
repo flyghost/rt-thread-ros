@@ -10,7 +10,7 @@
     python scripts/run_rtros.py paths
     python scripts/run_rtros.py --version
 
-装了 editable（`python tools/pyenv/install.py`）之后，直接 `rtros paths` 即可，
+装了 editable（`python scripts/tools/pyenv/install.py`）之后，直接 `rtros paths` 即可，
 本文件仍可继续用于「换了台机器、还没装」的场景。
 """
 

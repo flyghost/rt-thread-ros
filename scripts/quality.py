@@ -11,7 +11,7 @@
     python scripts/quality.py tests         # pytest
     python scripts/quality.py all           # check + format-check + types + tests
 
-工具来源只有一个：`tools/pyquality/pkg`（gitignore），用 `python tools/pyquality/install.py` 安装。
+工具来源只有一个：`scripts/tools/pyquality/pkg`（gitignore），用 `python scripts/tools/pyquality/install.py` 安装。
 所有命令都 `cwd=scripts/` 运行，让 ruff/mypy/pytest 自动读到 `scripts/pyproject.toml`。
 
 退出码：0 全过；1 有失败；2 工具没装（先跑 install.py）。
@@ -40,7 +40,7 @@ from rtros.runtime.errors import ToolMissingError  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-PKG = REPO / "tools" / "pyquality" / "pkg"
+PKG = HERE / "tools" / "pyquality" / "pkg"
 PRE_COMMIT_HOME = REPO / "out" / "precommit"
 
 
@@ -98,7 +98,7 @@ def doctor() -> int:
             print(f"{name:<7}: 未安装")
             ok = False
     if not ok:
-        print(f"\n安装：{sys.executable} {REPO / 'tools' / 'pyquality' / 'install.py'}")
+        print(f"\n安装：{sys.executable} {HERE / 'tools' / 'pyquality' / 'install.py'}")
         return 2
     return 0
 

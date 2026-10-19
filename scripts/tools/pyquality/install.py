@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""安装 ruff + mypy 到 tools/pyquality/pkg（仓库里唯一的 Python 质量工具来源）。
+"""安装 ruff + mypy 到 scripts/tools/pyquality/pkg（仓库里唯一的 Python 质量工具来源）。
 
 用法（在仓库根目录）：
-    python tools/pyquality/install.py            # 安装固定版本
-    python tools/pyquality/install.py --check    # 只检查
-    python tools/pyquality/install.py --force    # 删掉 pkg/ 重装
+    python scripts/tools/pyquality/install.py            # 安装固定版本
+    python scripts/tools/pyquality/install.py --check    # 只检查
+    python scripts/tools/pyquality/install.py --force    # 删掉 pkg/ 重装
 
 为什么装到仓内目录而不是系统 Python：
     1) 不污染全局环境；pkg/ 被 .gitignore 忽略，删掉即还原；
@@ -12,7 +12,7 @@
     3) 本机沙箱必须走本脚本 —— pip 内部用 tempfile.mkdtemp 做解包暂存，
        而沙箱给 mkdtemp 建出的目录挂了本进程不可写的 ACL，导致
        `pip install` 必然报 PermissionError: ... pip-unpack-* ... whl。
-       这里在调用 pip 前把 mkdtemp 换成 os.makedirs 实现（与 tools/pyocd/install.py 同一手法）。
+       这里在调用 pip 前把 mkdtemp 换成 os.makedirs 实现（与 scripts/tools/pyocd/install.py 同一手法）。
 
 安装完成后由 scripts/quality.py 调用（它会自动把 pkg/ 放进 PYTHONPATH）。
 """
@@ -142,7 +142,7 @@ def check() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        prog="install.py", description="安装/检查 ruff 与 mypy（唯一来源：tools/pyquality/pkg）"
+        prog="install.py", description="安装/检查 ruff 与 mypy（唯一来源：scripts/tools/pyquality/pkg）"
     )
     ap.add_argument("--force", action="store_true", help="先删除 pkg/ 再安装")
     ap.add_argument("--check", action="store_true", help="只检查，不安装")

@@ -27,7 +27,7 @@
 | ramdump 采集与解析的完整用法 | `scripts/src/rtros/ramdump/README.md` |
 | 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/src/rtros/serial_hub/README.md` |
 | 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/rtros/guard/README.md` |
-| pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
+| pyocd 安装与版本（唯一实现） | `scripts/tools/pyocd/README.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
 > **脚本怎么用一律看 `scripts/README.md`**（命令总表）；本 README 与 `AGENTS.md` 只留方向性结论，

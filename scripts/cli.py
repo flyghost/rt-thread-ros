@@ -110,12 +110,12 @@ def _cmd_list(as_json: bool) -> int:
 
 
 def _quality_pkg() -> Path:
-    """质量工具装在仓内 `tools/pyquality/pkg`（gitignore），存在就以它为准。"""
-    return _SCRIPTS.parent / "tools" / "pyquality" / "pkg"
+    """质量工具装在仓内 `scripts/tools/pyquality/pkg`（gitignore），存在就以它为准。"""
+    return _SCRIPTS / "tools" / "pyquality" / "pkg"
 
 
 def _tool_versions() -> dict[str, str | None]:
-    """四个工具的版本；先找仓内 `tools/pyquality/pkg`，找不到退回当前解释器环境。"""
+    """四个工具的版本；先找仓内 `scripts/tools/pyquality/pkg`，找不到退回当前解释器环境。"""
     from rtros.runtime import proc
 
     pkg = _quality_pkg()

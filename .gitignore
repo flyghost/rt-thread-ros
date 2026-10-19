@@ -91,9 +91,9 @@ os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
 # 官方参考资料（1.5 GB，仅本地只读参考）
 /third-party/
 
-# pyocd 安装产物（pip 装到 pkg/，50 MB，用 tools/pyocd/install.py 复现）
-/tools/pyocd/pkg/
+# pyocd 安装产物（pip 装到 pkg/，50 MB，用 scripts/tools/pyocd/install.py 复现）
+/scripts/tools/pyocd/pkg/
 
-# Python 质量工具安装产物（ruff + mypy，用 tools/pyquality/install.py 复现）
-/tools/pyquality/pkg/
+# Python 质量工具安装产物（ruff + mypy，用 scripts/tools/pyquality/install.py 复现）
+/scripts/tools/pyquality/pkg/
 pytest-cache-files-*/

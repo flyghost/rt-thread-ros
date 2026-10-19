@@ -39,15 +39,15 @@ ai_services.bat                                # 人手动用：菜单（编译/
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
 **改 `scripts/` 下的 Python：`python scripts/quality.py all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` §11）。**
-四条稳定事实（细节见 `tools/pyocd/README.md`、`scripts/src/rtros/firmware/` 与 `docs/upstream-patches.md`）：
+四条稳定事实（细节见 `scripts/tools/pyocd/README.md`、`scripts/src/rtros/firmware/` 与 `docs/upstream-patches.md`）：
 - 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
 - **构建入口必须站在入口目录里运行**（`cd projects/<name>` 或 `cd bsp/stm32/<board>`，或 `scons -C <...>`）：
   上游 `building.py` 有 6 处按 cwd 解析的路径，跨目录 `scons -f` 会在薄壳里被明确拒绝（退 1）；
   中间文件统一在 `out/build/<入口目录名>`（`RT_BUILD_DIR`），产物统一在 `out/bin/<入口目录名>`
   （elf/map/bin，由 `RT_ARTIFACT_DIR` + 显式 `Default(TARGET)` 实现）；两者都在 `out/` 下，入口目录只留源码；
-- **pyocd 全仓只有一份**：pip 装进 `tools/pyocd/pkg`（已 gitignore，`python tools/pyocd/install.py` 复现），
-  芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
+- **pyocd 全仓只有一份**：pip 装进 `scripts/tools/pyocd/pkg`（已 gitignore，`python scripts/tools/pyocd/install.py` 复现），
+  芯片定义用仓内 `scripts/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
 - **烧录两条路都通**：`python scripts/run_rtros.py build flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，
   不再有 PyInstaller 解包那堵墙，沙箱内实测可烧）；`scripts/src/rtros/guard/` 的守卫是**可选**的长任务执行器
   （信箱 + 完整日志 + 改脚本自动重启 + 无人值守），由人双击 `ai_services.bat` 启动。
@@ -91,7 +91,7 @@ do STM32F407_Restore.cmm                                    # GUI界面
 | 采集与解析用法 | `scripts/src/rtros/ramdump/README.md` |
 | 串口服务器 | `scripts/src/rtros/serial_hub/README.md` |
 | 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/rtros/guard/README.md` |
-| pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
+| pyocd 安装与版本（唯一实现） | `scripts/tools/pyocd/README.md` |
 | USB 双栈（CherryUSB / ST） | `app/usb/README.md` |
 | **上游偏离与构建约束（6 处 cwd 约定 / 升级清单 / 新增板与项目清单）** | `docs/upstream-patches.md` |
 | 项目层（一块板多个项目 / 目录结构 / 已知限制） | `projects/README.md` |

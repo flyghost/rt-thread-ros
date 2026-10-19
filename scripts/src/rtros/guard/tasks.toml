@@ -35,7 +35,7 @@ env_root       = ""   # 留空 = 取 rtros.toml 的 [build].toolchain_root
 arm_gcc_bin    = ""   # 留空 = 取 rtros.toml 的 [build].toolchain_root 推导值
 # pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，必须用同 ABI 的解释器。
 pyocd_python   = ""   # 留空 = 取 rtros.toml 的 [flash].python
-pyocd_pkg      = "tools/pyocd/pkg"
+pyocd_pkg      = "scripts/tools/pyocd/pkg"
 # 新版 pyocd 不内置芯片定义，必须显式给仓内精简 pack（离线、可复现）。
 pyocd_pack     = ""   # 留空 = 取 rtros.toml 的 [flash].pack
 build_entry    = "scripts/run_rtros.py"

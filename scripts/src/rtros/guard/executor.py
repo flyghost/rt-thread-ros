@@ -161,7 +161,7 @@ class Guard:
         message = "完成"
         env = child_env()
         if req["action"] == "usb" or any("pyocd" in argv for argv in cmds):
-            # pyocd 与它的依赖都装在 tools/pyocd/pkg，用 PYTHONPATH 让它可见。
+            # pyocd 与它的依赖都装在 scripts/tools/pyocd/pkg，用 PYTHONPATH 让它可见。
             old = env.get("PYTHONPATH")
             env["PYTHONPATH"] = str(PYOCD_PKG_DIR) + ((os.pathsep + old) if old else "")
             if req["action"] == "usb":
@@ -299,7 +299,7 @@ class Guard:
         _say(" 应答      : rep_NNNN.json ＋ rep_NNNN.log（退出码与完整日志）")
         _say(
             f" 调试器    : pyocd {PYOCD_PKG_DIR} "
-            f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python tools/pyocd/install.py'}"
+            f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python scripts/tools/pyocd/install.py'}"
         )
         _say(f" 固件      : {DEFAULT_BIN if DEFAULT_BIN.exists() else '!! 还没有 rtthread.bin，先编译'}")
         _say(f" 轮询      : 每 {POLL_SECONDS:.0f}s 一次；心跳每 {HEARTBEAT_SECONDS:.0f}s")

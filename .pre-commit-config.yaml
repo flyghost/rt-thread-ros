@@ -1,7 +1,7 @@
 # 本地 pre-commit 钩子（不依赖远端仓库，离线可用）
 #
 # 安装（每台机器一次）：
-#   python tools/pyquality/install.py            # 把 ruff/mypy/pytest/pre-commit 装进 tools/pyquality/pkg
+#   python scripts/tools/pyquality/install.py            # 把 ruff/mypy/pytest/pre-commit 装进 scripts/tools/pyquality/pkg
 #   python scripts/quality.py hooks-install      # 把钩子写进 .git/hooks/pre-commit
 # 手动全量跑：python scripts/quality.py hooks
 # 只跑暂存文件（= 提交时自动跑的那次）：python scripts/quality.py hooks --staged

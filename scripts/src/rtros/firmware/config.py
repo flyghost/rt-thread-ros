@@ -35,8 +35,8 @@ VENV_DIR = MANIFEST.build.venv_dir
 VENV_PY = MANIFEST.build.venv_python  # 装了 SCons 的解释器
 SCONS_JOBS = int(os.environ.get("SCONS_JOBS", str(MANIFEST.build.scons_jobs)))
 
-# ---- pyocd（唯一来源：tools/pyocd，见 tools/pyocd/README.md）-----------
-PYOCD_DIR = TOOLS_DIR / "pyocd"
+# ---- pyocd（唯一来源：scripts/tools/pyocd，见 scripts/tools/pyocd/README.md）-----------
+PYOCD_DIR = SCRIPTS_DIR / "tools" / "pyocd"  # 工具侧工具已收进 scripts/tools/
 PYOCD_PKG_DIR = PYOCD_DIR / "pkg"  # pip 装出来的 pyocd（gitignore）
 PYOCD_PACK = MANIFEST.flash.pack
 PYOCD_TARGET = MANIFEST.flash.target

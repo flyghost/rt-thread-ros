@@ -1,4 +1,4 @@
-# tools/pyocd —— 仓库里唯一的 pyocd
+# scripts/tools/pyocd —— 仓库里唯一的 pyocd
 
 `pyocd` 负责把 `rtthread.bin` 烧进 STM32F407VE。**全仓只认这一份**，没有第二套、也没有兜底分支。
 
@@ -15,9 +15,9 @@
 ## 安装
 
 ```powershell
-python tools\pyocd\install.py            # 装固定版本 0.45.1
-python tools\pyocd\install.py --check    # 只检查
-python tools\pyocd\install.py --force    # 删掉 pkg/ 重装
+python scripts/tools/pyocd\install.py            # 装固定版本 0.45.1
+python scripts/tools/pyocd\install.py --check    # 只检查
+python scripts/tools/pyocd\install.py --force    # 删掉 pkg/ 重装
 ```
 
 版本钉在 `install.py` 的 `PYOCD_VERSION`。脚本内部做了两件必要的事：
@@ -30,10 +30,10 @@ python tools\pyocd\install.py --force    # 删掉 pkg/ 重装
 pyocd 需要 `PYTHONPATH` 指到 `pkg/`，并显式给 `--pack`（新版 pyocd 不再内置 STM32F407VE 的芯片定义）：
 
 ```powershell
-$env:PYTHONPATH = "E:\GitHub\me\ros\rt-thread-ros\tools\pyocd\pkg"
+$env:PYTHONPATH = "E:\GitHub\me\ros\rt-thread-ros\scripts/tools/pyocd\pkg"
 python -m pyocd list
 python -m pyocd flash --target STM32F407VE --erase=auto --frequency=1000000 `
-    --pack tools\pyocd\packs\Keil.STM32F4xx_DFP.2.14.0-small.pack `
+    --pack scripts/tools/pyocd\packs\Keil.STM32F4xx_DFP.2.14.0-small.pack `
     bsp\stm32\stm32f407-atk-explorer\rtthread.bin
 ```
 
@@ -51,4 +51,4 @@ pyocd 0.45.1 声明 18 个硬依赖（`pyusb`、`libusb-package`、`intelhex`、
 
 ## 历史
 
-`tools/pyocd/0.1.3/`（RT-Thread 打包的 PyInstaller 单文件 `pyocd.exe`，实际版本 0.27）已删除：它认不到 CMSIS-DAP **v2**（WinUSB/bulk）探针，`list` 恒为空，留着只会误导。仓内只保留它的两个 pack 文件（上移到 `packs/`）。
+`scripts/tools/pyocd/0.1.3/`（RT-Thread 打包的 PyInstaller 单文件 `pyocd.exe`，实际版本 0.27）已删除：它认不到 CMSIS-DAP **v2**（WinUSB/bulk）探针，`list` 恒为空，留着只会误导。仓内只保留它的两个 pack 文件（上移到 `packs/`）。

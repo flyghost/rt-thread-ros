@@ -45,8 +45,8 @@ python scripts/run_rtros.py analyze out/dump/20260722_015005
 
 - **Python + pyserial**：本机 `E:\software\InstallerEdition\DevTools\Python\Python313\python.exe`（3.13.2 + pyserial 3.5）有；rt-thread-env 里的 3.11.9/venv **没有** pyserial。
 - **编译/下载**：编译下载已统一到 `scripts/src/rtros/firmware/`（`build.py` CLI + `config.py` 常量 + `tools.py` 实现），
-  本目录的 `lib/config.py` 只是转发常量；pyocd 只有一份，装在 `tools/pyocd/pkg`（见 `tools/pyocd/README.md`），
-  芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`（target `STM32F407VE`，
+  本目录的 `lib/config.py` 只是转发常量；pyocd 只有一份，装在 `scripts/tools/pyocd/pkg`（见 `scripts/tools/pyocd/README.md`），
+  芯片定义用仓内 `scripts/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`（target `STM32F407VE`，
   `--erase=auto --frequency=1000000`）。烧录在会话里可直接跑；`scripts/src/rtros/guard/` 的守卫是可选的
   长任务执行器（信箱 + 日志 + 自动重启）。
 - **analyzer** 额外依赖见 `analyzer/requirements.txt`。

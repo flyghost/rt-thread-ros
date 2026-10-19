@@ -75,7 +75,7 @@ _MANIFEST = manifest.cached()
 _DEFAULT_PROJECT = os.environ.get("PROJECT", _MANIFEST.default_project).strip()
 _ENTRY_DIR, _ = _MANIFEST.entry_dir(_DEFAULT_PROJECT)
 
-PYOCD_PKG_DIR = _path("pyocd_pkg", "tools/pyocd/pkg")
+PYOCD_PKG_DIR = _path("pyocd_pkg", "scripts/tools/pyocd/pkg")
 
 PY_PKG_PY = _path("pyocd_python", str(_MANIFEST.flash.python))
 

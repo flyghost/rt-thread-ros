@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""安装 pyocd 到 tools/pyocd/pkg（仓库里唯一的 pyocd 来源）。
+"""安装 pyocd 到 scripts/tools/pyocd/pkg（仓库里唯一的 pyocd 来源）。
 
 用法（在仓库根目录）：
-    python tools/pyocd/install.py              # 安装固定版本
-    python tools/pyocd/install.py --force      # 先删 pkg/ 再装
-    python tools/pyocd/install.py --check      # 只检查装没装、版本对不对
-    python tools/pyocd/install.py --version 0.45.1
+    python scripts/tools/pyocd/install.py              # 安装固定版本
+    python scripts/tools/pyocd/install.py --force      # 先删 pkg/ 再装
+    python scripts/tools/pyocd/install.py --check      # 只检查装没装、版本对不对
+    python scripts/tools/pyocd/install.py --version 0.45.1
 
 为什么不用 `pip install pyocd` 直接装到系统 Python：
     1) 不污染系统环境，pkg/ 被 .gitignore 忽略，删掉即还原；
@@ -15,7 +14,7 @@
 
 注意：pyocd 不是"纯 Python 无依赖"，它要 18 个第三方包（pyusb、libusb-package、
 intelhex、cmsis-pack-manager ...），全部装进 pkg/，所以调用时必须带
-PYTHONPATH=tools/pyocd/pkg。
+PYTHONPATH=scripts/tools/pyocd/pkg。
 """
 
 import argparse
@@ -57,8 +56,8 @@ def _patch_tempfile() -> None:
             return str(path)
         raise FileExistsError(f"cannot create temp dir under {base}")
 
-    tempfile.mkdtemp = _mkdtemp          # type: ignore[assignment]
-    _tempfile.mkdtemp = _mkdtemp         # type: ignore[assignment]
+    tempfile.mkdtemp = _mkdtemp  # type: ignore[assignment]
+    _tempfile.mkdtemp = _mkdtemp  # type: ignore[assignment]
 
 
 def _env() -> dict:
@@ -75,7 +74,10 @@ def current_version() -> str | None:
     try:
         out = subprocess.run(
             [sys.executable, "-m", "pyocd", "--version"],
-            env=_env(), capture_output=True, text=True, timeout=120,
+            env=_env(),
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -94,8 +96,12 @@ def install(version: str, force: bool, quiet: bool = False) -> int:
     from pip._internal.cli.main import main as pip_main
 
     argv = [
-        "install", "--no-cache-dir", "--no-warn-script-location",
-        "--target", str(PKG_DIR), f"pyocd=={version}",
+        "install",
+        "--no-cache-dir",
+        "--no-warn-script-location",
+        "--target",
+        str(PKG_DIR),
+        f"pyocd=={version}",
     ]
     if quiet:
         argv.append("--quiet")
@@ -120,7 +126,7 @@ def check() -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        prog="install.py", description="安装/检查 pyocd（唯一来源：tools/pyocd/pkg）"
+        prog="install.py", description="安装/检查 pyocd（唯一来源：scripts/tools/pyocd/pkg）"
     )
     ap.add_argument("--version", default=PYOCD_VERSION, help=f"pyocd 版本（默认 {PYOCD_VERSION}）")
     ap.add_argument("--force", action="store_true", help="先删除 pkg/ 再安装")

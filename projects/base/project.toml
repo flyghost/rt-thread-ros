@@ -12,4 +12,4 @@ rtconfig_h = "rtconfig.h"
 
 [flash]
 pyocd_target = "STM32F407VE"
-pack = "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
+pack = "scripts/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
