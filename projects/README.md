@@ -62,4 +62,4 @@ SCons 把**执行命令时所在的目录**当顶层目录（`#`），RT-Thread 
 | `rtconfig.h` 是复制来的 | 两处改动要手动同步 | P3：defconfig + fragment 生成 |
 | `menuconfig` 只能在板目录跑 | 板级 `Kconfig` 的 `RTT_DIR` 是相对板目录的常量 | P3：项目级 Kconfig |
 | 多项目并行构建 | 未验证（目前只跑了 base） | 后续批次 |
-| 烧录参数 | 目前取 `scripts/src/rtros/firmware/config.py`（STM32F407VE + 仓内 pack） | 后续读 `project.toml [flash]` |
+| 烧录参数 | 目前取 `scripts/src/toolbelt/firmware/config.py`（STM32F407VE + 仓内 pack） | 后续读 `project.toml [flash]` |

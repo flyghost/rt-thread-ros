@@ -24,9 +24,9 @@
 | **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/README.md` |
 | 仓库分层 / 构建烧录 / 关键路径 | `AGENTS.md` |
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
-| ramdump 采集与解析的完整用法 | `scripts/src/rtros/ramdump/README.md` |
-| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/src/rtros/serial_hub/README.md` |
-| 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/rtros/guard/README.md` |
+| ramdump 采集与解析的完整用法 | `scripts/src/toolbelt/ramdump/README.md` |
+| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/src/toolbelt/serial_hub/README.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/toolbelt/guard/README.md` |
 | pyocd 安装与版本（唯一实现） | `scripts/tools/pyocd/README.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
@@ -46,5 +46,5 @@ python scripts/tools/run.py build status        # 固件 / pyocd / pack 状态
 scripts/ramdump.bat flash
 ```
 
-> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/src/rtros/guard/`
+> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/src/toolbelt/guard/`
 > 是**可选**的长任务执行器（信箱 + 完整日志 + 改脚本自动重启 + 无人值守）。
