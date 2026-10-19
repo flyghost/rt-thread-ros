@@ -76,10 +76,19 @@ out/build/stm32f407-atk-explorer/
 最终 `rt-thread.elf` / `rtthread.bin` / `rt-thread.map` 仍在 `bsp/stm32/stm32f407-atk-explorer/`
 （那是链接输出目录），`flash` 成功后它们会被复制一份到 `out/bin/`。
 
-实现方式：`scripts/firmware/config.py` 算出 `out/build/<board>`，用环境变量 `RT_BUILD_DIR`
-（相对 BSP 目录，如 `../../../out/build/stm32f407-atk-explorer`）传给 SCons；
-`os/rt-thread/tools/building.py` 与各 BSP 的 `SConstruct` 认这个变量。
-**直接敲 `scons` 时**不设该变量，行为与上游一致（仍用 `bsp/<board>/build`）。
+实现方式（P1 之后）：
+
+- 各板 `SConstruct` 是薄壳，逻辑在 `bsp/stm32/tools/bsp_build.py`：默认就把中间目录算成
+  `<PROJECT_ROOT>/out/build/<入口目录名>`，并把 `RT_BUILD_DIR` 注入给 `os/rt-thread/tools/building.py:376`；
+- `scripts/firmware/` 仍可显式传 `RT_BUILD_DIR` 覆盖（相对 BSP 目录，如 `../../../out/build/stm32f407-atk-explorer`）；
+- **直接敲 `scons`（在板目录里）也落到 `out/build/<板名>`**，不再生成 `bsp/<board>/build`；
+  但需要先备好工具链环境变量（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`，
+  否则 rtconfig.py 会报 `the toolchain path ... is not exist`）。用 `scripts/firmware/` 或 `ai_services.bat`
+  时这些变量已内置，不必手工设置。
+
+**入口位置约束**：SCons 必须在板目录里跑（`cd <板目录>` 或 `scons -C <板目录>`）。
+跨目录 `scons -f bsp/stm32/.../SConstruct` 会被薄壳拒绝（退 1）——上游 `building.py` 有 6 处按 cwd
+解析的路径，详见 `docs/upstream-patches.md`。
 
 `clean` 会把 `out/build/<board>` 和遗留的 `bsp/<board>/build` 一起删掉。
 

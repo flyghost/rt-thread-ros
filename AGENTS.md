@@ -17,10 +17,12 @@ scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；flash
 out/                     # 中间文件 out/build/<board>/、最终 bin、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
-构建接入：`bsp/stm32/<board>/SConstruct:8` 默认 `RTT_ROOT = <bsp>/../../../os/rt-thread`（可用 `RTT_ROOT` 环境变量覆盖）；
-`SConstruct:59-63` 额外加载 `app/`。中间文件目录由环境变量 `RT_BUILD_DIR` 控制（相对 BSP 目录，
-`scripts/firmware/` 设成 `../../../out/build/<board>`；不设则退回上游默认的 `build/`），
-认这个变量的是 `os/rt-thread/tools/building.py` 与各 BSP 的 `SConstruct`。BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`。
+构建接入：路径契约在 `bsp/stm32/tools/bsp_paths.py`，构建逻辑在 `bsp/stm32/tools/bsp_build.py`；各板 `SConstruct`
+只是**薄壳**（三份字节一致）。`PROJECT_ROOT` = 环境变量覆盖 → 向上找 `.git`/`AGENTS.md` → 报错退出；
+`RTT_ROOT = <PROJECT_ROOT>/os/rt-thread`，自有代码在 `<PROJECT_ROOT>/app`，HAL 库在板目录上一级 `libraries/`；
+中间文件目录由 `RT_BUILD_DIR` 注入（默认 `out/build/<入口目录名>`，由 `os/rt-thread/tools/building.py:376` 读取）。
+上游 6 处 cwd 约定、本仓对上游的偏离清单、升级与新增板/项目的检查清单，全在 `docs/upstream-patches.md`。
+BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`（仅 menuconfig 使用）。
 
 ## Build & Flash
 ```bash
@@ -28,9 +30,11 @@ python scripts/firmware/build.py build-flash   # 编译 + 烧录
 ai_services.bat                                # 人手动用：菜单（编译/烧录/守卫/串口 hub/状态）
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
-三条稳定事实（细节见 `tools/pyocd/README.md` 与 `scripts/firmware/`）：
+四条稳定事实（细节见 `tools/pyocd/README.md`、`scripts/firmware/` 与 `docs/upstream-patches.md`）：
 - 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
+- **构建入口必须从板目录运行**（`cd <板目录>` 或 `scons -C <板目录>`）：上游 `building.py` 有 6 处按 cwd 解析的
+  路径，跨目录 `scons -f` 会在薄壳里被明确拒绝（退 1）；中间文件统一在 `out/build/<板名>`（`RT_BUILD_DIR`）；
 - **pyocd 全仓只有一份**：pip 装进 `tools/pyocd/pkg`（已 gitignore，`python tools/pyocd/install.py` 复现），
   芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
 - **烧录两条路都通**：`python scripts/firmware/build.py flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，
@@ -77,4 +81,5 @@ do STM32F407_Restore.cmm                                    # GUI界面
 | 烧录守卫（信箱协议 / 白名单 / 排错） | `scripts/flash_guard/README.md` |
 | pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
 | USB 双栈（CherryUSB / ST） | `app/usb/README.md` |
+| **上游偏离与构建约束（6 处 cwd 约定 / 升级清单 / 新增板与项目清单）** | `docs/upstream-patches.md` |
 | 设计文档 | `docs/`：`reference/Ramdump方案设计文档.md`（外来原始方案，RISC-V 双核）、`archive/ramdump-decouple-plan.md`（已落地）、`Ramdump实现设计方案.md`（历史计划稿，路径与协议已过时） |
