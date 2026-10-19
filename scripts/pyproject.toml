@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rtros-tools"
+version = "0.1.0"
+description = "仓库内的开发工具集合：编译/烧录、守卫、串口服务器、ramdump 采集与解析"
+readme = "AGENTS.md"
+requires-python = ">=3.11"
+# 运行时依赖：只有两个第三方包（其余全部标准库）。
+dependencies = [
+    "pyserial>=3.5",
+    "pyelftools>=0.31",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.14.3",
+    "mypy==1.18.2",
+    "pytest>=8",
+]
+
+# ---------------------------------------------------------------------------
+# 格式化 + lint（唯一配置来源；行长只在这里定义一次）
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "RET", # flake8-return
+    "PTH", # flake8-use-pathlib
+    "RUF", # ruff 自有规则
+    "T20", # flake8-print
+    "D100", "D101", "D102", "D103",  # docstring 存在性（不校验行尾标点）
+]
+ignore = [
+    "E501",  # 行长交给 formatter
+    "D400",  # 首行以句号结尾（中文 docstring 用「。」会被误报）
+    "D415",
+    # 中文注释/docstring 里必然出现全角标点（，。：、），RUF001-003 会把它们
+    # 报成「歧义的 Unicode 字符」——对 CJK 项目是纯噪音，关掉。
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 人看的终端输出：TUI 与命令面板本来就要 print
+"serial_hub/tui/*" = ["T20"]
+"ai_services.py" = ["T20"]
+# 测试与一次性检查脚本不要求 docstring
+"*/tests/*" = ["D101", "D102", "D103"]
+"ramdump/test/*" = ["D101", "D102", "D103"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+# ---------------------------------------------------------------------------
+# 类型检查（渐进式：先只覆盖两个核心包，通过后再逐包扩大）
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+files = ["firmware", "guard"]
+ignore_missing_imports = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
+
+# ---------------------------------------------------------------------------
+# 测试
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q --strict-markers"
+testpaths = ["ramdump/test", "serial_hub/tests"]
+python_files = ["test_*.py", "*_test.py"]
+markers = [
+    "hw: 需要真实硬件（板子/串口/调试器）的测试，默认不跑",
+    "slow: 超过 1 秒的测试",
+]

@@ -1,0 +1,30 @@
+# 编辑器默认设置（与 scripts/pyproject.toml 里的 ruff 配置保持一致）
+# 注意：.bat/.cmd 必须是 CRLF —— cmd.exe 的 goto/标签在纯 LF 下会解析错乱。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.py]
+indent_size = 4
+
+[*.{json,yaml,yml,toml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{bat,cmd}]
+end_of_line = crlf
+charset = latin1
+
+[Makefile]
+indent_style = tab
+
+[*.{c,h,s,S}]
+indent_size = 4

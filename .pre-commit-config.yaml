@@ -1,0 +1,35 @@
+# 本地 pre-commit 钩子（不依赖远端仓库，离线可用）
+#
+# 安装：  python -m pip install --user pre-commit && pre-commit install
+# 手动跑：pre-commit run --all-files
+#
+# 所有钩子都走 scripts/quality.py，保证「人跑」与「CI 跑」是同一套命令。
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (scripts/)
+        entry: python scripts/quality.py check --fix
+        language: system
+        files: ^scripts/.*\.py$
+        pass_filenames: false
+
+      - id: ruff-format
+        name: ruff format (scripts/)
+        entry: python scripts/quality.py format
+        language: system
+        files: ^scripts/.*\.py$
+        pass_filenames: false
+
+      - id: toml-parse
+        name: TOML 可解析
+        entry: python -X utf8 -c "import sys,tomllib;[tomllib.loads(open(p,'rb').read().decode('utf-8')) for p in sys.argv[1:]]"
+        language: system
+        files: \.toml$
+
+      - id: bat-crlf
+        name: .bat 必须是 CRLF + ASCII
+        entry: python -X utf8 scripts/check_bat.py
+        language: system
+        files: \.(bat|cmd)$
+        pass_filenames: true
