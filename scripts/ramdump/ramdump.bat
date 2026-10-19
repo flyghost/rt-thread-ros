@@ -1,18 +1,19 @@
 @echo off
 REM ============================================================
-REM ramdump 工具的薄包装 —— 实现全在 build/ dump/ test/ 下的 python 入口。
-REM 用法： ramdump.bat ^<子命令^> [参数]
-REM   build      编译（可加 --flash / --clean / --menuconfig / --new-console）
-REM   flash      只下载现有的 rtthread.bin
-REM   clean      清理产物
-REM   menuconfig 配置
-REM   dump       全流程：编译 -> 下载 -> 触发 -> YMODEM 收
-REM   recv       只收（设备已在跑）
-REM   list       列出串口
-REM   probe      探控制台（MSH / @ramdump>）
-REM   loopback   USB VCOM 回环测试
-REM   analyzer   解析 out/dump/<时间>/ 下的 dump
-REM   hub        串口中枢（取代原来 bat 里的 console 死循环）
+REM Thin wrapper for the ramdump toolchain. All logic lives in python
+REM entry points under build/ dump/ test/ analyzer/.
+REM Usage: ramdump.bat <subcommand> [args...]
+REM   build       compile (supports --flash / --clean / --menuconfig)
+REM   flash       flash the existing rtthread.bin only
+REM   clean       remove build artifacts
+REM   menuconfig  open the Kconfig menu
+REM   dump        full flow: build -> flash -> trigger -> YMODEM receive
+REM   recv        receive only (device already running)
+REM   list        list serial ports
+REM   probe       probe the console (MSH / @ramdump>)
+REM   loopback    USB VCOM loopback test
+REM   analyzer    analyze a dump under out/dump/<timestamp>/
+REM   hub         serial hub (replaces the old console loop)
 REM ============================================================
 setlocal enabledelayedexpansion
 set "SCRIPT_DIR=%~dp0"
@@ -21,7 +22,7 @@ if not defined PYTHONPYCACHEPREFIX (
     for %%I in ("%SCRIPT_DIR%..\..") do set "PYTHONPYCACHEPREFIX=%%~fI\out\pycache"
 )
 set "PY=python"
-"%PY%" --version >nul 2>nul || (echo [ERROR] PATH 里没有 python & exit /b 1)
+"%PY%" --version >nul 2>nul || (echo [ERROR] python not found in PATH & exit /b 1)
 if "%~1"=="" goto :usage
 set "SUB=%~1"
 shift
@@ -43,11 +44,12 @@ if /i "%SUB%"=="probe"      ( "%PY%" "%SCRIPT_DIR%test\test_serial.py" --probe !
 if /i "%SUB%"=="loopback"   ( "%PY%" "%SCRIPT_DIR%test\test_usb_loopback.py" !ARGS! & exit /b !ERRORLEVEL! )
 if /i "%SUB%"=="analyzer"   ( "%PY%" "%SCRIPT_DIR%analyzer\ramdump_analyzer.py" !ARGS! & exit /b !ERRORLEVEL! )
 if /i "%SUB%"=="hub"        ( "%PY%" "%SCRIPT_DIR%..\serial_hub\serial_hub.py" !ARGS! & exit /b !ERRORLEVEL! )
-echo [ERROR] 未知子命令：%SUB%
+echo [ERROR] unknown subcommand: %SUB%
 :usage
-echo 用法： ramdump.bat [build^|flash^|clean^|menuconfig^|dump^|recv^|list^|probe^|loopback^|analyzer^|hub] [参数]
-echo 例：  ramdump.bat build --flash
-echo        ramdump.bat dump --com COM46 --skip-build --region sram
-echo        ramdump.bat recv --com COM46
-echo        ramdump.bat hub --com COM46 --ui tui
+echo Usage: ramdump.bat [build^|flash^|clean^|menuconfig^|dump^|recv^|list^|probe^|loopback^|analyzer^|hub] [args]
+echo Example:
+echo   ramdump.bat build --flash
+echo   ramdump.bat dump --com COM46 --skip-build --region sram
+echo   ramdump.bat recv --com COM46
+echo   ramdump.bat hub --com COM46 --ui tui
 exit /b 2

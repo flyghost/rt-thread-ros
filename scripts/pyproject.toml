@@ -61,6 +61,7 @@ ignore = [
 "serial_hub/tui/*" = ["T20"]
 "ai_services.py" = ["T20"]
 # 测试与一次性检查脚本不要求 docstring
+"tests/*" = ["D101", "D102", "D103"]
 "*/tests/*" = ["D101", "D102", "D103"]
 "ramdump/test/*" = ["D101", "D102", "D103"]
 
@@ -86,7 +87,7 @@ show_error_codes = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-q --strict-markers -p no:cacheprovider"
-testpaths = ["ramdump/test", "serial_hub/tests"]
+testpaths = ["tests", "ramdump/test", "serial_hub/tests"]
 python_files = ["test_*.py", "*_test.py"]
 markers = [
     "hw: 需要真实硬件（板子/串口/调试器）的测试，默认不跑",
