@@ -30,6 +30,7 @@ from pathlib import Path
 sys.path.insert(
     0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 0), "src")
 )  # rtros 包（P2）：唯一的包导入根
+from rtros import manifest
 from rtros.runtime import proc
 from rtros.runtime.errors import ToolMissingError
 from services_table import SERVICES, Service, find
@@ -63,6 +64,9 @@ def hub_python() -> str:
         if _can_import(candidate, "serial"):
             return candidate
     return PY
+
+
+_SERIAL = manifest.cached().serial  # 串口默认值来自工程根 rtros.toml
 
 
 def expand(argv: tuple[str, ...], hub: str) -> list[str]:
@@ -119,9 +123,9 @@ def run_service(service: Service, extra: list[str]) -> int:
                 PLACEHOLDER_HUB,
                 "scripts/run_rtros.py hub",
                 "--com",
-                os.environ.get("HUB_COM", "COM46"),
+                os.environ.get("HUB_COM", _SERIAL.port),
                 "--baud",
-                os.environ.get("HUB_BAUD", "115200"),
+                os.environ.get("HUB_BAUD", str(_SERIAL.baud)),
                 "--ui",
                 os.environ.get("HUB_UI", "tui"),
             ),

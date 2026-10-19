@@ -30,16 +30,16 @@ default_wait      = 300.0
 [paths]
 # 路径可以是绝对路径，也可以是相对仓库根（守卫会补全）。
 python         = "{python}"
-venv_python    = "E:/software/EnvEdition/rt-thread-env/env-windows/.venv/Scripts/python.exe"
-env_root       = "E:/software/EnvEdition/rt-thread-env/env-windows"
-arm_gcc_bin    = "E:/software/EnvEdition/rt-thread-env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin"
+venv_python    = ""   # 留空 = 取 rtros.toml 的 [build].toolchain_root 推导值
+env_root       = ""   # 留空 = 取 rtros.toml 的 [build].toolchain_root
+arm_gcc_bin    = ""   # 留空 = 取 rtros.toml 的 [build].toolchain_root 推导值
 # pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，必须用同 ABI 的解释器。
-pyocd_python   = "E:/software/InstallerEdition/DevTools/Python/Python313/python.exe"
+pyocd_python   = ""   # 留空 = 取 rtros.toml 的 [flash].python
 pyocd_pkg      = "tools/pyocd/pkg"
 # 新版 pyocd 不内置芯片定义，必须显式给仓内精简 pack（离线、可复现）。
-pyocd_pack     = "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
+pyocd_pack     = ""   # 留空 = 取 rtros.toml 的 [flash].pack
 build_entry    = "scripts/run_rtros.py"
-default_bin    = "out/bin/base/rtthread.bin"
+default_bin    = ""   # 留空 = 取 rtros.toml 的项目名推导值
 default_target = "STM32F407VE"
 
 # ---------------------------------------------------------------- 烧录

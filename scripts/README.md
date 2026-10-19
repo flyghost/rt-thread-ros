@@ -436,6 +436,50 @@ python tools/pyenv/install.py --check  # 只查是否已装
 注意：受限环境里 `pip` 的构建隔离会因临时目录 ACL 失败，所以这个安装器在调 pip 前替换了 `tempfile.mkdtemp`，并且走**进程内** pip（子进程管道会被拦）。
 
 
+## 13. 工程清单 `rtros.toml`（本仓事实的唯一来源）
+
+`scripts/` 是可独立成仓的工具仓库，**代码里不留本仓事实**（板子型号、工具链路径、
+芯片型号、默认串口）。这些全部来自**工程根**的 `rtros.toml`：
+
+```toml
+[project]
+name = "base"                      # 默认项目（projects/<name>）；PROJECT 环境变量可覆盖
+
+[workspace]
+bsp_dir = "bsp/stm32/stm32f407-atk-explorer"
+projects_dir = "projects"
+
+[build]
+toolchain_root = "E:/software/EnvEdition/rt-thread-env/env-windows"
+scons_jobs = 20
+
+[flash]
+target = "STM32F407VE"
+pack = "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
+python = "E:/software/InstallerEdition/DevTools/Python/Python313/python.exe"
+opts = "--erase=auto --frequency=1000000"
+
+[serial]
+port = "COM46"
+baud = 115200
+```
+
+| 键 | 谁在用 | 缺失/错误时 |
+|---|---|---|
+| `[project].name` | 默认构建入口（`PROJECT` 环境变量优先） | 用 `"base"` |
+| `[workspace].bsp_dir` | 板级 BSP 根（`firmware/config.py`、`rtros paths`） | **报错退 1**（路径必须存在） |
+| `[workspace].projects_dir` | 项目层根 | 路径可不存在，但解析项目时找不到会报错 |
+| `[build].toolchain_root` | `RTT_EXEC_PATH`、`VENV` 的推导起点 | **报错**（路径必须存在） |
+| `[build].scons_jobs` | `scons -jN` | 默认 20 |
+| `[flash].target/.pack/.python/.opts` | pyocd 烧录（守卫任务表也取它） | **报错**（pack / python 必须存在） |
+| `[serial].port/.baud` | `ai_services` 的 hub 默认参数 | 空串 / 115200 |
+
+优先级：**环境变量 > `rtros.toml`**（`PROJECT`、`RTT_EXEC_PATH`、`VENV`、`SCONS_JOBS`、
+`PYOCD_TARGET`、`PYOCD_FLASH_OPTS`、`PYOCD_PY`、`HUB_COM`、`HUB_BAUD`、`RTROS_SERIAL_PORT`、
+`RTROS_SERIAL_BAUD`）。解析与校验在 `src/rtros/manifest.py`，错误信息会点名是哪个键。
+
+换一块板 / 换一台机器，只改 `rtros.toml`，`scripts/` 一行不动——这就是「独立成仓」的前提。
+
 ## 附：两个 bat 的定位
 
 | bat | 定位 | 约束 |

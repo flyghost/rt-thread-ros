@@ -6,8 +6,10 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+from rtros import manifest
 from rtros.paths import tool_root
 
 PROTOCOL = 1
@@ -67,33 +69,29 @@ def _path(name: str, default: str = "") -> Path:
     return path if path.is_absolute() else (REPO / raw)
 
 
+# 机器相关路径的默认值来自工程根的 rtros.toml（tasks.toml 里留空即取这里），
+# 想临时改就设 tasks.toml 的 [paths] 或对应环境变量。
+_MANIFEST = manifest.cached()
+_DEFAULT_PROJECT = os.environ.get("PROJECT", _MANIFEST.default_project).strip()
+_ENTRY_DIR, _ = _MANIFEST.entry_dir(_DEFAULT_PROJECT)
+
 PYOCD_PKG_DIR = _path("pyocd_pkg", "tools/pyocd/pkg")
 
+PY_PKG_PY = _path("pyocd_python", str(_MANIFEST.flash.python))
 
-PY_PKG_PY = _path("pyocd_python", r"E:\software\InstallerEdition\DevTools\Python\Python313\python.exe")
+PYOCD_PACK = _path("pyocd_pack", str(_MANIFEST.flash.pack))
 
+BUILD_ENTRY = _path("build_entry", "scripts/run_rtros.py")
 
-PYOCD_PACK = _path("pyocd_pack", "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack")
+VENV_PY = _path("venv_python", str(_MANIFEST.build.venv_python))
 
+ENV_ROOT = _path("env_root", str(_MANIFEST.build.toolchain_root))
 
-BUILD_ENTRY = _path("build_entry", "scripts/run_rtros.py build")
+ARM_GCC_BIN = _path("arm_gcc_bin", str(_MANIFEST.build.rtt_exec_path))
 
+DEFAULT_BIN = _path("default_bin", str(_MANIFEST.root / "out" / "bin" / _ENTRY_DIR.name / "rtthread.bin"))
 
-VENV_PY = _path("venv_python", r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe")
-
-
-ENV_ROOT = _path("env_root", r"E:\software\EnvEdition\rt-thread-env\env-windows")
-
-
-ARM_GCC_BIN = _path(
-    "arm_gcc_bin", r"E:\software\EnvEdition\rt-thread-env\env-windows\tools\gnu_gcc\arm_gcc\mingw\bin"
-)
-
-
-DEFAULT_BIN = _path("default_bin", "out/bin/base/rtthread.bin")
-
-
-DEFAULT_TARGET = PATHS.get("default_target") or "STM32F407VE"
+DEFAULT_TARGET = PATHS.get("default_target") or _MANIFEST.flash.target
 
 
 POLL_SECONDS = float(SETTINGS.get("poll_seconds", 2.0))

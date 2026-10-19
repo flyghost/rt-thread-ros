@@ -1,53 +1,49 @@
 #!/usr/bin/env python3
-"""固件构建/烧录的路径与工具链配置（唯一事实来源）。
+"""固件构建/烧录的路径与工具链配置。
 
-其他脚本一律从这里取常量，不要再各自写一份路径。
+**本仓事实不在代码里**：板子在哪、工具链在哪、烧哪个芯片、默认串口——全部来自
+工程根的 `rtros.toml`（见 `rtros.manifest`）。环境变量仍然可以覆盖。
+
+其他模块一律从这里取常量，不要各自再写一份路径。
 """
 
+from __future__ import annotations
+
 import os
-import sys
 from pathlib import Path
 
-# ---- 仓库布局 ----------------------------------------------------------
+from rtros import manifest
 from rtros.paths import tool_root
 
+# ---- 工程清单（唯一事实来源）-------------------------------------------
+MANIFEST = manifest.cached()
 SCRIPTS_DIR = tool_root()  # scripts/（包化后位置由 rtros.paths 统一给出，别再数父级层数）
-REPO_ROOT = SCRIPTS_DIR.parent  # 仓库根
+REPO_ROOT = MANIFEST.root
 TOOLS_DIR = REPO_ROOT / "tools"
-BSP_DIR = REPO_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
-PROJECTS_DIR = REPO_ROOT / "projects"
+BSP_DIR = MANIFEST.workspace.bsp_dir
+PROJECTS_DIR = MANIFEST.workspace.projects_dir
 
 # ---- 构建入口：项目优先，缺省回落到板级 ---------------------------------
 # PROJECT 环境变量：'base' 之类 = projects/<名字>； 空 / 'none' / 'board' = 直接编译板级 BSP。
-# 目前只在 projects/base 上验证（多项目并行构建留给后续批次）。
-PROJECT_NAME = os.environ.get("PROJECT", "base").strip()
-PROJECT_DIR = PROJECTS_DIR / PROJECT_NAME if PROJECT_NAME else None
-if PROJECT_DIR is not None and (PROJECT_DIR / "SConstruct").is_file():
-    ENTRY_DIR, ENTRY_KIND = PROJECT_DIR, "project"
-else:
-    ENTRY_DIR, ENTRY_KIND = BSP_DIR, "board"
+PROJECT_NAME = os.environ.get("PROJECT", MANIFEST.default_project).strip()
+ENTRY_DIR, ENTRY_KIND = MANIFEST.entry_dir(PROJECT_NAME)
 
 # ---- RT-Thread 工具链（SCons + arm-none-eabi-gcc）----------------------
-ENV_ROOT = Path(os.environ.get("ENV_ROOT", r"E:\software\EnvEdition\rt-thread-env\env-windows"))
-RTT_EXEC_PATH = Path(
-    os.environ.get("RTT_EXEC_PATH", ENV_ROOT / "tools" / "gnu_gcc" / "arm_gcc" / "mingw" / "bin")
-)
-VENV_DIR = Path(os.environ.get("VENV", ENV_ROOT / ".venv"))
-VENV_PY = VENV_DIR / "Scripts" / "python.exe"  # 装了 SCons 的解释器
-if not VENV_PY.exists():  # 非 Windows 或自定义环境
-    VENV_PY = VENV_DIR / "bin" / "python"
-
-SCONS_JOBS = int(os.environ.get("SCONS_JOBS", "20"))
+ENV_ROOT = MANIFEST.build.toolchain_root
+RTT_EXEC_PATH = MANIFEST.build.rtt_exec_path
+VENV_DIR = MANIFEST.build.venv_dir
+VENV_PY = MANIFEST.build.venv_python  # 装了 SCons 的解释器
+SCONS_JOBS = int(os.environ.get("SCONS_JOBS", str(MANIFEST.build.scons_jobs)))
 
 # ---- pyocd（唯一来源：tools/pyocd，见 tools/pyocd/README.md）-----------
 PYOCD_DIR = TOOLS_DIR / "pyocd"
 PYOCD_PKG_DIR = PYOCD_DIR / "pkg"  # pip 装出来的 pyocd（gitignore）
-PYOCD_PACK = PYOCD_DIR / "packs" / "Keil.STM32F4xx_DFP.2.14.0-small.pack"
-PYOCD_TARGET = os.environ.get("PYOCD_TARGET", "STM32F407VE")
-PYOCD_FLASH_OPTS = os.environ.get("PYOCD_FLASH_OPTS", "--erase=auto --frequency=1000000").split()
+PYOCD_PACK = MANIFEST.flash.pack
+PYOCD_TARGET = MANIFEST.flash.target
+PYOCD_FLASH_OPTS = list(MANIFEST.flash.opts)
 # 跑 pyocd 的解释器：pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，
-# 必须用同一 ABI 的解释器；需要别的环境时用 PYOOCD_PY 覆盖。
-PYOCD_PY = Path(os.environ.get("PYOCD_PY", sys.executable))
+# 必须用同一 ABI 的解释器；需要别的环境时用 PYOCD_PY 覆盖。
+PYOCD_PY = Path(os.environ.get("PYOCD_PY", MANIFEST.flash.python))
 
 # ---- 产物 --------------------------------------------------------------
 # 产物统一在 out/bin/<入口目录名>/（elf/map/bin），构建入口目录只留源码。

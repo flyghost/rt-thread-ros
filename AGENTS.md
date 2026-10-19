@@ -20,6 +20,9 @@ out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin
                          #   out/pycache/（所有入口的 __pycache__ 都引到这里）、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
+**本仓事实（板子 / 工具链 / 芯片 / 串口）在工程根的 `rtros.toml`**，Python 工具侧由
+`scripts/src/rtros/manifest.py` 读取校验；换板或换机器只改它，`scripts/` 不动。
+
 构建接入：路径契约在 `bsp/stm32/tools/bsp_paths.py`，构建逻辑在 `bsp/stm32/tools/bsp_build.py`；各板 `SConstruct`
 只是**薄壳**（三份字节一致）。`PROJECT_ROOT` = 环境变量覆盖 → 向上找 `.git`/`AGENTS.md` → 报错退出；
 `RTT_ROOT = <PROJECT_ROOT>/os/rt-thread`，自有代码在 `<PROJECT_ROOT>/app`，HAL 库在板目录上一级 `libraries/`；
