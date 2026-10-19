@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import sys
@@ -212,10 +213,8 @@ def menu_loop() -> int:
 
 
 def main(argv: list[str]) -> int:
-    try:
+    with contextlib.suppress(AttributeError, OSError):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-    except (AttributeError, OSError):
-        pass
 
     args = list(argv)
     if not args:

@@ -119,4 +119,4 @@ def fit(text: str, cols: int, fill: str = " ") -> str:
 
 
 def at(row: int, col: int) -> str:
-    return "%s%d;%dH" % (CSI, row, col)
+    return f"{CSI}{row:d};{col:d}H"

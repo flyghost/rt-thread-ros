@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from .base import Codec
 
 
@@ -40,7 +42,7 @@ class TelnetCodec(Codec):
     SE = 240
     ECHO = 1
     SGA = 3
-    OPT_NAMES = {
+    OPT_NAMES: ClassVar[dict[int, str]] = {
         0: "BINARY",
         1: "ECHO",
         3: "SGA",
@@ -140,7 +142,7 @@ class TelnetCodec(Codec):
         )
 
     def _oname(self, opt: int) -> str:
-        return self.OPT_NAMES.get(opt, "opt%d" % opt)
+        return self.OPT_NAMES.get(opt, f"opt{opt:d}")
 
     def _send(self, reply: bytearray, cmd: int, opt: int) -> None:
         reply += bytes((self.IAC, cmd, opt))

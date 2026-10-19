@@ -76,8 +76,8 @@ def _status(state, w, *, paused, flash, mode, sidebar, extra_status):
     if extra_status:
         parts.append(extra_status)  # 搜索反馈放前面，保证不被右端的截断吃掉
     parts += [
-        "运行 %ds" % int(st.get("uptime") or 0),
-        "会话 %d" % int(st.get("clients") or 0),
+        f"运行 {int(st.get('uptime') or 0):d}s",
+        f"会话 {int(st.get('clients') or 0):d}",
         "写锁 %s" % (st.get("owner") or "无"),
         "收 {}".format(human(int(st.get("rx") or 0))),
         "发 {}".format(human(int(st.get("tx") or 0))),
@@ -90,7 +90,7 @@ def _status(state, w, *, paused, flash, mode, sidebar, extra_status):
     if paused:
         parts.append("已暂停")
     if int(st.get("sink_errors") or 0):
-        parts.append("sink错误 %d" % int(st["sink_errors"]))
+        parts.append(f"sink错误 {int(st['sink_errors']):d}")
     tail = ""
     if flash:
         tail = "  " + flash
@@ -163,7 +163,7 @@ def _help_panel(w, rows):
         if not key and not desc:
             out.append("")
         else:
-            out.append("   %-12s %s" % (key, desc))
+            out.append(f"   {key:<12s} {desc}")
     while len(out) < rows:
         out.append("")
     return [("info", line) for line in out]

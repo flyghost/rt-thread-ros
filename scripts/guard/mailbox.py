@@ -62,6 +62,8 @@ def _pid_alive(pid: int) -> bool:
 
 
 class Mailbox:
+    """信箱目录：请求/回执/日志文件与心跳、运行状态的路径约定。"""
+
     def __init__(self, root: Path) -> None:
         self.root = root
         self.lock = root / "guard.lock"

@@ -13,8 +13,8 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import os
-import sys
+import os  # noqa: E402
+import sys  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))  # scripts/serial_hub
@@ -73,7 +73,7 @@ for name, data in [
 ]:
     got = c.encode(data)
     bad = b"\r\r" in got
-    print("  %-12s %-22s -> %-26s %s" % (name, hx(data), hx(got), "!! 出现 CR CR" if bad else "OK"))
+    print(f"  {name:<12s} {hx(data):<22s} -> {hx(got):<26s} {'!! 出现 CR CR' if bad else 'OK'}")
 
 print("\n=== 4. 客户端->设备：回车折叠（不该把一个 Enter 变两个） ===")
 for name, data in [
@@ -84,7 +84,7 @@ for name, data in [
     ("IAC IAC = 字面 0xFF", b"\xff\xff"),
 ]:
     o, r = c.decode(data)
-    print("  %-20s -> board=%-16s reply=%s" % (name, hx(o), hx(r)))
+    print(f"  {name:<20s} -> board={hx(o):<16s} reply={hx(r)}")
 for n in c.notes:
     print("    note:", n)
 c.notes.clear()

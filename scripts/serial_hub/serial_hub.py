@@ -88,6 +88,8 @@ Windows 的 COM 口默认是【独占】的：一个终端打开后自动化脚�
 
 from __future__ import annotations
 
+import contextlib
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os
@@ -99,9 +101,9 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 
-import argparse
-import os
-import sys
+import argparse  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
 
 # 让 `python scripts/serial_hub/serial_hub.py` 直接跑（把包目录加进 sys.path）
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -217,10 +219,8 @@ def setup_console() -> None:
         pass
     for name in ("stdout", "stderr"):
         stream = getattr(sys, name, None)
-        try:
+        with contextlib.suppress(Exception):
             stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-        except Exception:
-            pass
 
 
 def main(argv=None) -> int:

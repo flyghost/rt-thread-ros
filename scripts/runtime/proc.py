@@ -143,9 +143,7 @@ def run_streaming(
     finally:
         if proc.poll() is None:
             proc.kill()
-    text = "".join(lines)
-    result = Result(argv=tuple(args), returncode=returncode, stdout=text, stderr="")
-    return result
+    return Result(argv=tuple(args), returncode=returncode, stdout="".join(lines), stderr="")
 
 
 def popen(

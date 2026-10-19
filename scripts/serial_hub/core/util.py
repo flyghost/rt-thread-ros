@@ -13,7 +13,7 @@ def ts() -> str:
 
 def human(n: int) -> str:
     if n < 1024:
-        return "%d B" % n
+        return f"{n:d} B"
     if n < 1024 * 1024:
         return "%.1f KB" % (n / 1024.0)
     return "%.2f MB" % (n / 1024.0 / 1024.0)

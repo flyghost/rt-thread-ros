@@ -68,7 +68,7 @@ class BufferMixin(TuiBase):
             return
         self.hit = max(0, min(len(hits) - 1, self.hit + delta))
         self.scroll = max(0, len(self.text_lines()) - 1 - hits[self.hit])
-        self.flash_msg("命中 %d/%d" % (self.hit + 1, len(hits)))
+        self.flash_msg(f"命中 {self.hit + 1:d}/{len(hits):d}")
 
     def start_search(self):
         self.input_mode = "search"
@@ -91,7 +91,7 @@ class BufferMixin(TuiBase):
         if hits:
             self.hit = len(hits) - 1
             self.scroll = max(0, len(self.text_lines()) - 1 - hits[self.hit])
-            self.flash_msg("命中 %d 处" % len(hits))
+            self.flash_msg(f"命中 {len(hits):d} 处")
         else:
             self.flash_msg(f"没有命中「{self.search}」")
 
@@ -108,4 +108,4 @@ class BufferMixin(TuiBase):
         hits = self.recompute_hits()
         if not hits:
             return f"搜索「{self.search}」无命中"
-        return "搜索「%s」%d/%d" % (self.search, self.hit + 1, len(hits))
+        return f"搜索「{self.search}」{self.hit + 1:d}/{len(hits):d}"

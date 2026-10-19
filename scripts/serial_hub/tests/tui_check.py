@@ -25,11 +25,11 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import io
-import os
-import shutil
-import sys
-from contextlib import redirect_stdout
+import io  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+import sys  # noqa: E402
+from contextlib import redirect_stdout  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))  # scripts/serial_hub/tests
 _PKG = os.path.dirname(_HERE)  # scripts/serial_hub
@@ -93,15 +93,15 @@ def geometry():
     sizes = [(80, 24), (120, 40), (100, 20), (40, 8), (20, 5)]
     for w, h in sizes:
         frame = render({"com": "COM1", "baud": 9600}, lines, w, h, input_text="abc")
-        ok("render 行数 = %d（w=%d h=%d）" % (h, w, h), len(frame) == h, "实际 %d" % len(frame))
+        ok("render 行数 = %d（w=%d h=%d）" % (h, w, h), len(frame) == h, "实际 %d" % len(frame))  # noqa: UP031
         bad = [(i, A.width(f)) for i, f in enumerate(frame) if A.width(f) != w]
-        ok("render 每行宽 = %d（w=%d h=%d）" % (w, w, h), not bad, str(bad[:3]))
+        ok("render 每行宽 = %d（w=%d h=%d）" % (w, w, h), not bad, str(bad[:3]))  # noqa: UP031
     wide = render({"com": "COM1"}, [("rx", "中" * 60)], 40, 8)
     ok("超宽中文行不越界", all(A.width(f) == 40 for f in wide))
 
 
 def contents():
-    lines = [("rx", "line-%d" % i) for i in range(1, 31)]
+    lines = [("rx", "line-%d" % i) for i in range(1, 31)]  # noqa: UP031
     frame = render(
         {
             "com": "COM9",
@@ -288,9 +288,9 @@ def step3():
     app.draw((100, 10))
     app.hit = 1
     app.handle_key("c:n")
-    ok("n 不越界", app.hit == 1, "hit=%d" % app.hit)
+    ok("n 不越界", app.hit == 1, "hit=%d" % app.hit)  # noqa: UP031
     app.handle_key("c:N")
-    ok("N 回到上一个命中", app.hit == 0, "hit=%d" % app.hit)
+    ok("N 回到上一个命中", app.hit == 0, "hit=%d" % app.hit)  # noqa: UP031
     ok("命中行带高亮", A.REVERSE in "\n".join(app.draw((100, 10))))
     ok("状态行里能看到搜索计数", "1/2" in A.strip_ansi("\n".join(app.draw((100, 10)))))
     app.handle_key("esc")
@@ -339,8 +339,8 @@ def loop_check():
     with redirect_stdout(buf):
         frames = app.loop(hub, key_source=lambda: seq.pop(0) if seq else "", max_frames=3)
     out = buf.getvalue()
-    ok("loop 跑完并返回帧数", frames >= 1, "frames=%d" % frames)
-    ok("loop 调用了 hub.tick", hub.ticks >= 1, "ticks=%d" % hub.ticks)
+    ok("loop 跑完并返回帧数", frames >= 1, "frames=%d" % frames)  # noqa: UP031
+    ok("loop 调用了 hub.tick", hub.ticks >= 1, "ticks=%d" % hub.ticks)  # noqa: UP031
     ok("loop 切进/切出备用屏幕", A.ALT_ON in out and A.ALT_OFF in out)
     ok("loop 退出时把 hub 停掉", hub.running is False)
     ok("loop 期间画过状态行", "COM9@115200" in A.strip_ansi(out))
@@ -360,7 +360,7 @@ def main():
     print("\n=== 6. 第 3 步：both/侧栏/搜索 ===")
     step3()
     bad = [name for name, good in CHECKS if not good]
-    print("\n%d OK / %d FAIL" % (len(CHECKS) - len(bad), len(bad)))
+    print("\n%d OK / %d FAIL" % (len(CHECKS) - len(bad), len(bad)))  # noqa: UP031
     for name in bad:
         print(f"  FAIL: {name}")
     return 1 if bad else 0

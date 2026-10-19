@@ -45,7 +45,7 @@ class Client:
             host, port = self.addr[0], self.addr[1]
         except Exception:
             host, port = "?", 0
-        return "#%d %s(%s:%s)" % (self.cid, self.proto or "?", host, port)
+        return f"#{self.cid:d} {self.proto or '?'}({host}:{port})"
 
     def use_proto(self, name: str) -> None:
         """切换接入协议（重置 codec 状态）。"""

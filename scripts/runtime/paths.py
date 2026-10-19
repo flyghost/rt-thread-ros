@@ -41,5 +41,4 @@ def ensure_dir(path: str | Path) -> Path:
 
 def display(path: str | Path) -> str:
     """给人看的路径：仓内显示相对路径，仓外显示绝对路径。"""
-    text = rel(path)
-    return text
+    return rel(path)

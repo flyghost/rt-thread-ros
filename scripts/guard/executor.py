@@ -48,6 +48,8 @@ from runtime.proc import run as run_cmd
 
 
 class Guard:
+    """守卫主循环：认领请求 → 白名单执行 → 写回结果。"""
+
     def __init__(self, mailbox: Mailbox, once: bool, timeout_override: float | None, stall: float) -> None:
         self.mb = mailbox
         self.once = once

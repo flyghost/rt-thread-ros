@@ -45,11 +45,11 @@ class CommandsMixin(HubBase):
             return "# pong"
         if verb == "status":
             up = time.time() - self.started
-            return "# 串口=%s@%d %s 运行=%s 重连=%d 会话=%d 写锁=%s 收=%s 发=%s 丢弃(锁)=%s 协议层吃掉=%s" % (
+            return "# 串口=%s@%d %s 运行=%s 重连=%d 会话=%d 写锁=%s 收=%s 发=%s 丢弃(锁)=%s 协议层吃掉=%s" % (  # noqa: UP031
                 a.com,
                 a.baud,
                 "OK" if self.ser_ok else "断开",
-                "%d秒" % int(up),
+                f"{int(up):d}秒",
                 self.reopen_count,
                 len(self.clients),
                 self.owner_name(),
@@ -65,7 +65,7 @@ class CommandsMixin(HubBase):
             now = time.time()
             for c in sorted(self.clients.values(), key=lambda x: x.cid):
                 rows.append(
-                    "# %d proto=%-6s %s 会话=%ds 收=%s 发=%s 协议层吃掉=%s%s"
+                    "# %d proto=%-6s %s 会话=%ds 收=%s 发=%s 协议层吃掉=%s%s"  # noqa: UP031
                     % (
                         c.cid,
                         c.proto or "?",
@@ -89,7 +89,7 @@ class CommandsMixin(HubBase):
             else:
                 return "# err: 控制口 lock 需要 <cid>；数据口请用 @@lock"
             if target not in self.clients:
-                return "# err: 没有客户端 %d" % target
+                return f"# err: 没有客户端 {target:d}"
             self.owner_cid = target
             self.mark_state()
             self.log(f"[hub] 写锁 -> {self.clients[target].name}")
@@ -112,7 +112,7 @@ class CommandsMixin(HubBase):
         if verb == "whoami":
             if client is None:
                 return "# 控制口连接（不属于数据会话；用 sessions 看会话号）"
-            return "# 我是 %s 协议=%s 会话=%ds" % (
+            return "# 我是 %s 协议=%s 会话=%ds" % (  # noqa: UP031
                 client.name,
                 client.proto or "?",
                 int(time.time() - client.since),
@@ -131,7 +131,7 @@ class CommandsMixin(HubBase):
                 return "# err: 不支持的协议 {!r}（可选 {}）".format(name, "/".join(sorted(CODECS)))
             c = self.clients.get(target)
             if c is None:
-                return "# err: 没有会话 %d" % target
+                return f"# err: 没有会话 {target:d}"
             c.use_proto(name)
             c.flush_held_out()
             self.log(f"[hub] 会话 {c.name} 协议切换 -> {name}")
@@ -145,7 +145,7 @@ class CommandsMixin(HubBase):
                 return "# err: kill 参数要是会话号"
             c = self.clients.get(target)
             if c is None:
-                return "# err: 没有会话 %d" % target
+                return f"# err: 没有会话 {target:d}"
             name = c.name
             self.drop_client(c, "被控制口踢出")
             return f"# ok: 已断开 {name}"

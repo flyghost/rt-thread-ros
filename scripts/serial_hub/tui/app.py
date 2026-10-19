@@ -13,13 +13,12 @@ from core.ringbuf import ByteRing
 
 from tui import ansi as A
 from tui import keys as K
-from tui.base import TuiBase
+from tui.base import PANEL_MAX, TuiBase
 from tui.buffer import BufferMixin
 from tui.input import InputMixin
 from tui.output import OutputMixin
 from tui.render import RenderMixin
 
-PANEL_MAX = 4000  # 面板保留的最大行数
 RAW_MAX = 256 * 1024  # Ctrl-S 存盘保留的最大 RX 字节
 FRAME_SECONDS = 0.05  # 每帧让给 hub.tick() 的时间
 

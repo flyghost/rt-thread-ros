@@ -19,7 +19,9 @@ from discovery.base import (
     PortInfo,
     PortRule,
     order_key,
-    parse_rule_spec,
+)
+from discovery.base import (
+    parse_rule_spec as parse_rule_spec,
 )
 
 # 内置规则（顺序无关，判定靠"命中强度 + priority"）
@@ -83,7 +85,7 @@ def preferred(ports=None, rules=(), require_usb: bool = True) -> tuple:
     return (
         None,
         None,
-        "有 %d 个端口同级命中（%s），请用 --com 指定"
+        "有 %d 个端口同级命中（%s），请用 --com 指定"  # noqa: UP031
         % (len(top), "、".join(p.brief() for _, p, _, _ in top)),
     )
 
@@ -99,7 +101,7 @@ def print_ports_table(ports=None, rules=(), picked=None) -> None:
         rule, why = classify(p, rules)
         mark = "  <== 自动选中" if picked and p.device == picked else ""
         print(
-            "  %-10s %-38s %-9s %-22s %s%s"
+            "  %-10s %-38s %-9s %-22s %s%s"  # noqa: UP031
             % (
                 p.device,
                 (p.description or "-")[:38],
@@ -124,7 +126,7 @@ def print_rules(rules=()) -> None:
             bits.append("描述含 " + "/".join(rule.description_keywords))
         if rule.device_patterns:
             bits.append("串口名 " + "/".join(rule.device_patterns))
-        print("  %-12s priority=%-4d %s" % (rule.name, rule.priority, "；".join(bits) or "-"))
+        print(f"  {rule.name:<12s} priority={rule.priority:<4d} {'；'.join(bits) or '-'}")
     print(
         "  加规则：在 discovery/ 下新建一个 .py 暴露 RULES；临时用 --prefer 1A86:7523 / "
         "--prefer name:COM7 / --prefer desc:ch340 / --prefer hwid:USB"

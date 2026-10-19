@@ -17,10 +17,10 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import contextlib
-import socket
-import sys
-import time
+import contextlib  # noqa: E402
+import socket  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
 
 HOST = "127.0.0.1"
 PORT = 5555
@@ -77,7 +77,7 @@ def drain(socks, wait=1.0):
 
 
 def show(tag, b):
-    print("  %-34s %r" % (tag, b[:160]))
+    print(f"  {tag:<34s} {b[:160]!r}")
 
 
 def main():

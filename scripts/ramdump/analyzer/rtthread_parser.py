@@ -149,7 +149,11 @@ def compute_stack_usage(memory: bytes, memory_base: int, thread: ThreadInfo) -> 
     return used, size, pct
 
 
-def format_thread_list(threads: list[ThreadInfo], memory: bytes = None, memory_base: int = 0) -> str:
+def format_thread_list(
+    threads: list[ThreadInfo],
+    memory: bytes | None = None,
+    memory_base: int = 0,
+) -> str:
     """Format thread list for display."""
     lines = []
     lines.append("=== RT-Thread Thread List ===")
@@ -163,7 +167,7 @@ def format_thread_list(threads: list[ThreadInfo], memory: bytes = None, memory_b
 
     for t in threads:
         if memory:
-            used, total, pct = compute_stack_usage(memory, memory_base, t)
+            used, _total, pct = compute_stack_usage(memory, memory_base, t)
             lines.append(
                 f"{t.name:<10} 0x{t.sp:08X} 0x{t.stack_addr:08X} "
                 f"{t.stack_size:>10} {used:>10} {pct:>4.1f}% "

@@ -33,7 +33,7 @@ class ControlServer:
             self.sock = None
             return False
         threading.Thread(target=self._accept_loop, daemon=True).start()
-        self.hub.log("[hub] 控制口  %s:%d（lock/unlock/status/reset/shutdown）" % (self.host, self.port))
+        self.hub.log(f"[hub] 控制口  {self.host}:{self.port:d}（lock/unlock/status/reset/shutdown）")
         return True
 
     def close(self) -> None:

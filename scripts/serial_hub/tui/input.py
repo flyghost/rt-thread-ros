@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from tui.base import TuiBase
+from tui.base import PANEL_MAX, TuiBase
 
 
 class InputMixin(TuiBase):

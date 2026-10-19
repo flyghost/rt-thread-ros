@@ -20,11 +20,11 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse
-import os
-import sys
-import threading
-import time
+import argparse  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+import threading  # noqa: E402
+import time  # noqa: E402
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
@@ -55,7 +55,7 @@ def one_round(port, size, wait=None):
         usb.write(pattern)
         usb.flush()
         w = wait if wait is not None else size / 500.0 + 2  # 粗估等待（沿用原 4k 脚本的公式）
-        print("  发 %d B，等 %.1fs ..." % (size, w))
+        print(f"  发 {size:d} B，等 {w:.1f}s ...")
         time.sleep(w)
     finally:
         done.set()
@@ -86,25 +86,25 @@ def main(argv=None):
         print("没自动找到口；USB CDC 口一般是 FFFF:FFFF，请显式 --com")
         return 2
     sizes = [int(x) for x in str(a.sizes).replace(" ", "").split(",") if x]
-    print("[USB] 口=%s 轮次=%s 波特率=%d（仅占位）" % (port, sizes, a.baud))
+    print(f"[USB] 口={port} 轮次={sizes} 波特率={a.baud:d}（仅占位）")
 
     bad = 0
     for size in sizes:
         try:
             got, same, diff = one_round(port, size, a.wait)
         except Exception as exc:
-            print("  %dB: 打不开/出错：%s" % (size, exc))
+            print(f"  {size:d}B: 打不开/出错：{exc}")
             bad += 1
             continue
         if same:
-            print("  %dB: 收到 %dB，逐字节相同 OK" % (size, got))
+            print(f"  {size:d}B: 收到 {got:d}B，逐字节相同 OK")
         else:
             bad += 1
             if got < size:
-                print("  %dB: 只收到 %dB（不完整）FAIL" % (size, got))
+                print(f"  {size:d}B: 只收到 {got:d}B（不完整）FAIL")
             else:
-                print("  %dB: 首个差异在下标 %d FAIL" % (size, diff))
-    print("[USB] %d/%d 轮通过" % (len(sizes) - bad, len(sizes)))
+                print(f"  {size:d}B: 首个差异在下标 {diff:d} FAIL")
+    print(f"[USB] {len(sizes) - bad:d}/{len(sizes):d} 轮通过")
     return 1 if bad else 0
 
 

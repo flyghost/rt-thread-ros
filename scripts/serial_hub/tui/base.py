@@ -11,6 +11,8 @@ from typing import Any
 
 from core.ringbuf import ByteRing
 
+PANEL_MAX = 4000  # 面板保留的最大行数（app 与 input 共用）
+
 
 class TuiBase:
     """TuiApp 的实例属性（仅类型声明，见 TuiApp.__init__）。"""

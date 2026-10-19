@@ -17,18 +17,18 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse
-import io
-import os
-import shutil
-import sys
-import time
-from contextlib import redirect_stdout, suppress
+import argparse  # noqa: E402
+import io  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from contextlib import redirect_stdout, suppress  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))  # scripts/serial_hub
 
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 
 from core.events import EV_RX, EV_TX, Event  # noqa: E402
 from core.relay import SerialHub  # noqa: E402
@@ -49,9 +49,7 @@ def _new_tmpdir():
     目录名带自增序号：同一秒内多个 hub 不能共用同一份日志文件。
     """
     _TMPSEQ[0] += 1
-    d = os.path.join(
-        _TMPROOT, "sink-check-%s-%d-%d" % (time.strftime("%Y%m%d-%H%M%S"), os.getpid(), _TMPSEQ[0])
-    )
+    d = os.path.join(_TMPROOT, f"sink-check-{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid():d}-{_TMPSEQ[0]:d}")
     os.makedirs(d, exist_ok=True)
     _TMPDIRS.append(d)
     return d
@@ -243,7 +241,7 @@ def main():
 
     print()
     if failed:
-        print("FAILED(%d)：%s" % (len(failed), ", ".join(failed)))
+        print(f"FAILED({len(failed):d})：{', '.join(failed)}")
         return 1
     print("全部通过（事件层 + 两个 sink 的行为与重构前一致）")
     return 0

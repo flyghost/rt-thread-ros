@@ -55,13 +55,13 @@ class RenderMixin(TuiBase):
         if not self.sidebar:
             return []
         st = self.state or {}
-        out = ["会话 %d   写锁 %s" % (int(st.get("clients") or 0), st.get("owner") or "无"), "-" * 26]
+        out = [f"会话 {int(st.get('clients') or 0):d}   写锁 {st.get('owner') or '无'}", "-" * 26]
         sessions = st.get("sessions") or []
         for s in sessions:
             mark = " <=锁" if s.get("locked") else ""
             out.append("#{} {} {}{}".format(s.get("cid"), s.get("proto") or "?", s.get("addr") or "", mark))
             out.append("   收 {}  发 {}".format(human(int(s.get("rx") or 0)), human(int(s.get("tx") or 0))))
-            extra = "   会话 %ds" % int(s.get("uptime") or 0)
+            extra = f"   会话 {int(s.get('uptime') or 0):d}s"
             if s.get("drop_proto"):
                 extra += "  协议吃掉 {}".format(human(int(s["drop_proto"])))
             out.append(extra)

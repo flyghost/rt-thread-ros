@@ -86,9 +86,7 @@ def _is_thumb_blx(word: int) -> bool:
     if (hw & 0xFF87) == 0x4780:
         return True
     # BLX imm (Thumb-2): same encoding as BL but with different H bit
-    if (hw & 0xF800) in (0xF000,):
-        return True
-    return False
+    return (hw & 0xF800) == 0xF000
 
 
 def is_call_instruction(data: bytes, addr: int) -> bool:

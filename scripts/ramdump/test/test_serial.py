@@ -21,10 +21,10 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse
-import os
-import sys
-import time
+import argparse  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
@@ -42,11 +42,11 @@ def list_ports():
     if not ports:
         print("没有发现任何串口")
         return 0
-    print("%-8s %-34s %-12s %s" % ("口", "描述", "VID:PID", ""))
+    print(f"{'口':<8s} {'描述':<34s} {'VID:PID':<12s} {''}")
     for p in ports:
         vidpid = f"{p.vid:04X}:{p.pid:04X}" if (p.vid and p.pid) else "----:----"
         mark = "  <== 自动选中" if p.device == pick else ""
-        print("%-8s %-34s %-12s %s" % (p.device, (p.description or "")[:34], vidpid, mark))
+        print(f"{p.device:<8s} {(p.description or '')[:34]:<34s} {vidpid:<12s} {mark}")
     if not pick:
         print("\n没有 VID:PID=1A86:7523 的口；请用 --com 指定（USB CDC 口是 FFFF:FFFF）")
     return 0
@@ -59,7 +59,7 @@ def probe(port, baud, seconds):
         print(f"[PROBE] 打不开 {port}：{exc}")
         print("        口被占用时用 scripts/serial_hub/serial_hub.py --list 查占用者（别 taskkill python）")
         return 1
-    print("[PROBE] 已打开 %s @ %d 8N1，%ds 内尝试敲回车 ..." % (port, baud, seconds))
+    print(f"[PROBE] 已打开 {port} @ {baud:d} 8N1，{seconds:d}s 内尝试敲回车 ...")
     try:
         deadline = time.time() + seconds
         buf = ""

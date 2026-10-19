@@ -19,11 +19,11 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse
-import os
-import sys
-import time
-from pathlib import Path
+import argparse  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
@@ -76,9 +76,9 @@ def main(argv=None):
             print("[DUMP] 没收到文件")
             return 1
         total = sum(Path(f).stat().st_size for f in saved)
-        print("[DUMP] %d 个文件，共 %d B" % (len(saved), total))
+        print(f"[DUMP] {len(saved):d} 个文件，共 {total:d} B")
         for f in saved:
-            print("   %-24s %10d B" % (Path(f).name, Path(f).stat().st_size))
+            print(f"   {Path(f).name:<24s} {Path(f).stat().st_size:10d} B")
     finally:
         ser.close()
     return 0

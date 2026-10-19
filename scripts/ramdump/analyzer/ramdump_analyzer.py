@@ -12,8 +12,8 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
 
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse
-import sys
+import argparse  # noqa: E402
+import sys  # noqa: E402
 
 try:
     from elftools.elf.elffile import ELFFile
@@ -22,13 +22,13 @@ try:
 except ImportError:
     HAS_ELFTOOLS = False
 
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 
-from analysis import analyze_registers, parse_exception_record
-from arm_backtrace import backtrace, format_backtrace
-from exception_decoder import decode_fault_registers
-from memory import build_memory_map, load_elf_symbols, load_memory
-from model import (
+from analysis import analyze_registers, parse_exception_record  # noqa: E402
+from arm_backtrace import backtrace, format_backtrace  # noqa: E402
+from exception_decoder import decode_fault_registers  # noqa: E402
+from memory import build_memory_map, load_elf_symbols, load_memory  # noqa: E402
+from model import (  # noqa: E402
     FLASH_BASE,
     FLASH_SIZE,
     SRAM_BASE,
@@ -36,8 +36,8 @@ from model import (
     ExceptionRecord,
     RamdumpAnalysis,
 )
-from report import generate_html_report
-from rtthread_parser import format_thread_list, scan_threads
+from report import generate_html_report  # noqa: E402
+from rtthread_parser import format_thread_list, scan_threads  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -19,8 +19,8 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import sys as _s
-from pathlib import Path as _Path
+import sys as _s  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
 
 _SCRIPTS = _Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in _s.path:

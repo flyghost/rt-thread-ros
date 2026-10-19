@@ -52,7 +52,7 @@ class SerialMixin(HubBase):
         with self.ser_lock:
             self.ser = ser
             self.ser_ok = True
-        self.log("[hub] 已独占 %s @ %d 8N1（write_timeout=%ss）" % (a.com, a.baud, a.write_timeout))
+        self.log(f"[hub] 已独占 {a.com} @ {a.baud:d} 8N1（write_timeout={a.write_timeout}s）")
         return True
 
     def drop_serial(self, why: str) -> None:
@@ -72,7 +72,7 @@ class SerialMixin(HubBase):
         self.last_open_try = now
         if self.open_serial(quiet=True):
             self.reopen_count += 1
-            self.log("[hub] 串口重连成功（第 %d 次）" % self.reopen_count)
+            self.log(f"[hub] 串口重连成功（第 {self.reopen_count:d} 次）")
         else:
             self.log(f"[hub] 串口重连失败，{self.args.reopen_delay}s 后再试")
 
@@ -120,7 +120,7 @@ class SerialMixin(HubBase):
             with self.ser_lock:
                 ser = self.ser
             if ser is None:
-                self.log("[hub] 串口不可用，丢弃 %s 的 %d 字节" % (who, len(data)))
+                self.log(f"[hub] 串口不可用，丢弃 {who} 的 {len(data):d} 字节")
                 continue
             try:
                 ser.write(data)
@@ -128,7 +128,7 @@ class SerialMixin(HubBase):
                 self.emit(Event(kind=EV_TX, direction="TX", who=who, data=data))
             except serial.SerialTimeoutException:
                 self.log(
-                    "[hub] 写超时（%ss），丢弃 %d 字节：目标可能在等流控或已停"
+                    "[hub] 写超时（%ss），丢弃 %d 字节：目标可能在等流控或已停"  # noqa: UP031
                     % (self.args.write_timeout, len(data))
                 )
             except Exception as exc:

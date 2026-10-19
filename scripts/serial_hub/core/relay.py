@@ -108,7 +108,7 @@ class SerialHub(SerialMixin, ClientsMixin, CommandsMixin, StateMixin):
             return 2
         self.mark_state()
         self.log(
-            "[hub] 就绪。Raw 口 / %s / %d ；Telnet 口 / %s / %s ；控制口 %s"
+            "[hub] 就绪。Raw 口 / %s / %d ；Telnet 口 / %s / %s ；控制口 %s"  # noqa: UP031
             % (a.host, a.port, a.host, a.telnet_port or "关闭", a.control_port or "关闭")
         )
         threading.Thread(target=self.reader_loop, daemon=True).start()

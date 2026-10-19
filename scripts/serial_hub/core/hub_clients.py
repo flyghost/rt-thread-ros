@@ -39,10 +39,10 @@ class ClientsMixin(HubBase):
             self.srv.setblocking(False)
             self.sel.register(self.srv, SEL_READ, ("srv", None))
         except OSError as exc:
-            print("[hub] 数据口绑定 %s:%d 失败：%s" % (host, a.port, exc), file=sys.stderr)
+            print(f"[hub] 数据口绑定 {host}:{a.port:d} 失败：{exc}", file=sys.stderr)
             return False
         self.log(
-            "[hub] 数据口  %s:%d  raw%s"
+            "[hub] 数据口  %s:%d  raw%s"  # noqa: UP031
             % (a.host, a.port, "（首字节 0xFF 自动切 telnet）" if a.sniff else "（不做嗅探）")
         )
         if a.telnet_port:
@@ -53,10 +53,10 @@ class ClientsMixin(HubBase):
                 self.tsrv.listen(16)
                 self.tsrv.setblocking(False)
                 self.sel.register(self.tsrv, SEL_READ, ("tsrv", None))
-                self.log("[hub] telnet 口 %s:%d  （Telnet 前端）" % (a.host, a.telnet_port))
+                self.log(f"[hub] telnet 口 {a.host}:{a.telnet_port:d}  （Telnet 前端）")
             except OSError as exc:
                 print(
-                    "[hub] telnet 口绑定 %s:%d 失败（继续跑）：%s" % (host, a.telnet_port, exc),
+                    f"[hub] telnet 口绑定 {host}:{a.telnet_port:d} 失败（继续跑）：{exc}",
                     file=sys.stderr,
                 )
                 self.tsrv = None
@@ -77,9 +77,7 @@ class ClientsMixin(HubBase):
         self.next_cid += 1
         self.clients[c.cid] = c
         self.sel.register(conn, SEL_READ, ("data", c))
-        self.log(
-            "[hub] 客户端接入 %s（当前 %d 个，协议=%s）" % (c.name, len(self.clients), c.proto or "待嗅探")
-        )
+        self.log(f"[hub] 客户端接入 {c.name}（当前 {len(self.clients):d} 个，协议={c.proto or '待嗅探'}）")
         self.mark_state()
 
     def accept_telnet(self) -> None:
@@ -95,7 +93,7 @@ class ClientsMixin(HubBase):
         if greet:
             c.feed_raw(greet)
             self.log(f"[hub] {c.name} 主动协商 {esc(greet)}（WILL ECHO / WILL SGA / DO SGA，未转发给串口）")
-        self.log("[hub] 客户端接入 %s（当前 %d 个，telnet 口）" % (c.name, len(self.clients)))
+        self.log(f"[hub] 客户端接入 {c.name}（当前 {len(self.clients):d} 个，telnet 口）")
         self.mark_state()
 
     def drop_client(self, c: Client, why: str = "断开") -> None:
@@ -109,7 +107,7 @@ class ClientsMixin(HubBase):
             self.owner_cid = None
             self.log(f"[hub] 持有写锁的客户端 {c.name} 已离开，自动解锁")
         self.log(
-            "[hub] 客户端离开 %s（%s，收 %s 发 %s，剩余 %d 个）"
+            "[hub] 客户端离开 %s（%s，收 %s 发 %s，剩余 %d 个）"  # noqa: UP031
             % (c.name, why, human(c.rx), human(c.tx), len(self.clients))
         )
         self.mark_state()
@@ -220,13 +218,13 @@ class ClientsMixin(HubBase):
             return False
         if self.args.lock_writes and self.owner_cid is not None and owner_cid != self.owner_cid:
             self.drop_locked += len(data)
-            self.log("[hub] 丢弃 %s 的 %d 字节（写锁在 %s 手上）" % (who, len(data), self.owner_name()))
+            self.log(f"[hub] 丢弃 {who} 的 {len(data):d} 字节（写锁在 {self.owner_name()} 手上）")
             return False
         try:
             self.tx.put_nowait((data, who))
             return True
         except queue.Full:
-            self.log("[hub] 发送队列满，丢弃 %s 的 %d 字节" % (who, len(data)))
+            self.log(f"[hub] 发送队列满，丢弃 {who} 的 {len(data):d} 字节")
             return False
 
     def owner_name(self) -> str:

@@ -36,12 +36,6 @@ def load_elf_symbols(elf_path: str) -> dict[int, str]:
         with Path(elf_path).open("rb") as f:
             elf = ELFFile(f)
 
-            # Get .text section bounds
-            text_section = elf.get_section_by_name(".text")
-            if text_section:
-                code_start = text_section["sh_addr"]
-                code_end = code_start + text_section["sh_size"]
-
             # Extract symbols from symbol table
             symtab = elf.get_section_by_name(".symtab")
             if symtab is None:

@@ -41,7 +41,7 @@ class OutputMixin(TuiBase):
             self.flash_msg(f"存盘失败：{exc}")
             self.errors += 1
             return None
-        self.flash_msg("已存 log-%s.{raw,txt,hex}（%d 字节 RX）" % (stamp, self.raw.size))
+        self.flash_msg(f"已存 log-{stamp}.{{raw,txt,hex}}（{self.raw.size:d} 字节 RX）")
         return raw_path
 
     def flash_msg(self, text: str, seconds: float = 3.0):
