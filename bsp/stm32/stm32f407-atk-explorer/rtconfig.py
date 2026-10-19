@@ -8,6 +8,9 @@ CROSS_TOOL='gcc'
 # bsp lib config
 BSP_LIBRARY_TYPE = None
 
+# 板级：所用 HAL 库目录名（SConstruct 据此定位 libraries/<name>/SConscript）
+STM32_LIBRARY = 'STM32F4xx_HAL'
+
 if os.getenv('RTT_CC'):
     CROSS_TOOL = os.getenv('RTT_CC')
 if os.getenv('RTT_ROOT'):
@@ -178,7 +181,6 @@ elif PLATFORM == 'iccarm':
 
 def dist_handle(BSP_ROOT, dist_dir):
     import sys
-    cwd_path = os.getcwd()
     sys.path.append(os.path.join(os.path.dirname(BSP_ROOT), 'tools'))
     from sdk_dist import dist_do_building
     dist_do_building(BSP_ROOT, dist_dir)

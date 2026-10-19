@@ -1,66 +1,79 @@
+# 薄入口（P1）：构建逻辑在 bsp/stm32/tools/bsp_build.py，路径契约在 bsp_paths.py。
+# 三块板的 SConstruct 应保持字节一致；新增板/项目请用生成器产出，不要手抄。
 import os
 import sys
-import rtconfig
 
-if os.getenv('RTT_ROOT'):
-    RTT_ROOT = os.getenv('RTT_ROOT')
+# 1) 项目根：环境变量 PROJECT_ROOT 覆盖（必须存在）→ 否则从本目录向上找 .git；都不满足就报错退出。
+_root = os.getenv('PROJECT_ROOT')
+if _root:
+    _root = os.path.abspath(_root)
+    if not os.path.isdir(_root):
+        sys.stderr.write('[build] PROJECT_ROOT 指向的目录不存在：%s\n' % _root)
+        sys.exit(1)
 else:
-    RTT_ROOT = os.path.normpath(os.getcwd() + '/../../../os/rt-thread')
+    _root = Dir('.').abspath
+    while not os.path.exists(os.path.join(_root, '.git')):
+        _parent = os.path.dirname(_root)
+        if _parent == _root:
+            sys.stderr.write('[build] 找不到项目根：从 %s 向上没有 .git（可设置 PROJECT_ROOT 覆盖）\n'
+                             % Dir('.').abspath)
+            sys.exit(1)
+        _root = _parent
+
+sys.path.insert(0, os.path.join(_root, 'bsp', 'stm32', 'tools'))
+import bsp_paths      # noqa: E402
+import bsp_build      # noqa: E402
+
+# 板目录 = 本 SConstruct 所在目录；用 `-f` 时 SCons 的 Dir('.') 会等于 cwd，
+# 不能用来定位，需要从 GetOption('file') 反推（SConstruct 里没有 __file__）。
+_files = GetOption('file') or []
+BOARD_DIR = os.path.dirname(os.path.abspath(_files[0])) if _files else Dir('.').abspath
+
+# SCons 的顶层目录必须就是板目录：os/rt-thread/tools/building.py:379 用相对路径 'SConscript'
+# 解析顶层脚本，跨目录 -f 调用会找错文件；这里提前给出明确报错，而不是让它抛 traceback。
+if os.path.normcase(Dir('#').abspath) != os.path.normcase(BOARD_DIR):
+    sys.stderr.write(
+        '[build] 构建入口必须从板目录运行。\n'
+        '        当前顶层目录（Dir("#")）：%s\n'
+        '        板目录：                  %s\n'
+        '        正确用法：cd <板目录> 后执行 scons，或 scons -C <板目录>\n'
+        % (Dir('#').abspath, BOARD_DIR))
+    sys.exit(1)
+
+rtconfig = bsp_build.load_rtconfig(BOARD_DIR)
+
+try:
+    P = bsp_build.resolve_paths(BOARD_DIR, _root, getattr(rtconfig, 'STM32_LIBRARY', None))
+except bsp_paths.BspPathError as exc:
+    bsp_paths.fail(exc, where=os.path.join(BOARD_DIR, 'SConstruct'))
+
+RTT_ROOT = P['rtt_root']
+SDK_LIB = P['libraries_dir']
+env = bsp_build.make_env(rtconfig)
 
 sys.path = sys.path + [os.path.join(RTT_ROOT, 'tools')]
-try:
-    from building import *
-except:
-    print('Cannot found RT-Thread root directory, please check RTT_ROOT')
-    print(RTT_ROOT)
-    exit(-1)
+from building import *          # noqa: E402,F401,F403
 
 TARGET = 'rt-thread.' + rtconfig.TARGET_EXT
-
-DefaultEnvironment(tools=[])
-env = Environment(tools = ['mingw'],
-    AS = rtconfig.AS, ASFLAGS = rtconfig.AFLAGS,
-    CC = rtconfig.CC, CFLAGS = rtconfig.CFLAGS,
-    AR = rtconfig.AR, ARFLAGS = '-rc',
-    CXX = rtconfig.CXX, CXXFLAGS = rtconfig.CXXFLAGS,
-    LINK = rtconfig.LINK, LINKFLAGS = rtconfig.LFLAGS)
-env.PrependENVPath('PATH', rtconfig.EXEC_PATH)
-
-if rtconfig.PLATFORM in ['iccarm']:
-    env.Replace(CCCOM = ['$CC $CFLAGS $CPPFLAGS $_CPPDEFFLAGS $_CPPINCFLAGS -o $TARGET $SOURCES'])
-    env.Replace(ARFLAGS = [''])
-    env.Replace(LINKCOM = env["LINKCOM"] + ' --map rt-thread.map')
-
 Export('RTT_ROOT')
 Export('rtconfig')
-
-SDK_ROOT = os.path.abspath('./')
-
-if os.path.exists(SDK_ROOT + '/libraries'):
-    libraries_path_prefix = SDK_ROOT + '/libraries'
-else:
-    libraries_path_prefix = os.path.dirname(SDK_ROOT) + '/libraries'
-
-SDK_LIB = libraries_path_prefix
 Export('SDK_LIB')
 
-# prepare building environment
+# 2) 中间文件目录显式注入（os/rt-thread/tools/building.py 读 RT_BUILD_DIR）
+os.environ['RT_BUILD_DIR'] = P['build_dir_rel']
+
 objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
 
-stm32_library = 'STM32F1xx_HAL'
-rtconfig.BSP_LIBRARY_TYPE = stm32_library
+# 3) HAL 库 + 驱动 + 自有代码（libraries 在板目录上一级，app 在仓库根）
+rtconfig.BSP_LIBRARY_TYPE = rtconfig.STM32_LIBRARY
+objs.extend(SConscript(os.path.join(SDK_LIB, rtconfig.STM32_LIBRARY, 'SConscript'),
+                       variant_dir=os.path.join(P['build_dir_rel'], 'libraries', rtconfig.STM32_LIBRARY),
+                       duplicate=0))
+objs.extend(SConscript(os.path.join(SDK_LIB, 'HAL_Drivers', 'SConscript'),
+                       variant_dir=os.path.join(P['build_dir_rel'], 'libraries', 'HAL_Drivers'),
+                       duplicate=0))
+objs.extend(SConscript(os.path.join(P['app_root'], 'SConscript'),
+                       variant_dir=os.path.join(P['build_dir_rel'], 'app'),
+                       duplicate=0))
 
-# include libraries
-# 中间文件目录：默认 'build'，可用 RT_BUILD_DIR 指到仓内别处（如 ../../../out/build/<board>）
-BUILD_DIR = os.environ.get('RT_BUILD_DIR') or 'build'
-objs.extend(SConscript(os.path.join(libraries_path_prefix, stm32_library, 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'libraries', stm32_library), duplicate=0))
-# include drivers
-objs.extend(SConscript(os.path.join(libraries_path_prefix, 'HAL_Drivers', 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'libraries', 'HAL_Drivers'), duplicate=0))
-
-# own code (app/) lives outside the upstream tree (os/rt-thread)
-app_root = os.path.normpath(os.getcwd() + '/../../../app')
-if os.path.exists(os.path.join(app_root, 'SConscript')):
-    objs.extend(SConscript(os.path.join(app_root, 'SConscript'), variant_dir=os.path.join(BUILD_DIR, 'app'), duplicate=0))
-
-# make a building
 DoBuilding(TARGET, objs)

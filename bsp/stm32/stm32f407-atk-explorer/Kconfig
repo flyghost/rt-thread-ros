@@ -4,6 +4,9 @@ BSP_DIR := .
 
 RTT_DIR := ../../../os/rt-thread
 
+# 注：RTT_DIR 供 menuconfig 使用（Kconfig 语法只能写相对路径）；构建时 SConstruct 会用
+# $PROJECT_ROOT/os/rt-thread 重新定位并校验（见 bsp/stm32/tools/bsp_paths.py），两者须指向同一棵树。
+
 PKGS_DIR := packages
 
 config SOC_STM32F407ZG
