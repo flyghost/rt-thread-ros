@@ -13,18 +13,18 @@
 | 需要沙箱外环境 | 某些程序在 DSH 沙箱内起不来（历史问题：PyInstaller 解包） |
 
 > 现在**烧录不必走守卫**：pyocd 是 `python -m pyocd`，会话里直接
-> `python scripts/firmware/build.py flash` 即可（沙箱内实测通过）。守卫是**可选**的长任务执行器。
+> `python scripts/run_rtros.py build flash` 即可（沙箱内实测通过）。守卫是**可选**的长任务执行器。
 
 ## 两半
 
 | 半边 | 谁用 | 入口 |
 |---|---|---|
-| 会话侧 | AI / 脚本 | `python scripts/guard/guard.py --status / --list / --tasks / --request <id> --wait` |
-| 守卫侧（常驻） | 人 | 双击仓根 `ai_services.bat`，菜单 **7 guard**；或 `python scripts/guard/guard.py` |
+| 会话侧 | AI / 脚本 | `python scripts/run_rtros.py guard --status / --list / --tasks / --request <id> --wait` |
+| 守卫侧（常驻） | 人 | 双击仓根 `ai_services.bat`，菜单 **7 guard**；或 `python scripts/run_rtros.py guard` |
 
 守卫窗口**开着就行**，Ctrl+C 退出。
 
-## 任务表：`scripts/guard/tasks.toml`
+## 任务表：`scripts/src/rtros/guard/tasks.toml`
 
 「哪些命令允许被请求执行」只有这一处定义。加一条任务 = 加一段 `[[tasks]]`，**不用改 `guard.py`**。
 
@@ -66,13 +66,13 @@ run = [[                                # argv 列表的列表：按顺序执行
 ## 会话侧命令
 
 ```powershell
-python scripts\guard\guard.py --status                                  # 守卫活没活 + 积压 + 心跳
-python scripts\guard\guard.py --tasks                                   # 列出 tasks.toml 允许的任务
-python scripts\guard\guard.py --request list --wait                     # 看调试器认不认得到
-python scripts\guard\guard.py --request flash --wait                    # 烧 tasks.toml 的 default_bin
-python scripts\guard\guard.py --request flash --bin out\bin\base\rtthread.bin --wait
-python scripts\guard\guard.py --request build_flash --wait --wait-timeout 900
-python scripts\guard\guard.py --list                                    # 历史请求一览
+python scripts/run_rtros.py guard --status                                  # 守卫活没活 + 积压 + 心跳
+python scripts/run_rtros.py guard --tasks                                   # 列出 tasks.toml 允许的任务
+python scripts/run_rtros.py guard --request list --wait                     # 看调试器认不认得到
+python scripts/run_rtros.py guard --request flash --wait                    # 烧 tasks.toml 的 default_bin
+python scripts/run_rtros.py guard --request flash --bin out\bin\base\rtthread.bin --wait
+python scripts/run_rtros.py guard --request build_flash --wait --wait-timeout 900
+python scripts/run_rtros.py guard --list                                    # 历史请求一览
 ```
 
 | 参数 | 说明 |

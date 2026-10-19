@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """采集入口（全流程）：编译 → 下载 → 等 MSH → 触发 ramdump → YMODEM 收 → 落盘。
 
-    python scripts/ramdump/dump/dump.py                      # 自动找口，全流程
-    python scripts/ramdump/dump/dump.py --com COM46 --skip-build
-    python scripts/ramdump/dump/dump.py --region sram         # 只收 SRAM
-    python scripts/ramdump/dump/dump.py --crash               # 用 RAMDUMP_ASSERT 走真异常路径
-    python scripts/ramdump/dump/dump.py --transport usb       # UART 触发 + USB CDC 收
+    python scripts/run_rtros.py dump                      # 自动找口，全流程
+    python scripts/run_rtros.py dump --com COM46 --skip-build
+    python scripts/run_rtros.py dump --region sram         # 只收 SRAM
+    python scripts/run_rtros.py dump --crash               # 用 RAMDUMP_ASSERT 走真异常路径
+    python scripts/run_rtros.py dump --transport usb       # UART 触发 + USB CDC 收
 
 落盘位置：out/dump/<YYYYmmdd_HHMMSS>/（--out-dir 可指定）。
 只收不触发请用 dump/receive.py。

@@ -9,12 +9,12 @@
 |---|---|---|
 | [0. 速查](#0-速查) | — | — |
 | [1. 环境搭建](#1-环境搭建) | `tools/pyocd/install.py`、`pip` | — |
-| [2. 编译 / 配置 / 状态](#2-编译--配置--状态) | `scripts/firmware/build.py` | `ai_services.bat`、`ramdump.bat` |
-| [3. 烧录](#3-烧录) | `scripts/firmware/build.py` | `ai_services.bat`、`ramdump.bat` |
-| [4. 守卫（可选）](#4-守卫可选) | `scripts/guard/guard.py` | `ai_services.bat` |
-| [5. 串口服务](#5-串口服务) | `scripts/serial_hub/serial_hub.py`、`scripts/ramdump/test/test_serial.py` | `ai_services.bat`、`ramdump.bat` |
-| [6. 采集 dump](#6-采集-dump) | `scripts/ramdump/dump/{dump,receive}.py`、`test_usb_loopback.py` | `ramdump.bat` |
-| [7. 解析 dump](#7-解析-dump) | `scripts/ramdump/analyzer/ramdump_analyzer.py` | `ramdump.bat` |
+| [2. 编译 / 配置 / 状态](#2-编译--配置--状态) | `scripts/run_rtros.py build` | `ai_services.bat`、`ramdump.bat` |
+| [3. 烧录](#3-烧录) | `scripts/run_rtros.py build` | `ai_services.bat`、`ramdump.bat` |
+| [4. 守卫（可选）](#4-守卫可选) | `scripts/run_rtros.py guard` | `ai_services.bat` |
+| [5. 串口服务](#5-串口服务) | `scripts/run_rtros.py hub`、`scripts/ramdump.bat probe` | `ai_services.bat`、`ramdump.bat` |
+| [6. 采集 dump](#6-采集-dump) | `scripts/src/rtros/ramdump/dump/{dump,receive}.py`、`test_usb_loopback.py` | `ramdump.bat` |
+| [7. 解析 dump](#7-解析-dump) | `scripts/run_rtros.py analyze` | `ramdump.bat` |
 | [8. 环境变量与依赖](#8-环境变量与依赖) | — | — |
 | [9. 常见菜谱](#9-常见菜谱) | — | — |
 | [10. 已废弃 / 兼容入口](#10-已废弃--兼容入口) | — | — |
@@ -25,7 +25,7 @@
 
 ```powershell
 # 编译 + 烧录（日常）
-python scripts\firmware\build.py build-flash
+python scripts/run_rtros.py build build-flash
 
 # 人手动：双击仓根 ai_services.bat（菜单 1~9，0 退出）
 ai_services.bat
@@ -34,7 +34,7 @@ ai_services.bat
 python scripts\ai_services.py --list
 
 # 起串口 hub（起完别的进程/脚本用 TCP 127.0.0.1:5555 连它）
-python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
+python scripts/run_rtros.py hub --com COM46 --baud 115200 --ui tui
 ```
 
 ### 服务面板：`scripts/ai_services.py`（命令表）+ `ai_services.bat`（外壳）
@@ -67,23 +67,23 @@ python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 | 指定版本 | `python tools\pyocd\install.py --version 0.45.1` | — |
 | 静默 | `python tools\pyocd\install.py --quiet` | — |
 | 串口依赖（hub / 采集要） | `python -m pip install pyserial` | 本机 Python313 已有 3.5；`rt-thread-env` 的 venv **没有** |
-| 解析依赖（analyzer 要） | `python -m pip install -r scripts\ramdump\analyzer\requirements.txt` | `pyelftools>=0.30`、`numpy>=1.24.0` |
+| 解析依赖（analyzer 要） | `python -m pip install -r scripts/src/rtros/ramdump/analyzer\requirements.txt` | `pyelftools>=0.30`、`numpy>=1.24.0` |
 | 维护 pack 清单 | `python tools\pyocd\packs\update_yaml.py` | 扫 `packs/` 重生成清单，非日常 |
 
-工具链（arm-none-eabi-gcc、SCons）**不用手工配**：`scripts/firmware/tools.py` 会内置
+工具链（arm-none-eabi-gcc、SCons）**不用手工配**：`scripts/src/rtros/firmware/tools.py` 会内置
 `ENV_ROOT`、`RTT_CC=gcc`、`RTT_EXEC_PATH`，并直接用 `ENV_ROOT\.venv` 里的解释器跑 SCons。
 
 ## 2. 编译 / 配置 / 状态
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 编译（默认 `projects/base`） | `python scripts\firmware\build.py build` | `ai_services.bat build`（菜单 1） |
-| 编译指定项目 | `python scripts\firmware\build.py --project base build` | — |
-| 直接编译板级 BSP（对照用） | `python scripts\firmware\build.py --board build` | `ai_services.bat board-build`（菜单 4） |
-| 指定并行数 | `python scripts\firmware\build.py build -j8` | — |
-| 清理产物 | `python scripts\firmware\build.py clean` | `ai_services.bat clean`（菜单 5）/ `ramdump.bat clean` |
-| menuconfig（始终在板目录） | `python scripts\firmware\build.py menuconfig` | `ramdump.bat menuconfig` |
-| 看状态 | `python scripts\firmware\build.py status` | `ai_services.bat status`（菜单 6，汇总三段） |
+| 编译（默认 `projects/base`） | `python scripts/run_rtros.py build build` | `ai_services.bat build`（菜单 1） |
+| 编译指定项目 | `python scripts/run_rtros.py build --project base build` | — |
+| 直接编译板级 BSP（对照用） | `python scripts/run_rtros.py build --board build` | `ai_services.bat board-build`（菜单 4） |
+| 指定并行数 | `python scripts/run_rtros.py build build -j8` | — |
+| 清理产物 | `python scripts/run_rtros.py build clean` | `ai_services.bat clean`（菜单 5）/ `ramdump.bat clean` |
+| menuconfig（始终在板目录） | `python scripts/run_rtros.py build menuconfig` | `ramdump.bat menuconfig` |
+| 看状态 | `python scripts/run_rtros.py build status` | `ai_services.bat status`（菜单 6，汇总三段） |
 
 **构建入口**由 `PROJECT` 环境变量 / `--project` / `--board` 决定：默认 `projects/base`（项目层），
 `--board` 直接编译板级 BSP。`status` 第一行会打印当前入口（`(project)` 或 `(board)`）。
@@ -112,10 +112,10 @@ out/build/stm32f407-atk-explorer/    # 板级 BSP
 - 各板 `SConstruct` 与 `projects/<name>/SConstruct` 都是薄壳，逻辑在 `bsp/stm32/tools/bsp_build.py`：
   默认把中间目录算成 `<PROJECT_ROOT>/out/build/<入口目录名>`，并把 `RT_BUILD_DIR` 注入给
   `os/rt-thread/tools/building.py:376`；
-- `scripts/firmware/` 仍可显式传 `RT_BUILD_DIR` 覆盖（**相对入口目录**）；
+- `scripts/src/rtros/firmware/` 仍可显式传 `RT_BUILD_DIR` 覆盖（**相对入口目录**）；
 - **直接敲 `scons`（在板目录或项目目录里）也落到 `out/build/<入口目录名>`**；
   但需要先备好工具链环境变量（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`，
-  否则 rtconfig.py 会报 `the toolchain path ... is not exist`）。用 `scripts/firmware/` 或 `ai_services.bat`
+  否则 rtconfig.py 会报 `the toolchain path ... is not exist`）。用 `scripts/src/rtros/firmware/` 或 `ai_services.bat`
   时这些变量已内置，不必手工设置。
 
 **入口位置约束**：SCons 必须在入口目录里跑（`cd <板目录/项目目录>` 或 `scons -C <...>`）。
@@ -128,15 +128,15 @@ out/build/stm32f407-atk-explorer/    # 板级 BSP
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 只烧现有 bin | `python scripts\firmware\build.py flash` | `ai_services.bat flash`（菜单 2） |
-| 编译 + 烧录 | `python scripts\firmware\build.py build-flash` | `ai_services.bat build-flash`（菜单 3） |
-| 烧指定文件 | `python scripts\firmware\build.py flash --bin out\bin\base\rtthread.bin` | — |
-| 老命令（兼容） | `python scripts\ramdump\build\build.py --flash` | `ramdump.bat build --flash` / `ramdump.bat flash` |
+| 只烧现有 bin | `python scripts/run_rtros.py build flash` | `ai_services.bat flash`（菜单 2） |
+| 编译 + 烧录 | `python scripts/run_rtros.py build build-flash` | `ai_services.bat build-flash`（菜单 3） |
+| 烧指定文件 | `python scripts/run_rtros.py build flash --bin out\bin\base\rtthread.bin` | — |
+| 老命令（兼容） | `scripts/ramdump.bat flash` | `ramdump.bat build --flash` / `ramdump.bat flash` |
 
 `flash` 默认烧**当前构建入口**的 `rtthread.bin`（项目 = `out/bin/base/rtthread.bin`，
 板级 = `out/bin/stm32f407-atk-explorer/rtthread.bin`），所以先 `build` 再 `flash` 不会烧错目标。
 
-固定参数（写死在 `scripts/firmware/tools.py`）：
+固定参数（写死在 `scripts/src/rtros/firmware/tools.py`）：
 
 ```
 python -m pyocd flash --target STM32F407VE --erase=auto --frequency=1000000 \
@@ -149,14 +149,14 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 守卫是「信箱 + 完整日志 + 改脚本自动重启 + 无人值守」的长任务执行器：AI 写请求文件，人在沙箱外开的窗口执行，结果写回 `out/guard/`。
 **日常烧录不需要它**（`build.py flash` 直接就能跑）。
-**能跑哪些命令不写在代码里**，全在 `scripts/guard/tasks.toml`（加任务 = 加一段 `[[tasks]]`）。
+**能跑哪些命令不写在代码里**，全在 `scripts/src/rtros/guard/tasks.toml`（加任务 = 加一段 `[[tasks]]`）。
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 起守卫（常驻） | `python scripts\guard\guard.py` | `ai_services.bat guard`（菜单 7，人手动） |
-| 活没活 / 积压 | `python scripts\guard\guard.py --status` | `ai_services.bat status` |
-| **列出允许的任务** | `python scripts\guard\guard.py --tasks` | `ai_services.bat guard-tasks` |
-| 历史请求 | `python scripts\guard\guard.py --list` | — |
+| 起守卫（常驻） | `python scripts/run_rtros.py guard` | `ai_services.bat guard`（菜单 7，人手动） |
+| 活没活 / 积压 | `python scripts/run_rtros.py guard --status` | `ai_services.bat status` |
+| **列出允许的任务** | `python scripts/run_rtros.py guard --tasks` | `ai_services.bat guard-tasks` |
+| 历史请求 | `python scripts/run_rtros.py guard --list` | — |
 | 烧录 | `--request flash --wait` | `ai_services.bat flash` |
 | 编译 + 烧录 | `--request build_flash --wait --wait-timeout 900` | `ai_services.bat build-flash` |
 | 只编译 | `--request build --wait` | `ai_services.bat build` |
@@ -170,7 +170,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | 换信箱（并行测试） | `--mailbox out\guard_test` | — |
 
 退出码：`0` 成功 / `1` 跑了但失败 / `2` 用法错、被拒或等待超时 / `3` 守卫不在跑。
-细节与排错：`scripts/guard/README.md`。
+细节与排错：`scripts/src/rtros/guard/README.md`。
 
 ## 5. 串口服务
 
@@ -178,7 +178,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 起中继（默认 COM 自动选、115200） | `python scripts\serial_hub\serial_hub.py` | `ai_services.bat hub`（菜单 8） |
+| 起中继（默认 COM 自动选、115200） | `python scripts/run_rtros.py hub` | `ai_services.bat hub`（菜单 8） |
 | 指定串口 / 波特率 | `... --com COM46 --baud 115200` | `ai_services.bat hub COM46 115200` |
 | 列出候选并标出自动选哪个 | `... --list` | `ramdump.bat list` |
 | 无界面（只落日志） | `... --ui none` | `set HUB_UI=none` 后 `ai_services.bat hub` |
@@ -198,8 +198,8 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 列出串口（标出自动选择） | `python scripts\ramdump\test\test_serial.py --list` | `ramdump.bat list` |
-| 探控制台（MSH 还是 `@ramdump>`） | `python scripts\ramdump\test\test_serial.py --probe --com COM46` | `ramdump.bat probe --com COM46` |
+| 列出串口（标出自动选择） | `scripts/ramdump.bat list` | `ramdump.bat list` |
+| 探控制台（MSH 还是 `@ramdump>`） | `scripts/ramdump.bat probe --com COM46` | `ramdump.bat probe --com COM46` |
 | 发一行看回显 | `... test_serial.py --echo --com COM46` | — |
 | 探测时长 | `--seconds 3.0` | — |
 
@@ -207,8 +207,8 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 全流程（编译→下载→触发→YMODEM 收） | `python scripts\ramdump\dump\dump.py --com COM46` | `ramdump.bat dump --com COM46` |
-| 只收（设备已在跑） | `python scripts\ramdump\dump\receive.py --com COM46` | `ramdump.bat recv --com COM46` |
+| 全流程（编译→下载→触发→YMODEM 收） | `python scripts/run_rtros.py dump --com COM46` | `ramdump.bat dump --com COM46` |
+| 只收（设备已在跑） | `python scripts/run_rtros.py recv --com COM46` | `ramdump.bat recv --com COM46` |
 | 跳过编译下载 | `... dump.py --skip-build` | `ramdump.bat dump --skip-build` |
 | 只编译下载不采集 | `... dump.py --build-only` | — |
 | 选区域 | `--region {all,flash,sram,ccm}`，或 `--sram-only` / `--ccm-only` / `--flash-only` | 参数原样透传 |
@@ -217,7 +217,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | 跳过 MSH 探测 | `--no-check` / `receive.py --no-trigger` | — |
 | 落盘目录 | `--out-dir out\dump\mycase`（默认 `out/dump/<时间戳>`） | — |
 | 弹独立窗口跑编译下载 | `--new-console`（**已失效，保留参数名**） | — |
-| USB 回环测试 | `python scripts\ramdump\test\test_usb_loopback.py --com COM21 --sizes 1024,4096,8192` | `ramdump.bat loopback --com COM21` |
+| USB 回环测试 | `scripts/ramdump.bat loopback --com COM21 --sizes 1024,4096,8192` | `ramdump.bat loopback --com COM21` |
 
 公共参数：`--com`（省略则按 VID:PID 自动找 CH340）、`--baud`（默认 115200）。
 
@@ -225,7 +225,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 出 HTML 报告 | `python scripts\ramdump\analyzer\ramdump_analyzer.py --sram SRAM.bin --ccm CCM.bin --exception exception_record.bin --elf rt-thread.elf -o report.html` | `ramdump.bat analyzer --sram ...` |
+| 出 HTML 报告 | `python scripts/run_rtros.py analyze --sram SRAM.bin --ccm CCM.bin --exception exception_record.bin --elf rt-thread.elf -o report.html` | `ramdump.bat analyzer --sram ...` |
 | 出文本报告 | 同上加 `--text` / `-t` | 参数原样透传 |
 | 带 flash dump | 加 `--flash Flash.bin` / `-f` | — |
 | 只看某对象范围 | `--object-start 0x20000000 --object-end 0x20001000` | — |
@@ -257,38 +257,38 @@ analyzer 额外要 pyelftools + numpy、编译要 `rt-thread-env` 里的 arm-non
 
 ```powershell
 # 日常：改完代码编译 + 烧录
-python scripts\firmware\build.py build-flash
+python scripts/run_rtros.py build build-flash
 
 # 换机器重建环境
 python tools\pyocd\install.py
-python scripts\firmware\build.py status
+python scripts/run_rtros.py build status
 
 # 人手动：双击 ai_services.bat（菜单 1 编译 / 2 烧录 / 3 编译+烧录 / 4 板级 / 5 清理 / 6 状态 / 7 守卫 / 8 hub / 9 两个都起）
 
 # 起串口 hub（起完别的进程用 TCP 127.0.0.1:5555 连它，控制口 5556，telnet 5557）
-python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
+python scripts/run_rtros.py hub --com COM46 --baud 115200 --ui tui
 
 # 看板子控制台是 MSH 还是 @ramdump>
-python scripts\ramdump\test\test_serial.py --probe --com COM46
+scripts/ramdump.bat probe --com COM46
 
 # 采一次 dump
-python scripts\ramdump\dump\dump.py --com COM46
+python scripts/run_rtros.py dump --com COM46
 
 # 解析刚采到的 dump（出文本报告）
-python scripts\ramdump\analyzer\ramdump_analyzer.py --sram out\dump\<时间>\SRAM.bin `
+python scripts/run_rtros.py analyze --sram out\dump\<时间>\SRAM.bin `
     --exception out\dump\<时间>\exception_record.bin `
     --elf bsp\stm32\stm32f407-atk-explorer\rt-thread.elf --text
 
 # 无人值守长任务（先让守卫窗口开着）
-python scripts\guard\guard.py --request build_flash --wait --wait-timeout 900
+python scripts/run_rtros.py guard --request build_flash --wait --wait-timeout 900
 ```
 
 ## 10. 已废弃 / 兼容入口
 
 | 入口 | 状态 | 替代 |
 |---|---|---|
-| `bsp/stm32/stm32f407-atk-explorer/build_and_flash.bat` | **已删除**（305 行 cmd） | `python scripts\firmware\build.py ...` + `ai_services.bat` |
-| `python scripts\ramdump\build\build.py` | 兼容壳（转发到 `scripts/firmware/`） | `python scripts\firmware\build.py` |
+| `bsp/stm32/stm32f407-atk-explorer/build_and_flash.bat` | **已删除**（305 行 cmd） | `python scripts/run_rtros.py build ...` + `ai_services.bat` |
+| `scripts/ramdump.bat build` | 兼容壳（转发到 `scripts/src/rtros/firmware/`） | `python scripts/run_rtros.py build` |
 | `--new-console` | 失效（无独立窗口逻辑） | 直接看当前终端输出 |
 | `tools/pyocd/0.1.3/pyocd.exe`（0.27） | **已删除** | `tools/pyocd/pkg` 里的 0.45.1 |
 | `tools/pyocd/0.1.3/pyocd.yaml` | 已删除 | 命令行显式 `--pack`（脚本里已内置） |
@@ -351,7 +351,7 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 | job | 内容 | 阻塞？ |
 |---|---|---|
 | `python-quality` | 装同版本工具 → `quality.py doctor` → `quality.py all` → `check_bat.py` | 是 |
-| `firmware-build` | `apt install gcc-arm-none-eabi` + `scons==4.8.1` → `python scripts/firmware/build.py build`（`RTT_EXEC_PATH=/usr/bin`、`VENV=$pythonLocation`） | **否**（软失败：本机是 Windows 工具链，Linux 构建尚未本地验证） |
+| `firmware-build` | `apt install gcc-arm-none-eabi` + `scons==4.8.1` → `python scripts/run_rtros.py build build`（`RTT_EXEC_PATH=/usr/bin`、`VENV=$pythonLocation`） | **否**（软失败：本机是 Windows 工具链，Linux 构建尚未本地验证） |
 
 ### 11.5 排错
 
@@ -371,21 +371,21 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 python scripts\cli.py list                  # 有哪些命令（加 --json 输出机器可读清单）
 python scripts\cli.py doctor                # 环境自检：解释器/四个工具/pyocd/串口
 python scripts\cli.py status --json         # 构建状态（入口/中间目录/产物/大小/pyocd）
-python scripts\cli.py build-flash -j 8      # = python scripts\firmware\build.py build-flash -j 8
-python scripts\cli.py hub --com COM46       # = python scripts\serial_hub\serial_hub.py --com COM46
+python scripts\cli.py build-flash -j 8      # = python scripts/run_rtros.py build build-flash -j 8
+python scripts\cli.py hub --com COM46       # = python scripts/run_rtros.py hub --com COM46
 ```
 
 | 命令 | 分组 | 等价于 |
 |---|---|---|
 | `list` | 基础 | 本表 |
 | `doctor` | 基础 | 解释器 + `ruff/mypy/pytest/pre-commit` 版本 + `pyocd.check()` + 串口列表 |
-| `status` | 构建 | `scripts/firmware/build.py status`，另给 `--json` |
-| `build` / `build-flash` / `flash` / `clean` / `menuconfig` | 构建 | `scripts/firmware/build.py <同名命令>` |
+| `status` | 构建 | `scripts/run_rtros.py build status`，另给 `--json` |
+| `build` / `build-flash` / `flash` / `clean` / `menuconfig` | 构建 | `scripts/run_rtros.py build <同名命令>` |
 | `quality` | 质量 | `scripts/quality.py`（参数透传，如 `quality check --fix`） |
-| `guard` | 服务 | `scripts/guard/guard.py`（`--status`/`--request`/`--tasks` 透传） |
-| `hub` | 服务 | `scripts/serial_hub/serial_hub.py` |
-| `dump` / `recv` | 采集 | `scripts/ramdump/dump/{dump,receive}.py` |
-| `analyze` | 采集 | `scripts/ramdump/analyzer/ramdump_analyzer.py`（含 `--sram/--ccm/--exception/--elf` 等） |
+| `guard` | 服务 | `scripts/run_rtros.py guard`（`--status`/`--request`/`--tasks` 透传） |
+| `hub` | 服务 | `scripts/run_rtros.py hub` |
+| `dump` / `recv` | 采集 | `scripts/src/rtros/ramdump/dump/{dump,receive}.py` |
+| `analyze` | 采集 | `scripts/run_rtros.py analyze`（含 `--sram/--ccm/--exception/--elf` 等） |
 
 公共开关：`-v/--verbose`（叠加，诊断走 stderr）、`-q/--quiet`（只出结果/错误）、`--json`（**只对 `list`/`doctor`/`status` 生效**，其它命令原样透传）。
 退出码：`0` 成功、`1` 运行时失败、`2` 用法错误（未知命令、参数不对）。
@@ -441,4 +441,4 @@ python tools/pyenv/install.py --check  # 只查是否已装
 | bat | 定位 | 约束 |
 |---|---|---|
 | `ai_services.bat` | **薄外壳**（68 行）：探 `python` → 转发所有参数给 `scripts\ai_services.py`；菜单/命令表全在那个 Python 文件里 | **纯 ASCII + CRLF**（cmd 逐字节解析，中文/纯 LF 会炸）；不含业务逻辑 |
-| `scripts/ramdump/ramdump.bat` | 采集流程的薄包装：`build`/`flash`/`clean`/`menuconfig`/`dump`/`recv`/`list`/`probe`/`loopback`/`analyzer`/`hub` | 同上 |
+| `scripts/src/rtros/ramdump/ramdump.bat` | 采集流程的薄包装：`build`/`flash`/`clean`/`menuconfig`/`dump`/`recv`/`list`/`probe`/`loopback`/`analyzer`/`hub` | 同上 |

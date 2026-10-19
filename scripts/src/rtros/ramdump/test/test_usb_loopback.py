@@ -3,9 +3,9 @@
 
 合并自原来的 usb_loopback_1024.py 与 usb_loopback_4k.py（两版只差载荷大小）。
 
-    python scripts/ramdump/test/test_usb_loopback.py --com COM8
-    python scripts/ramdump/test/test_usb_loopback.py --com COM8 --sizes 1024,4096
-    python scripts/ramdump/test/test_usb_loopback.py --com COM8 --wait 10
+    scripts/ramdump.bat loopback --com COM8
+    scripts/ramdump.bat loopback --com COM8 --sizes 1024,4096
+    scripts/ramdump.bat loopback --com COM8 --wait 10
 
 前置：设备侧已经进 USB dump CLI，并在该 CDC 口上敲过 `vcom` 进入回环模式。
 """

@@ -1,4 +1,4 @@
-"""沙箱外执行器（守卫）：`python scripts/guard/guard.py` 启动常驻进程。
+"""沙箱外执行器（守卫）：`python scripts/run_rtros.py guard` 启动常驻进程。
 
 真正的实现按职责拆在同目录：
 - `config.py`    读 tasks.toml（允许执行哪些命令）

@@ -39,7 +39,7 @@
 ```bash
 cd bsp/stm32/stm32f407-atk-explorer && scons -j20        # 正确
 scons -j20 -C bsp/stm32/stm32f407-atk-explorer           # 正确（等价）
-python scripts/firmware/build.py build                   # 正确（内部 cd 到板目录）
+python scripts/run_rtros.py build build                   # 正确（内部 cd 到板目录）
 scons -f bsp/stm32/.../SConstruct                         # ✗ 不支持（顶层目录变了，building.py:379 找错 SConscript）
 ```
 
@@ -64,7 +64,7 @@ scons -f bsp/stm32/.../SConstruct                         # ✗ 不支持（顶�
 1. `git diff <old> <new> -- os/rt-thread`，重点看 `tools/building.py`、`libcpu/`、`components/SConscript`；
 2. 重贴偏离 #1 的 2 行：确认 `bsp_vdir = os.environ.get('RT_BUILD_DIR') or 'build'`；
 3. 若 `bsp/stm32/libraries/*/SConscript` 被替换，重贴偏离 #2/#3 的 startup 六行；
-4. 三块板各跑一次：`python scripts/firmware/build.py --board <name> clean` + `build`（或 `cd` 后 `scons`），要求 warning 0 / error 0；
+4. 三块板各跑一次：`python scripts/run_rtros.py build --board <name> clean` + `build`（或 `cd` 后 `scons`），要求 warning 0 / error 0；
 5. 确认源码树里 `.o` 数量为 0：`Get-ChildItem -Recurse -Filter *.o | Where-Object { $_.FullName -notmatch '\\out\\build\\' }` 只应命中 `third-party/`；
 6. 确认产物落在 `out/bin/<入口名>/`（`rt-thread.elf` / `rt-thread.map` / `rtthread.bin`）、`.sconsign.dblite` 在 `out/build/<入口名>/`；入口目录里不应有 `*.elf` / `*.map` / `*.bin` / `.sconsign.dblite` / `__pycache__`（偏离 #6 生效的标志）；
 7. 更新本文件与 `AGENTS.md` 的偏离条目。
@@ -83,4 +83,4 @@ scons -f bsp/stm32/.../SConstruct                         # ✗ 不支持（顶�
 2. `projects/<name>/rtconfig.py`：继承板级 `rtconfig.py`，覆盖 `LFLAGS`（链接脚本绝对化）与 `BUILD`；
 3. `projects/<name>/Kconfig`：`mainmenu` + `source` 板级与 `app/` 的 Kconfig；
 4. `projects/<name>/SConstruct`：与板级同一份薄壳（`BOARD_DIR` 由 `project.toml` 的 board 决定）；
-5. `python scripts/firmware/build.py --project <name> build`，产物进 `out/build/<name>/`。
+5. `python scripts/run_rtros.py build --project <name> build`，产物进 `out/build/<name>/`。

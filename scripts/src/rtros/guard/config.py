@@ -76,7 +76,7 @@ PY_PKG_PY = _path("pyocd_python", r"E:\software\InstallerEdition\DevTools\Python
 PYOCD_PACK = _path("pyocd_pack", "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack")
 
 
-BUILD_ENTRY = _path("build_entry", "scripts/firmware/build.py")
+BUILD_ENTRY = _path("build_entry", "scripts/run_rtros.py build")
 
 
 VENV_PY = _path("venv_python", r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe")

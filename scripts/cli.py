@@ -8,7 +8,7 @@
 设计边界
 --------
 * **不做业务**：这里是 dispatch + 公共开关（`-v/--verbose`、`-q/--quiet`、`--json`）。
-* **不替代**：老入口（`scripts/firmware/build.py`、`scripts/quality.py` …）继续可用，
+* **不替代**：老入口（`scripts/run_rtros.py build`、`scripts/quality.py` …）继续可用，
   `ai_services.py` 的命令表与 `scripts/README.md` 的对照表也都指向这些老入口。
 * **`--json` 只覆盖本文件自己产出的输出**（`list`、`doctor`、`status`）；其它命令原样透传，
   真要机器可读输出时由对应脚本自己加，避免"外壳猜格式"。
@@ -18,8 +18,8 @@
     python scripts/cli.py list                 # 有哪些命令（--json 输出机器可读清单）
     python scripts/cli.py doctor               # 环境自检（解释器/工具/串口/烧录器）
     python scripts/cli.py status --json        # 构建状态（入口、目录、产物、pyocd）
-    python scripts/cli.py build-flash -j 8     # 等价 python scripts/firmware/build.py build-flash -j 8
-    python scripts/cli.py hub --com COM46      # 等价 python scripts/serial_hub/serial_hub.py --com COM46
+    python scripts/cli.py build-flash -j 8     # 等价 python scripts/run_rtros.py build build-flash -j 8
+    python scripts/cli.py hub --com COM46      # 等价 python scripts/run_rtros.py hub --com COM46
 
 退出码：0 成功，1 运行时失败，2 用法错误。
 """

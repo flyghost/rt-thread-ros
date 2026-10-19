@@ -4,7 +4,7 @@
 这是"把渲染搬进 sink"（TUI 第 1 步）的回归测试：直接构造 hub 的输出侧，
 喂事件进去，断言 `.raw` / `.log` / 本窗口输出与重构前的格式一致。
 
-跑法：python scripts/serial_hub/tests/sink_check.py
+跑法：python scripts/src/rtros/serial_hub/tests/sink_check.py
 """
 
 # __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[3]），不做搜索

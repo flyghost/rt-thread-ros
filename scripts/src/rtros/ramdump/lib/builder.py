@@ -1,7 +1,7 @@
 """
 Build (scons) + flash (pyocd) —— 兼容层。
 
-真正的实现搬到了 scripts/firmware/tools.py（与 BSP 解耦、不再调 build_and_flash.bat）。
+真正的实现搬到了 scripts/src/rtros/firmware/tools.py（与 BSP 解耦、不再调 build_and_flash.bat）。
 这里保留 `build_and_flash()` 这个老接口，ramdump 的 dump 桶还在用它。
 
 Usage:

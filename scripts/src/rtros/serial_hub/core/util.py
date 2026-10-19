@@ -20,6 +20,6 @@ def human(n: int) -> str:
 
 
 def repo_root() -> str:
-    """本文件在 scripts/serial_hub/core/util.py —— 往上四级才是仓库根。"""
-    here = os.path.dirname(os.path.abspath(__file__))  # .../scripts/serial_hub/core
+    """本文件在 scripts/src/rtros/serial_hub/core/util.py —— 往上四级才是仓库根。"""
+    here = os.path.dirname(os.path.abspath(__file__))  # .../scripts/src/rtros/serial_hub/core
     return os.path.dirname(os.path.dirname(os.path.dirname(here)))

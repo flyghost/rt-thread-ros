@@ -9,7 +9,7 @@
 本文件位于 ``bsp/stm32/tools/``，被以下位置引用：
   * 各板 ``SConstruct``（薄壳，``..`` → 本目录）
   * ``bsp/stm32/tools/bsp_build.py``
-  * ``scripts/firmware/``（Python 侧算中间文件目录时复用同一套规则）
+  * ``scripts/src/rtros/firmware/``（Python 侧算中间文件目录时复用同一套规则）
 """
 
 import os

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """串口探针：列口 / 探控制台 / 回显自检（不碰 ramdump 逻辑）。
 
-    python scripts/ramdump/test/test_serial.py --list
-    python scripts/ramdump/test/test_serial.py --probe                 # 自动找口，看是否在 MSH
-    python scripts/ramdump/test/test_serial.py --probe --com COM46 --seconds 5
-    python scripts/ramdump/test/test_serial.py --echo --com COM46      # 发一行看是否回显
+    scripts/ramdump.bat list
+    scripts/ramdump.bat probe                 # 自动找口，看是否在 MSH
+    scripts/ramdump.bat probe --com COM46 --seconds 5
+    scripts/ramdump.bat probe --echo --com COM46      # 发一行看是否回显
 
 为什么不再有 kill_com.bat / test_com3.py 那种 `taskkill /F /IM python.exe`：
-那会把别的脚本一起杀掉。端口被占时请用 `python scripts/serial_hub/serial_hub.py --list`
-看是谁，或用串口中枢接管该口（见 scripts/serial_hub/）。
+那会把别的脚本一起杀掉。端口被占时请用 `python scripts/run_rtros.py hub --list`
+看是谁，或用串口中枢接管该口（见 scripts/src/rtros/serial_hub/）。
 """
 
 # __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[3]），不做搜索
@@ -49,7 +49,7 @@ def probe(port, baud, seconds):
         ser = serial_utils.open_serial(port, baud)
     except Exception as exc:
         print(f"[PROBE] 打不开 {port}：{exc}")
-        print("        口被占用时用 scripts/serial_hub/serial_hub.py --list 查占用者（别 taskkill python）")
+        print("        口被占用时用 scripts/run_rtros.py hub --list 查占用者（别 taskkill python）")
         return 1
     print(f"[PROBE] 已打开 {port} @ {baud:d} 8N1，{seconds:d}s 内尝试敲回车 ...")
     try:

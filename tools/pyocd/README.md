@@ -43,7 +43,7 @@ python -m pyocd flash --target STM32F407VE --erase=auto --frequency=1000000 `
 |---|---|
 | 人手动烧录 | `ai_services.bat` → 菜单（内部转调下面的 Python） |
 | 编译 / 烧录 / 清理 | `python scripts\build\build.py {build,flash,build-flash,clean}` |
-| 沙箱里的 AI 烧录 | `scripts\guard\guard.py --request flash --wait`（守卫在沙箱外执行 pyocd） |
+| 沙箱里的 AI 烧录 | `scripts/run_rtros.py guard --request flash --wait`（守卫在沙箱外执行 pyocd） |
 
 ## 依赖
 

@@ -2,7 +2,7 @@
 """TUI 离线自检：不碰串口、不碰真终端，只驱动纯渲染与键盘动作。
 
 跑法（在仓库根）：
-    python scripts/serial_hub/tests/tui_check.py
+    python scripts/src/rtros/serial_hub/tests/tui_check.py
 
 覆盖：
     1. render() 的几何：任意尺寸下都恰好 h 行、每行恰好 w 个显示列（中文算 2）
@@ -27,7 +27,7 @@ import shutil  # noqa: E402
 import sys  # noqa: E402
 from contextlib import redirect_stdout  # noqa: E402
 
-_HERE = os.path.dirname(os.path.abspath(__file__))  # scripts/serial_hub/tests
+_HERE = os.path.dirname(os.path.abspath(__file__))  # scripts/src/rtros/serial_hub/tests
 _PKG = os.path.dirname(_HERE)  # scripts/serial_hub
 _REPO = os.path.dirname(os.path.dirname(_PKG))  # 仓库根
 

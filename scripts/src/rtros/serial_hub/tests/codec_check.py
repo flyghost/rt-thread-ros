@@ -1,6 +1,6 @@
 """离线验 codec：不接串口、不需要 COM 口，只驱动 protocols 里的 codec。
 
-python scripts/serial_hub/tests/codec_check.py
+python scripts/src/rtros/serial_hub/tests/codec_check.py
 """
 
 # __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[3]），不做搜索

@@ -4,7 +4,7 @@
 #   * 质量检查 = `python scripts/quality.py all`（ruff / ruff format / mypy / pytest，
 #     配置在 scripts/pyproject.toml，版本与 tools/pyquality/install.py 一致）
 #   * .bat 约束 = `python scripts/check_bat.py`（纯 ASCII + CRLF）
-#   * 固件编译 = `python scripts/firmware/build.py build`（不需要烧录器）
+#   * 固件编译 = `python scripts/run_rtros.py build build`（不需要烧录器）
 #
 # 说明：本地工具装在 tools/pyquality/pkg（gitignore），CI 里改成装到 site-packages，
 # 版本号保持一致；quality.py 通过 `python -m <tool>` 调用，两种安装位置都能找到。
@@ -74,7 +74,7 @@ jobs:
           RTT_EXEC_PATH: /usr/bin
           VENV: ${{ env.pythonLocation }}
           SCONS_JOBS: "4"
-        run: python scripts/firmware/build.py build
+        run: python scripts/run_rtros.py build build
 
       - name: 产物摘要
         run: |

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """兼容入口：老的 ramdump/build/build.py 参数形式。
 
-实现已经统一到 scripts/firmware/build.py（不再经过 build_and_flash.bat）。
+实现已经统一到 scripts/run_rtros.py build（不再经过 build_and_flash.bat）。
 新代码请直接用：
 
     python scripts\\firmware\\build.py build|flash|build-flash|clean|menuconfig|status
@@ -33,7 +33,7 @@ from rtros.firmware import pipeline, pyocd, scons  # noqa: E402
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        prog="build.py", description="[兼容] 固件编译/下载 —— 实际实现见 scripts/firmware/build.py"
+        prog="build.py", description="[兼容] 固件编译/下载 —— 实际实现见 scripts/run_rtros.py build"
     )
     ap.add_argument("--flash", action="store_true", help="编译成功后接着下载")
     ap.add_argument("--flash-only", action="store_true", help="不编译，只下载现有 rtthread.bin")

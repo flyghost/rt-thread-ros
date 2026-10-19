@@ -50,15 +50,15 @@ Windows 的 COM 口默认是【独占】的：一个终端打开后自动化脚�
 
 典型用法
 --------
-    python scripts/serial_hub/serial_hub.py                    # 按探测规则自动选串口，监听 5555/5556/5557
-    python scripts/serial_hub/serial_hub.py --com COM46 --baud 115200
-    python scripts/serial_hub/serial_hub.py --list             # 只列出候选串口后退出
-    python scripts/serial_hub/serial_hub.py --stdout rxtx      # 本地窗口里连 PC->串口 的内容也打出来
-    python scripts/serial_hub/serial_hub.py --stdout hex       # 本地窗口按 hex+ASCII 两栏实时显示（看设备->PC 的字节）
-    python scripts/serial_hub/serial_hub.py --ui tui           # 全屏面板：状态行 + 数据面板 + 输入行（Ctrl-Q 退出）
-    python scripts/serial_hub/serial_hub.py --ui none          # 不打窗口（后台只落日志）
-    python scripts/serial_hub/serial_hub.py --list             # 列出候选串口 + 当前探测规则
-    python scripts/serial_hub/serial_hub.py --prefer name:COM7 # 临时加一条探测规则（可重复）
+    python scripts/run_rtros.py hub                    # 按探测规则自动选串口，监听 5555/5556/5557
+    python scripts/run_rtros.py hub --com COM46 --baud 115200
+    python scripts/run_rtros.py hub --list             # 只列出候选串口后退出
+    python scripts/run_rtros.py hub --stdout rxtx      # 本地窗口里连 PC->串口 的内容也打出来
+    python scripts/run_rtros.py hub --stdout hex       # 本地窗口按 hex+ASCII 两栏实时显示（看设备->PC 的字节）
+    python scripts/run_rtros.py hub --ui tui           # 全屏面板：状态行 + 数据面板 + 输入行（Ctrl-Q 退出）
+    python scripts/run_rtros.py hub --ui none          # 不打窗口（后台只落日志）
+    python scripts/run_rtros.py hub --list             # 列出候选串口 + 当前探测规则
+    python scripts/run_rtros.py hub --prefer name:COM7 # 临时加一条探测规则（可重复）
 
 自动化脚本侧的写法（示例）
 --------------------------
@@ -101,7 +101,7 @@ import argparse  # noqa: E402
 import os  # noqa: E402
 import sys  # noqa: E402
 
-# 让 `python scripts/serial_hub/serial_hub.py` 直接跑（把包目录加进 sys.path）
+# 让 `python scripts/run_rtros.py hub` 直接跑（把包目录加进 sys.path）
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 from rtros.serial_hub.core.ports import autodetect_port, print_ports  # noqa: E402

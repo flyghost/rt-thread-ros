@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """只收：设备侧已经在跑，本脚本只负责「下发 dump 命令 → YMODEM 收 → 落盘」。
 
-    python scripts/ramdump/dump/receive.py --com COM46                # 触发一次并收
-    python scripts/ramdump/dump/receive.py --com COM46 --no-trigger    # 设备已在发 YMODEM，直接收
-    python scripts/ramdump/dump/receive.py --region sram               # 只收 SRAM
-    python scripts/ramdump/dump/receive.py                             # 自动找口
+    python scripts/run_rtros.py recv --com COM46                # 触发一次并收
+    python scripts/run_rtros.py recv --com COM46 --no-trigger    # 设备已在发 YMODEM，直接收
+    python scripts/run_rtros.py recv --region sram               # 只收 SRAM
+    python scripts/run_rtros.py recv                             # 自动找口
 
 和 dump.py 的区别：不编译、不下载、不进 ramdump（除 --no-check 外会先探一次 MSH）。
 """

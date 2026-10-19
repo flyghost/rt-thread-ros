@@ -1,7 +1,7 @@
 """
 Paths for the STM32F407 ATK Explorer BSP.
 
-真正的常量住在 scripts/firmware/config.py（构建与烧录的唯一事实来源），
+真正的常量住在 scripts/src/rtros/firmware/config.py（构建与烧录的唯一事实来源），
 这里只做转发，免得 ramdump 的各个脚本各自写一份路径。
 """
 

@@ -5,7 +5,7 @@
 * **命令表就是本文件的 SERVICES**（单一事实来源）。`ai_services.bat` 只是几十行的启动外壳，
   不再把命令硬编码在 bat 里；以后增加服务只改这里的一行。
 * **AI / CI 不要走 bat**：直接用 `python scripts/ai_services.py --run <name>`，
-  或干脆调各脚本本身（比如 `python scripts/firmware/build.py build-flash`）。
+  或干脆调各脚本本身（比如 `python scripts/run_rtros.py build build-flash`）。
 * 命令一律用 **argv 列表**（不拼字符串、不过 shell），所以 `& | > % "` 这些字符不会被 cmd 二次解析。
 
 用法
@@ -117,7 +117,7 @@ def run_service(service: Service, extra: list[str]) -> int:
         hub_cmd = expand(
             (
                 PLACEHOLDER_HUB,
-                "scripts/serial_hub/serial_hub.py",
+                "scripts/run_rtros.py hub",
                 "--com",
                 os.environ.get("HUB_COM", "COM46"),
                 "--baud",

@@ -16,14 +16,14 @@ if "%~1"=="" goto :usage
 set "SUB=%~1"
 shift
 :dispatch
-if /i "%SUB%"=="build"      ( "%PY%" "%HERE%run_rtros.py" build %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="flash"      ( "%PY%" "%HERE%run_rtros.py" build flash %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="clean"      ( "%PY%" "%HERE%run_rtros.py" build clean %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="menuconfig" ( "%PY%" "%HERE%run_rtros.py" build menuconfig %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="dump"       ( "%PY%" "%HERE%run_rtros.py" dump %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="recv"       ( "%PY%" "%HERE%run_rtros.py" recv %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="analyze"    ( "%PY%" "%HERE%run_rtros.py" analyze %* & exit /b %ERRORLEVEL% )
-if /i "%SUB%"=="hub"        ( "%PY%" "%HERE%run_rtros.py" hub %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="build"      ( "%HERE%run_rtros.py" build %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="flash"      ( "%HERE%run_rtros.py" build flash %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="clean"      ( "%HERE%run_rtros.py" build clean %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="menuconfig" ( "%HERE%run_rtros.py" build menuconfig %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="dump"       ( "%HERE%run_rtros.py" dump %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="recv"       ( "%HERE%run_rtros.py" recv %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="analyze"    ( "%HERE%run_rtros.py" analyze %* & exit /b %ERRORLEVEL% )
+if /i "%SUB%"=="hub"        ( "%HERE%run_rtros.py" hub %* & exit /b %ERRORLEVEL% )
 if /i "%SUB%"=="list"       ( "%PY%" "%PYSRC%\rtros\ramdump\test\test_serial.py" --list %* & exit /b %ERRORLEVEL% )
 if /i "%SUB%"=="probe"      ( "%PY%" "%PYSRC%\rtros\ramdump\test\test_serial.py" --probe %* & exit /b %ERRORLEVEL% )
 if /i "%SUB%"=="loopback"   ( "%PY%" "%PYSRC%\rtros\ramdump\test\test_usb_loopback.py" %* & exit /b %ERRORLEVEL% )
