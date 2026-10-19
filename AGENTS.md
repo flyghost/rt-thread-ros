@@ -41,7 +41,7 @@ out\venv\Scripts\rtros.cmd build status      # 装过仓内 venv 后的正式入
 ai_services.bat                                # 人手动用：菜单（编译/烧录/守卫/串口 hub/状态）
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
-**改 `scripts/` 下的 Python：`python scripts/tools/run.py quality all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` §11）。**
+**改 `scripts/` 下的 Python：`python scripts/tools/run.py quality all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` 第 4 节）。**
 四条稳定事实（细节见 `scripts/tools/pyocd/README.md`、`scripts/src/rtros/firmware/` 与 `docs/upstream-patches.md`）：
 - 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
