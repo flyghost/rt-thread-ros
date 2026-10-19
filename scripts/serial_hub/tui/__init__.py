@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """TUI 前端（零依赖 ANSI）。
 
     ansi.py    终端转义/宽度/剪裁（唯一碰 ANSI 的地方）

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """接入协议的公共基类：Codec。
 
 每个连接一个实例（内部可以有跨包状态）。

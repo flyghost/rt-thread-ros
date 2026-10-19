@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """只收：设备侧已经在跑，本脚本只负责「下发 dump 命令 → YMODEM 收 → 落盘」。
 
     python scripts/ramdump/dump/receive.py --com COM46                # 触发一次并收
@@ -12,7 +11,8 @@
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -55,7 +55,7 @@ def main(argv=None):
         print("[COM] 没自动找到 USB-UART 口，请用 --com 指定")
         return 2
     if not a.com:
-        print("[COM] 自动选中 %s" % port)
+        print(f"[COM] 自动选中 {port}")
 
     ser = serial_utils.open_serial(port, a.baud)
     try:
@@ -63,14 +63,14 @@ def main(argv=None):
             return 1
         if not a.no_trigger:
             cmd = REGION_CMD[a.region]
-            print("\n[CONSOLE] 下发：%s" % cmd)
+            print(f"\n[CONSOLE] 下发：{cmd}")
             serial_utils.serial_send(ser, cmd)
             print("[CONSOLE] 等 3s 让 YMODEM 发送方就绪 ...")
             time.sleep(3.0)
             ser.reset_input_buffer()
 
         out = a.out_dir or str(OUT_DUMP_DIR / time.strftime("%Y%m%d_%H%M%S"))
-        print("[DUMP] 收到 %s" % out)
+        print(f"[DUMP] 收到 {out}")
         saved = ymodem_receiver.ymodem_receive(ser, out)
         if not saved:
             print("[DUMP] 没收到文件")

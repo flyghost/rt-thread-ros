@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """TUI：hub 的又一个 sink，同时是它自己的主循环驱动。
 
 分工（换 UI 时只替换本目录）：
@@ -16,14 +15,16 @@ UI 每帧只做 hub.tick(0.05)（转发 select）+ 重画。
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import time
 from collections import deque
+from pathlib import Path
 
 from core.logstore import esc, hexdump_text, sync
 from core.ringbuf import ByteRing
-from core.util import human, repo_root, ts
+from core.util import human, repo_root
 
 from tui import ansi as A
 from tui import keys as K
@@ -85,7 +86,7 @@ class TuiApp:
 
     def close(self):
         """sink 收尾：TUI 没有要关的句柄（屏幕由 loop() 的 finally 还原）。"""
-        return None
+        return
 
     @staticmethod
     def _text_of(data: bytes) -> str:
@@ -141,7 +142,7 @@ class TuiApp:
     def jump_hit(self, delta):
         hits = self.recompute_hits()
         if not hits:
-            self.flash_msg("没有命中「%s」" % self.search)
+            self.flash_msg(f"没有命中「{self.search}」")
             return
         self.hit = max(0, min(len(hits) - 1, self.hit + delta))
         self.scroll = max(0, len(self.text_lines()) - 1 - hits[self.hit])
@@ -170,7 +171,7 @@ class TuiApp:
             self.scroll = max(0, len(self.text_lines()) - 1 - hits[self.hit])
             self.flash_msg("命中 %d 处" % len(hits))
         else:
-            self.flash_msg("没有命中「%s」" % self.search)
+            self.flash_msg(f"没有命中「{self.search}」")
 
     def exit_search(self):
         self.search_on = False
@@ -184,7 +185,7 @@ class TuiApp:
             return ""
         hits = self.recompute_hits()
         if not hits:
-            return "搜索「%s」无命中" % self.search
+            return f"搜索「{self.search}」无命中"
         return "搜索「%s」%d/%d" % (self.search, self.hit + 1, len(hits))
 
     @staticmethod
@@ -230,31 +231,31 @@ class TuiApp:
         sessions = st.get("sessions") or []
         for s in sessions:
             mark = " <=锁" if s.get("locked") else ""
-            out.append("#%s %s %s%s" % (s.get("cid"), s.get("proto") or "?", s.get("addr") or "", mark))
-            out.append("   收 %s  发 %s" % (human(int(s.get("rx") or 0)), human(int(s.get("tx") or 0))))
+            out.append("#{} {} {}{}".format(s.get("cid"), s.get("proto") or "?", s.get("addr") or "", mark))
+            out.append("   收 {}  发 {}".format(human(int(s.get("rx") or 0)), human(int(s.get("tx") or 0))))
             extra = "   会话 %ds" % int(s.get("uptime") or 0)
             if s.get("drop_proto"):
-                extra += "  协议吃掉 %s" % human(int(s["drop_proto"]))
+                extra += "  协议吃掉 {}".format(human(int(s["drop_proto"])))
             out.append(extra)
         if not sessions:
             out.append("(暂无客户端)")
         out.append("")
-        out.append("串口 %s %s" % (st.get("com") or "?", "OK" if st.get("ser_ok") else "断开"))
-        out.append("收 %s   发 %s" % (human(int(st.get("rx") or 0)), human(int(st.get("tx") or 0))))
+        out.append("串口 {} {}".format(st.get("com") or "?", "OK" if st.get("ser_ok") else "断开"))
+        out.append("收 {}   发 {}".format(human(int(st.get("rx") or 0)), human(int(st.get("tx") or 0))))
         if st.get("drop_locked"):
-            out.append("丢(锁) %s" % human(int(st["drop_locked"])))
+            out.append("丢(锁) {}".format(human(int(st["drop_locked"]))))
         if st.get("drop_proto"):
-            out.append("协议吃掉 %s" % human(int(st["drop_proto"])))
+            out.append("协议吃掉 {}".format(human(int(st["drop_proto"]))))
         sinks = st.get("sinks")
         if isinstance(sinks, (list, tuple)):
             for name in sinks:
-                out.append("sink %s" % name)
+                out.append(f"sink {name}")
         elif sinks is not None:
-            out.append("sink 数量 %s" % sinks)
+            out.append(f"sink 数量 {sinks}")
         if int(st.get("sink_errors") or 0):
-            out.append("sink 错误 %s" % int(st["sink_errors"]))
+            out.append("sink 错误 {}".format(int(st["sink_errors"])))
         if st.get("log"):
-            out.append("日志 %s" % str(st["log"]).replace("\\", "/").split("/")[-1])
+            out.append("日志 {}".format(str(st["log"]).replace("\\", "/").split("/")[-1]))
         return out
 
     # ---------------- 屏幕 ----------------
@@ -428,7 +429,7 @@ class TuiApp:
         try:
             reply = self.hub.command(text, source="tui", client=None)
         except Exception as exc:  # 命令有 bug 也不能把 UI 带走
-            reply = "命令出错：%s" % exc
+            reply = f"命令出错：{exc}"
             self.errors += 1
         for line in str(reply or "").split("\n"):
             if line:
@@ -439,25 +440,25 @@ class TuiApp:
     def save_dump(self):
         out_dir = os.path.join(repo_root(), "out", "dump")
         stamp = time.strftime("%Y%m%d-%H%M%S")
-        raw_path = os.path.join(out_dir, "log-%s.raw" % stamp)
-        txt_path = os.path.join(out_dir, "log-%s.txt" % stamp)
-        hex_path = os.path.join(out_dir, "log-%s.hex" % stamp)
+        raw_path = os.path.join(out_dir, f"log-{stamp}.raw")
+        txt_path = os.path.join(out_dir, f"log-{stamp}.txt")
+        hex_path = os.path.join(out_dir, f"log-{stamp}.hex")
         try:
             os.makedirs(out_dir, exist_ok=True)
-            with open(raw_path, "wb") as f:
+            with Path(raw_path).open("wb") as f:
                 f.write(self.raw.bytes())
                 sync(f)
-            with open(txt_path, "w", encoding="utf-8", newline="") as f:
+            with Path(txt_path).open("w", encoding="utf-8", newline="") as f:
                 for _kind, text in self.lines:
                     f.write(text + "\n")
                 sync(f)
             hex_text, _off = hexdump_text(self.raw.bytes(), 0, "")
-            with open(hex_path, "w", encoding="utf-8", newline="") as f:
+            with Path(hex_path).open("w", encoding="utf-8", newline="") as f:
                 if hex_text:
                     f.write(hex_text + "\n")
                 sync(f)
         except Exception as exc:
-            self.flash_msg("存盘失败：%s" % exc)
+            self.flash_msg(f"存盘失败：{exc}")
             self.errors += 1
             return None
         self.flash_msg("已存 log-%s.{raw,txt,hex}（%d 字节 RX）" % (stamp, self.raw.size))
@@ -489,10 +490,8 @@ class TuiApp:
             pass
         finally:
             if self.hub is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self.hub.running = False
-                except Exception:
-                    pass
             self.leave_screen()
             restore()
         return self.frames

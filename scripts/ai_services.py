@@ -24,7 +24,7 @@ import socket
 import subprocess
 import sys
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -303,7 +303,14 @@ def menu_loop() -> int:
     while True:
         print(render_menu(), flush=True)
         try:
-            choice = input("select> ").strip().lower()
+            if sys.stdin.isatty():
+                choice = input("select> ").strip().lower()
+            else:
+                raw = sys.stdin.readline()
+                if not raw:  # 管道结束：当作退出，别抛 EOFError
+                    print("（stdin 已关闭，退出）")
+                    return 0
+                choice = raw.strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0

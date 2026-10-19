@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """事件与 sink 契约：hub 只发事件，"谁来渲染"是 sink 的事。
 
 这一层是"UI 可换"的全部秘密：
@@ -18,9 +17,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 # 事件种类
 EV_RX = "rx"  # 设备 -> PC 的字节
@@ -52,7 +52,7 @@ class EventSink(Protocol):
 
     def on_event(self, ev: Event) -> None: ...
 
-    def on_state(self, st: Dict[str, Any]) -> None: ...
+    def on_state(self, st: dict[str, Any]) -> None: ...
 
     def close(self) -> None: ...
 
@@ -60,8 +60,8 @@ class EventSink(Protocol):
 class SinkGroup:
     """一次 emit 分发给所有 sink；单个 sink 抛异常不影响别人，也不影响串口侧。"""
 
-    def __init__(self, sinks: List[EventSink] | None = None):
-        self.sinks: List[EventSink] = list(sinks or [])
+    def __init__(self, sinks: list[EventSink] | None = None):
+        self.sinks: list[EventSink] = list(sinks or [])
         self.errors = 0
 
     def add(self, sink: EventSink) -> None:
@@ -74,7 +74,7 @@ class SinkGroup:
             except Exception:
                 self.errors += 1
 
-    def state(self, st: Dict[str, Any]) -> None:
+    def state(self, st: dict[str, Any]) -> None:
         for s in self.sinks:
             try:
                 s.on_state(st)
@@ -83,7 +83,5 @@ class SinkGroup:
 
     def close(self) -> None:
         for s in self.sinks:
-            try:
+            with contextlib.suppress(Exception):
                 s.close()
-            except Exception:
-                pass

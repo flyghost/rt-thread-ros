@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """FTDI FT232 / FT2232 / FT4232 系列 USB 转串口。"""
 
 from __future__ import annotations
-
 
 from discovery.base import PortRule
 

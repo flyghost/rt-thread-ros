@@ -20,7 +20,8 @@ Requirements:
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -28,10 +29,9 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
+import os
 import struct
 import sys
-import os
-from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -43,10 +43,11 @@ try:
 except ImportError:
     HAS_ELFTOOLS = False
 
-from exception_decoder import decode_fault_registers, get_fault_summary, decode_cfsr, decode_hfsr
-from arm_backtrace import RegisterSnapshot, backtrace, format_backtrace, StackFrame
-from rtthread_parser import ThreadInfo, scan_threads, format_thread_list, compute_stack_usage
+from pathlib import Path
 
+from arm_backtrace import RegisterSnapshot, StackFrame, backtrace, format_backtrace
+from exception_decoder import decode_fault_registers, get_fault_summary
+from rtthread_parser import ThreadInfo, format_thread_list, scan_threads
 
 # ---- Constants ----
 
@@ -93,7 +94,7 @@ class ExceptionRecord:
     current_thread_sp: int = 0
     thread_name: str = ""
     tick: int = 0
-    registers: Optional[RegisterSnapshot] = None
+    registers: RegisterSnapshot | None = None
 
     def __str__(self):
         if not self.valid:
@@ -122,19 +123,19 @@ class RamdumpAnalysis:
 
     exception: ExceptionRecord
     fault_decode: str
-    backtrace: List[StackFrame]
-    threads: List[ThreadInfo]
+    backtrace: list[StackFrame]
+    threads: list[ThreadInfo]
     sram_path: str
     ccm_path: str
     elf_path: str
-    symbols: Dict[int, str] = field(default_factory=dict)
+    symbols: dict[int, str] = field(default_factory=dict)
 
 
-def load_memory(path: str) -> Optional[bytes]:
+def load_memory(path: str) -> bytes | None:
     """Load a binary memory dump file."""
     if not path or not os.path.exists(path):
         return None
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         return f.read()
 
 
@@ -196,7 +197,7 @@ def parse_exception_record(data: bytes) -> ExceptionRecord:
     )
 
 
-def load_elf_symbols(elf_path: str) -> Dict[int, str]:
+def load_elf_symbols(elf_path: str) -> dict[int, str]:
     """Extract function symbols from an ELF file."""
     symbols = {}
     if not HAS_ELFTOOLS:
@@ -204,7 +205,7 @@ def load_elf_symbols(elf_path: str) -> Dict[int, str]:
         return symbols
 
     try:
-        with open(elf_path, "rb") as f:
+        with Path(elf_path).open("rb") as f:
             elf = ELFFile(f)
 
             # Get .text section bounds
@@ -233,7 +234,7 @@ def load_elf_symbols(elf_path: str) -> Dict[int, str]:
     return symbols
 
 
-def build_memory_map(sram_data: Optional[bytes], ccm_data: Optional[bytes]) -> Tuple[bytes, int]:
+def build_memory_map(sram_data: bytes | None, ccm_data: bytes | None) -> tuple[bytes, int]:
     """Build a unified memory map from SRAM and CCM dumps.
 
     Returns (memory_bytes, memory_base_address).
@@ -258,7 +259,7 @@ def build_memory_map(sram_data: Optional[bytes], ccm_data: Optional[bytes]) -> T
     return bytes(memory), memory_base
 
 
-def analyze_registers(memory: bytes, memory_base: int, hw_frame_ptr: int) -> Optional[RegisterSnapshot]:
+def analyze_registers(memory: bytes, memory_base: int, hw_frame_ptr: int) -> RegisterSnapshot | None:
     """Extract hardware exception frame registers from memory."""
     if hw_frame_ptr == 0:
         return None
@@ -292,7 +293,7 @@ def generate_html_report(analysis: RamdumpAnalysis) -> str:
 
     e = analysis.exception
 
-    html = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -386,8 +387,6 @@ def generate_html_report(analysis: RamdumpAnalysis) -> str:
 </body>
 </html>"""
 
-    return html
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -460,7 +459,7 @@ def main():
         symbols = load_elf_symbols(args.elf)
         # Try to get actual code section bounds from ELF
         try:
-            with open(args.elf, "rb") as f:
+            with Path(args.elf).open("rb") as f:
                 elf = ELFFile(f)
                 text = elf.get_section_by_name(".text")
                 if text:
@@ -515,7 +514,7 @@ def main():
 
     if args.output:
         html = generate_html_report(analysis)
-        with open(args.output, "w", encoding="utf-8") as f:
+        with Path(args.output).open("w", encoding="utf-8") as f:
             f.write(html)
         print(f"\nHTML report saved to: {args.output}")
 

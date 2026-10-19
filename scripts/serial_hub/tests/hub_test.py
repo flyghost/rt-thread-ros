@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """serial_hub 功能自测（对着已经在跑的 hub 测（不碰串口，只连 TCP））：
 1) 两个客户端(A=自动化脚本角色, B=人开的终端角色) 同时连 5555
 2) A 写 version -> 看串口回复是否【两个客户端都收到】（广播）
@@ -10,13 +9,15 @@
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
+import contextlib
 import socket
 import sys
 import time
@@ -36,10 +37,8 @@ def ctl(cmd):
     try:
         s = socket.create_connection((HOST, CTL), timeout=3)
         s.settimeout(2)
-        try:
+        with contextlib.suppress(Exception):
             s.recv(4096)
-        except Exception:
-            pass
         s.sendall((cmd + "\r\n").encode())
         time.sleep(0.25)
         out = b""
@@ -56,7 +55,7 @@ def ctl(cmd):
         s.close()
         return out.decode("utf-8", "replace").replace("\r\n", " | ").strip()
     except Exception as exc:
-        return "CTL-ERR %s" % exc
+        return f"CTL-ERR {exc}"
 
 
 def drain(socks, wait=1.0):

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """telnet：最小 Telnet 服务端（协商只同意 ECHO / SGA，IAC 绝不转发给设备）。
 
 给"只有 Telnet 会话类型、不会说 Raw"的终端用：它一连上会先发一串 IAC
@@ -8,7 +7,6 @@
 """
 
 from __future__ import annotations
-
 
 from .base import Codec
 
@@ -159,14 +157,14 @@ class TelnetCodec(Codec):
             note = "WILL SGA -> DO SGA（全双工）"
         elif cmd == self.WILL:
             self._send(reply, self.DONT, opt)
-            note = "WILL %s -> DONT" % self._oname(opt)
+            note = f"WILL {self._oname(opt)} -> DONT"
         elif cmd == self.WONT:
             self._send(reply, self.DONT, opt)
-            note = "WONT %s -> DONT" % self._oname(opt)
+            note = f"WONT {self._oname(opt)} -> DONT"
         elif cmd == self.DO:
             self._send(reply, self.WONT, opt)
-            note = "DO %s -> WONT" % self._oname(opt)
+            note = f"DO {self._oname(opt)} -> WONT"
         else:
             self._send(reply, self.WONT, opt)
-            note = "DONT %s -> WONT" % self._oname(opt)
+            note = f"DONT {self._oname(opt)} -> WONT"
         self.notes.append(note)

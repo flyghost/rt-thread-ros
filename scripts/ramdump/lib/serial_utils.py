@@ -4,6 +4,7 @@ Serial port utilities: CH340 detection, open, read_until, send.
 
 import sys
 import time
+
 import serial
 import serial.tools.list_ports
 
@@ -22,7 +23,7 @@ def find_ch340_port():
 
 def open_serial(port: str, baud: int = BAUDRATE) -> serial.Serial:
     """Open serial port with standard 8N1 settings."""
-    ser = serial.Serial(
+    return serial.Serial(
         port=port,
         baudrate=baud,
         bytesize=serial.EIGHTBITS,
@@ -31,7 +32,6 @@ def open_serial(port: str, baud: int = BAUDRATE) -> serial.Serial:
         timeout=0.3,
         write_timeout=1.0,
     )
-    return ser
 
 
 def serial_read_until(ser, marker, timeout: float = 15.0, echo: bool = True) -> str:

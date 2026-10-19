@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """TUI 离线自检：不碰串口、不碰真终端，只驱动纯渲染与键盘动作。
 
 跑法（在仓库根）：
@@ -18,7 +17,8 @@ from __future__ import annotations
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -47,7 +47,7 @@ CHECKS = []
 
 def ok(name, cond, extra=""):
     CHECKS.append((name, bool(cond)))
-    print("%s %s%s" % ("OK  " if cond else "FAIL", name, ("   " + extra) if extra else ""))
+    print("{} {}{}".format("OK  " if cond else "FAIL", name, ("   " + extra) if extra else ""))
 
 
 class StubHub:
@@ -79,7 +79,7 @@ class StubHub:
 
     def command(self, text, source="tui", client=None):
         self.commands.append(text)
-        return "# pong %s" % text
+        return f"# pong {text}"
 
     def tick(self, timeout=0.05):
         self.ticks += 1
@@ -267,7 +267,7 @@ def step3():
             sidebar=["会话 1", "收 2 B"],
         )
         ok(
-            "mode=%s 仍是恰好 h 行 × w 列" % mode,
+            f"mode={mode} 仍是恰好 h 行 × w 列",
             len(fr) == 10 and all(A.width(A.strip_ansi(x)) == 100 for x in fr),
         )
     fr = render({}, lines, 100, 10, sidebar=["会话侧栏标记"])
@@ -362,7 +362,7 @@ def main():
     bad = [name for name, good in CHECKS if not good]
     print("\n%d OK / %d FAIL" % (len(CHECKS) - len(bad), len(bad)))
     for name in bad:
-        print("  FAIL: %s" % name)
+        print(f"  FAIL: {name}")
     return 1 if bad else 0
 
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """固件构建/烧录的统一入口（唯一的 CLI，脚本与 bat 都调它）。
 
     python scripts\\firmware\\build.py build          # 只编译（默认 projects/base）
@@ -62,7 +61,7 @@ def main(argv=None) -> int:
     elif a.project:
         _os.environ["PROJECT"] = a.project
 
-    from firmware import tools  # noqa: E402
+    from firmware import tools
 
     if a.command == "build":
         return tools.build(a.jobs)

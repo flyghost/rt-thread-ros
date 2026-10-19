@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """SerialHub：唯一持有串口的那个进程。
 
 职责：独占串口（open/drop/重连）、selector 主循环、把串口字节广播给所有会话
@@ -9,7 +8,6 @@
 """
 
 from __future__ import annotations
-
 
 import os
 import queue
@@ -23,16 +21,20 @@ from datetime import datetime
 try:
     import serial
 except Exception as exc:  # pragma: no cover
-    print("需要 pyserial：pip install pyserial  （导入失败：%s）" % exc, file=sys.stderr)
-    raise SystemExit(2)
+    print(f"需要 pyserial：pip install pyserial  （导入失败：{exc}）", file=sys.stderr)
+    raise SystemExit(2) from exc  # noqa: B904 - 缺依赖属于部署错误，保留原因链
+
+import contextlib
+from pathlib import Path
+
+from protocols import CODECS
 
 from core.control import ControlServer
 from core.events import EV_HUB, EV_RX, EV_TX, Event, SinkGroup
-from core.logstore import esc, hexdump_text, sync
+from core.logstore import esc
 from core.session import Client
 from core.sinks import LogSink, StreamSink
 from core.util import human, ts
-from protocols import CODECS
 
 SEL_READ = selectors.EVENT_READ
 SEL_WRITE = selectors.EVENT_WRITE
@@ -49,7 +51,7 @@ class SerialHub:
         self.clients: dict[int, Client] = {}
         self.next_cid = 1
         self.owner_cid = None  # 持有写权限的客户端（None = 谁都能写）
-        self.tx: "queue.Queue[tuple[bytes, str]]" = queue.Queue(maxsize=args.tx_queue)
+        self.tx: queue.Queue[tuple[bytes, str]] = queue.Queue(maxsize=args.tx_queue)
         self.running = True
         self.started = time.time()
         self.rx_bytes = 0
@@ -98,13 +100,11 @@ class SerialHub:
             )
         except Exception as exc:
             if not quiet:
-                print("[hub] 打开 %s 失败：%s" % (a.com, exc), file=sys.stderr)
+                print(f"[hub] 打开 {a.com} 失败：{exc}", file=sys.stderr)
             return False
         if a.dtr_open != "keep":
-            try:
+            with contextlib.suppress(Exception):
                 ser.dtr = a.dtr_open == "high"
-            except Exception:
-                pass
         with self.ser_lock:
             self.ser = ser
             self.ser_ok = True
@@ -115,11 +115,9 @@ class SerialHub:
         with self.ser_lock:
             ser, self.ser, self.ser_ok = self.ser, None, False
         if ser is not None:
-            try:
+            with contextlib.suppress(Exception):
                 ser.close()
-            except Exception:
-                pass
-            self.log("[hub] 串口已释放（%s）" % why)
+            self.log(f"[hub] 串口已释放（{why}）")
 
     def try_reopen(self) -> None:
         if not self.args.reopen:
@@ -132,10 +130,10 @@ class SerialHub:
             self.reopen_count += 1
             self.log("[hub] 串口重连成功（第 %d 次）" % self.reopen_count)
         else:
-            self.log("[hub] 串口重连失败，%ss 后再试" % self.args.reopen_delay)
+            self.log(f"[hub] 串口重连失败，{self.args.reopen_delay}s 后再试")
 
     def serial_error(self, exc: Exception) -> None:
-        self.drop_serial("IO 异常 %s" % exc)
+        self.drop_serial(f"IO 异常 {exc}")
         self.last_open_try = time.time()
 
     # ---------------- 日志 ----------------
@@ -145,14 +143,14 @@ class SerialHub:
         os.makedirs(self.args.log_dir, exist_ok=True)
         stem = os.path.join(self.args.log_dir, "serial-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
         # 二进制留档：用默认块缓冲 + 每段写完 flush，保证进程还在跑时也能 tail 到内容
-        self.raw_f = open(stem + ".raw", "wb")
-        self.log_f = open(stem + ".log", "w", encoding="utf-8", newline="")
+        self.raw_f = Path(stem + ".raw").open("wb")  # noqa: SIM115 - 长驻句柄，由 close_logs() 关闭
+        self.log_f = Path(stem + ".log").open("w", encoding="utf-8", newline="")  # noqa: SIM115
         self.log_stem = stem
-        self.log("[hub] 日志：%s.log / %s.raw" % (stem, stem))
+        self.log(f"[hub] 日志：{stem}.log / {stem}.raw")
 
     def log(self, text: str) -> None:
         """hub 自身消息：排版一次，交给 sink（落盘 / 条件打印本窗口）。"""
-        self.emit(Event(kind=EV_HUB, msg=text, text="[%s] %s" % (ts(), text)))
+        self.emit(Event(kind=EV_HUB, msg=text, text=f"[{ts()}] {text}"))
 
     # ---------------- 事件出口（sink 实现见 core/sinks.py） ----------------
     def emit(self, ev: Event) -> None:
@@ -240,9 +238,7 @@ class SerialHub:
         greet = c.codec.greeting()
         if greet:
             c.feed_raw(greet)
-            self.log(
-                "[hub] %s 主动协商 %s（WILL ECHO / WILL SGA / DO SGA，未转发给串口）" % (c.name, esc(greet))
-            )
+            self.log(f"[hub] {c.name} 主动协商 {esc(greet)}（WILL ECHO / WILL SGA / DO SGA，未转发给串口）")
         self.log("[hub] 客户端接入 %s（当前 %d 个，telnet 口）" % (c.name, len(self.clients)))
         self.mark_state()
 
@@ -250,14 +246,12 @@ class SerialHub:
         if c.cid not in self.clients:
             return
         self.clients.pop(c.cid, None)
-        try:
+        with contextlib.suppress(Exception):
             self.sel.unregister(c.sock)
-        except Exception:
-            pass
         c.close()
         if self.owner_cid == c.cid:
             self.owner_cid = None
-            self.log("[hub] 持有写锁的客户端 %s 已离开，自动解锁" % c.name)
+            self.log(f"[hub] 持有写锁的客户端 {c.name} 已离开，自动解锁")
         self.log(
             "[hub] 客户端离开 %s（%s，收 %s 发 %s，剩余 %d 个）"
             % (c.name, why, human(c.rx), human(c.tx), len(self.clients))
@@ -267,10 +261,8 @@ class SerialHub:
     def refresh_interest(self) -> None:
         for c in list(self.clients.values()):
             want = SEL_READ | (SEL_WRITE if c.has_out() else 0)
-            try:
+            with contextlib.suppress(Exception):
                 self.sel.modify(c.sock, want, ("data", c))
-            except Exception:
-                pass
 
     def handle_client_read(self, c: Client) -> None:
         try:
@@ -278,7 +270,7 @@ class SerialHub:
         except BlockingIOError:
             return
         except OSError as exc:
-            self.drop_client(c, "读取失败 %s" % exc)
+            self.drop_client(c, f"读取失败 {exc}")
             return
         if not data:
             self.drop_client(c, "对端关闭")
@@ -289,12 +281,12 @@ class SerialHub:
         to_board, reply = c.codec.decode(data)
         notes = getattr(c.codec, "notes", None)
         if notes:
-            self.log("[hub] %s 协商：%s" % (c.name, " | ".join(notes)))
+            self.log("[hub] {} 协商：{}".format(c.name, " | ".join(notes)))
             del notes[:]
         if reply:
             # telnet 协商应答：只回给提出协商的那条连接，绝不写进串口
             c.feed_raw(reply)
-            self.log("[hub] %s 协议应答 %s（未转发给串口）" % (c.name, esc(reply)))
+            self.log(f"[hub] {c.name} 协议应答 {esc(reply)}（未转发给串口）")
         eaten = len(data) - len(to_board)
         if eaten > 0:
             c.drop_proto += eaten
@@ -311,9 +303,9 @@ class SerialHub:
             why = "首字节 0xFF"
         else:
             c.use_proto("raw")
-            why = "首字节 0x%02x" % first[0]
+            why = f"首字节 0x{first[0]:02x}"
         c.flush_held_out()
-        self.log("[hub] %s 协议判定 -> %s（%s）" % (c.name, c.proto, why))
+        self.log(f"[hub] {c.name} 协议判定 -> {c.proto}（{why}）")
 
     def decide_pending_protos(self) -> None:
         """迟迟不开口的连接不能一直等：超时按 raw。"""
@@ -322,7 +314,7 @@ class SerialHub:
             if c.codec is None and (now - c.since) >= self.args.sniff_timeout:
                 c.use_proto("raw")
                 c.flush_held_out()
-                self.log("[hub] %s %.1fs 没开口，按 raw 处理" % (c.name, self.args.sniff_timeout))
+                self.log(f"[hub] {c.name} {self.args.sniff_timeout:.1f}s 没开口，按 raw 处理")
 
     def handle_client_write(self, c: Client) -> None:
         data = c.take_out()
@@ -334,7 +326,7 @@ class SerialHub:
             c.push_front(data)
             return
         except OSError as exc:
-            self.drop_client(c, "写入失败 %s" % exc)
+            self.drop_client(c, f"写入失败 {exc}")
             return
         if sent < len(data):
             c.push_front(data[sent:])
@@ -499,23 +491,23 @@ class SerialHub:
                 return "# err: 没有客户端 %d" % target
             self.owner_cid = target
             self.mark_state()
-            self.log("[hub] 写锁 -> %s" % self.clients[target].name)
-            return "# ok: 写锁已给 %s" % self.clients[target].name
+            self.log(f"[hub] 写锁 -> {self.clients[target].name}")
+            return f"# ok: 写锁已给 {self.clients[target].name}"
         if verb == "unlock":
             if self.owner_cid is None:
                 return "# ok: 当前没有写锁"
             was = self.owner_name()
             self.owner_cid = None
             self.mark_state()
-            self.log("[hub] 写锁解除（原持有者 %s）" % was)
-            return "# ok: 写锁已解除（原持有者 %s）" % was
+            self.log(f"[hub] 写锁解除（原持有者 {was}）")
+            return f"# ok: 写锁已解除（原持有者 {was}）"
         if verb == "reset":
             mode = rest[0].lower() if rest else a.reset_mode
             if mode not in ("dtr", "rts", "both"):
                 return "# err: reset 参数要是 dtr|rts|both"
             t = threading.Thread(target=self.do_reset, args=(mode,), daemon=True)
             t.start()
-            return "# ok: 已按 %s 发复位脉冲（%s 秒）" % (mode, a.reset_pulse)
+            return f"# ok: 已按 {mode} 发复位脉冲（{a.reset_pulse} 秒）"
         if verb == "whoami":
             if client is None:
                 return "# 控制口连接（不属于数据会话；用 sessions 看会话号）"
@@ -535,14 +527,14 @@ class SerialHub:
                 return "# err: proto 第一个参数要是会话号（sessions）"
             name = rest[1].lower()
             if name not in CODECS:
-                return "# err: 不支持的协议 %r（可选 %s）" % (name, "/".join(sorted(CODECS)))
+                return "# err: 不支持的协议 {!r}（可选 {}）".format(name, "/".join(sorted(CODECS)))
             c = self.clients.get(target)
             if c is None:
                 return "# err: 没有会话 %d" % target
             c.use_proto(name)
             c.flush_held_out()
-            self.log("[hub] 会话 %s 协议切换 -> %s" % (c.name, name))
-            return "# ok: %s 协议 = %s" % (c.name, name)
+            self.log(f"[hub] 会话 {c.name} 协议切换 -> {name}")
+            return f"# ok: {c.name} 协议 = {name}"
         if verb == "kill":
             if not rest:
                 return "# err: kill <cid>（见 sessions）"
@@ -555,14 +547,14 @@ class SerialHub:
                 return "# err: 没有会话 %d" % target
             name = c.name
             self.drop_client(c, "被控制口踢出")
-            return "# ok: 已断开 %s" % name
+            return f"# ok: 已断开 {name}"
         if verb in ("shutdown", "quit", "exit"):
             if source != "control":
                 return "# err: 只有控制口能 shutdown"
             self.log("[hub] 控制口要求退出")
             self.running = False
             return "# bye"
-        return "# err: 未知命令 %r（help）" % verb
+        return f"# err: 未知命令 {verb!r}（help）"
 
     def do_reset(self, mode: str) -> None:
         active_high = self.args.reset_active == "high"
@@ -582,11 +574,10 @@ class SerialHub:
                 for _, fn in lines:
                     fn(not active_high)
                 self.log(
-                    "[hub] 已发送 %s 复位脉冲（active=%s，%ss）"
-                    % (mode, self.args.reset_active, self.args.reset_pulse)
+                    f"[hub] 已发送 {mode} 复位脉冲（active={self.args.reset_active}，{self.args.reset_pulse}s）"
                 )
             except Exception as exc:
-                self.log("[hub] 复位失败：%s" % exc)
+                self.log(f"[hub] 复位失败：{exc}")
 
     # ---------------- 主循环 ----------------
     def tick(self, timeout: float = 0.05) -> None:
@@ -623,7 +614,7 @@ class SerialHub:
                     "cid": c.cid,
                     "proto": c.proto or "?",
                     "name": c.name,
-                    "addr": "%s:%s" % (c.addr[0], c.addr[1]),
+                    "addr": f"{c.addr[0]}:{c.addr[1]}",
                     "since": c.since,
                     "uptime": now - c.since,
                     "rx": c.rx,
@@ -685,18 +676,15 @@ class SerialHub:
                 self.ctl.close()
             self.drop_serial("退出")
             self.log(
-                "[hub] 结束：收 %s / 发 %s，日志 %s"
-                % (human(self.rx_bytes), human(self.tx_bytes), (self.log_stem or "(未开)"))
+                "[hub] 结束：收 {} / 发 {}，日志 {}".format(
+                    human(self.rx_bytes), human(self.tx_bytes), (self.log_stem or "(未开)")
+                )
             )
             if self.log_f:
-                try:
+                with contextlib.suppress(Exception):
                     self.log_f.close()
-                except Exception:
-                    pass
             if self.raw_f:
-                try:
+                with contextlib.suppress(Exception):
                     self.raw_f.close()
-                except Exception:
-                    pass
             self.sinks.close()
         return 0

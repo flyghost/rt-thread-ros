@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Client：一条连接 = 一个会话。
 
 负责：本会话的协议 codec、待发缓冲（已 encode）、写锁、计数。
@@ -9,7 +8,7 @@
 
 from __future__ import annotations
 
-
+import contextlib
 import socket
 import threading
 import time
@@ -101,7 +100,5 @@ class Client:
     def close(self) -> None:
         with self.lock:
             self.closed = True
-        try:
+        with contextlib.suppress(OSError):
             self.sock.close()
-        except OSError:
-            pass

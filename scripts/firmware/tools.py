@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """编译（SCons）与烧录（pyocd）的实现。
 
 给两个入口共用：
@@ -11,7 +10,6 @@
 import os
 import shutil
 import subprocess
-import sys
 
 from firmware.config import (
     ARTIFACT_DIR,

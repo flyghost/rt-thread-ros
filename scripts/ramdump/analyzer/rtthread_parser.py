@@ -11,9 +11,7 @@ For production use, pyelftools symbol resolution should be added.
 """
 
 import struct
-from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
-
 
 # RT-Thread thread state masks (from rtdef.h)
 THREAD_STATES = {
@@ -75,7 +73,7 @@ def parse_thread_state(stat: int) -> str:
 
 def scan_threads(
     memory: bytes, memory_base: int, thread_obj_start: int, thread_obj_end: int
-) -> List[ThreadInfo]:
+) -> list[ThreadInfo]:
     """Scan for thread objects in a memory image.
 
     This uses heuristics to find thread objects by looking for
@@ -126,7 +124,7 @@ def scan_threads(
     return threads
 
 
-def compute_stack_usage(memory: bytes, memory_base: int, thread: ThreadInfo) -> Tuple[int, int, float]:
+def compute_stack_usage(memory: bytes, memory_base: int, thread: ThreadInfo) -> tuple[int, int, float]:
     """Compute stack usage for a thread.
 
     RT-Thread fills thread stacks with '#' (0x23) on creation.
@@ -151,7 +149,7 @@ def compute_stack_usage(memory: bytes, memory_base: int, thread: ThreadInfo) -> 
     return used, size, pct
 
 
-def format_thread_list(threads: List[ThreadInfo], memory: bytes = None, memory_base: int = 0) -> str:
+def format_thread_list(threads: list[ThreadInfo], memory: bytes = None, memory_base: int = 0) -> str:
     """Format thread list for display."""
     lines = []
     lines.append("=== RT-Thread Thread List ===")

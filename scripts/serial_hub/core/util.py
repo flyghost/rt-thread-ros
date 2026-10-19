@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """通用小工具：时间戳、字节数人话、仓库根定位。"""
 
 from __future__ import annotations

@@ -6,9 +6,6 @@ Decodes CFSR (Configurable Fault Status Register), HFSR (HardFault Status
 Register), MMFAR, and BFAR register values from ramdump exception records.
 """
 
-from dataclasses import dataclass
-from typing import List, Tuple
-
 
 # ---- CFSR Bit Definitions ----
 
@@ -44,7 +41,7 @@ CFSR_UFSR = {
 }
 
 
-def decode_cfsr(cfsr: int) -> List[str]:
+def decode_cfsr(cfsr: int) -> list[str]:
     """Decode SCB->CFSR value into human-readable fault descriptions."""
     faults = []
 
@@ -66,7 +63,7 @@ def decode_cfsr(cfsr: int) -> List[str]:
     return faults
 
 
-def decode_hfsr(hfsr: int) -> List[str]:
+def decode_hfsr(hfsr: int) -> list[str]:
     """Decode SCB->HFSR value."""
     faults = []
 
@@ -119,12 +116,11 @@ def get_fault_summary(cfsr: int, hfsr: int) -> str:
         if cfsr & 0xFFFF0000:
             return "UsageFault escalated to HardFault"
         return "Escalated HardFault (unknown cause)"
-    elif hfsr & (1 << 1):
+    if hfsr & (1 << 1):
         return "HardFault: Vector fetch error"
-    elif hfsr & (1 << 31):
+    if hfsr & (1 << 31):
         return "HardFault: Debug event"
-    else:
-        return "HardFault: Unknown cause"
+    return "HardFault: Unknown cause"
 
 
 # ---- Standalone test ----

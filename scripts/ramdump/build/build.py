@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """兼容入口：老的 ramdump/build/build.py 参数形式。
 
 实现已经统一到 scripts/firmware/build.py（不再经过 build_and_flash.bat）。

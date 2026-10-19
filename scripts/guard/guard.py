@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """guard.py — 守卫：把「沙箱里跑不了」的硬件动作交给一个由人手动启动的进程。
 
 问题不是权限不够，而是进程位置不对：
@@ -32,14 +31,15 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import threading
 import time
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
@@ -58,7 +58,7 @@ TASKS_FILE = Path(__file__).resolve().with_name("tasks.toml")
 class Task:
     """tasks.toml 里 [[tasks]] 的一条。"""
 
-    __slots__ = ("id", "title", "timeout", "allow", "run", "builtin", "cwd")
+    __slots__ = ("allow", "builtin", "cwd", "id", "run", "timeout", "title")
 
     def __init__(self, raw: dict) -> None:
         self.id = str(raw["id"])
@@ -75,10 +75,10 @@ def _load_config() -> tuple[dict, dict, dict]:
     try:
         import tomllib
     except ImportError:
-        raise SystemExit("守卫需要 Python 3.11+（tasks.toml 用 tomllib 读）")
+        raise SystemExit("守卫需要 Python 3.11+（tasks.toml 用 tomllib 读）") from None
     if not TASKS_FILE.is_file():
         raise SystemExit(f"找不到任务表：{TASKS_FILE}")
-    with open(TASKS_FILE, "rb") as fh:
+    with TASKS_FILE.open("rb") as fh:
         doc = tomllib.load(fh)
     settings = dict(doc.get("guard", {}))
     paths = {str(k): str(v) for k, v in doc.get("paths", {}).items()}
@@ -428,10 +428,8 @@ def _self_mtime() -> float:
     """脚本与任务表里最新的 mtime —— 发现「代码/配置更新了，进程还在跑老版本」。"""
     newest = 0.0
     for path in (Path(__file__), TASKS_FILE):
-        try:
+        with contextlib.suppress(OSError):
             newest = max(newest, path.stat().st_mtime)
-        except OSError:
-            pass
     return newest
 
 
@@ -603,10 +601,12 @@ class Guard:
 
                 killer = {"why": ""}
 
-                def pump() -> None:
+                stdout = proc.stdout
+                assert stdout is not None
+
+                def pump(out: Iterable[str] = stdout) -> None:
                     nonlocal log_bytes, last_growth
-                    assert proc.stdout is not None
-                    for line in proc.stdout:
+                    for line in out:
                         log.write(line)
                         log.flush()
                         log_bytes += len(line)
@@ -651,10 +651,8 @@ class Guard:
                     log.write(f"\n!! {message} → 杀进程树 pid={proc.pid}\n")
                     log.flush()
                     self._kill_tree(proc.pid)
-                    try:
+                    with contextlib.suppress(subprocess.TimeoutExpired):
                         proc.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        pass
                     exit_code = None
                     th.join(timeout=2)
                     break
@@ -669,37 +667,31 @@ class Guard:
                     break
 
         self._running_info = None
-        try:
+        with contextlib.suppress(OSError):
             self.mb.running.unlink()
-        except OSError:
-            pass
         finish(status, exit_code, message, started, queued, tail[-TAIL_LINES:])
         mark = "OK " if status == "ok" else "FAIL"
         _say(f"[{_stamp()}] req_{n:04d} 结束：[{mark}] {status} / {message}")
 
     @staticmethod
     def _kill_tree(pid: int) -> None:
-        try:
+        with contextlib.suppress(Exception):
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=20)
-        except Exception:
-            pass
 
     # -- 主循环 --
     def loop(self) -> int:
         if not self.acquire():
             return 3
         self.mb.ensure()
-        try:
+        with contextlib.suppress(OSError):
             self.mb.running.unlink()
-        except OSError:
-            pass
 
         _say("=" * 78)
         _say(" rt-thread-ros 守卫 —— 在沙箱外替你跑长任务（任务表驱动）")
         _say("=" * 78)
         _say(f" 仓库      : {REPO}")
         _say(f" 信箱      : {self.mb.root}   ← 会话侧往这里写 req_NNNN.json")
-        _say(f" 应答      : rep_NNNN.json ＋ rep_NNNN.log（退出码与完整日志）")
+        _say(" 应答      : rep_NNNN.json ＋ rep_NNNN.log（退出码与完整日志）")
         _say(
             f" 调试器    : pyocd {PYOCD_PKG_DIR} "
             f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python tools/pyocd/install.py'}"
@@ -808,7 +800,7 @@ def cmd_list(mb: Mailbox) -> int:
         rep = _read_json(mb.rep(n))
         if rep is None:
             print(
-                f"{n:>5}  {req.get('action', '?'):<12} {'排队中':<9} {'-':>6}  写于 {req.get('createdAt') and datetime.fromtimestamp(req['createdAt']).strftime('%m-%d %H:%M:%S') or '?'}"
+                f"{n:>5}  {req.get('action', '?'):<12} {'排队中':<9} {'-':>6}  写于 {(req.get('createdAt') and datetime.fromtimestamp(req['createdAt']).strftime('%m-%d %H:%M:%S')) or '?'}"
             )
             continue
         ec = rep.get("exitCode")

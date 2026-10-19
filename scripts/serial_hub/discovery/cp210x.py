@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Silicon Labs CP210x 系列 USB 转串口。"""
 
 from __future__ import annotations
-
 
 from discovery.base import PortRule
 

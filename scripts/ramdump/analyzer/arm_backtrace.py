@@ -13,7 +13,6 @@ instruction (BL or BLX).
 """
 
 import struct
-from typing import Optional, List, Tuple, Dict
 from dataclasses import dataclass
 
 
@@ -121,8 +120,8 @@ def backtrace(
     stack_limit: int,
     code_start: int,
     code_end: int,
-    symbols: Dict[int, str],
-) -> List[StackFrame]:
+    symbols: dict[int, str],
+) -> list[StackFrame]:
     """Perform ARM Thumb-2 stack backtrace.
 
     Args:
@@ -140,7 +139,7 @@ def backtrace(
     frames = []
 
     # Helper: resolve symbol name
-    def resolve(addr: int) -> Tuple[str, int]:
+    def resolve(addr: int) -> tuple[str, int]:
         best_name = "unknown"
         best_offset = 0
         best_sym_addr = 0
@@ -152,7 +151,7 @@ def backtrace(
         return best_name, best_offset
 
     # Helper: read 32-bit word from memory image
-    def read32(addr: int) -> Optional[int]:
+    def read32(addr: int) -> int | None:
         if memory_base <= addr < memory_base + len(memory):
             return struct.unpack("<I", memory[addr - memory_base : addr - memory_base + 4])[0]
         return None
@@ -206,7 +205,7 @@ def backtrace(
     return frames
 
 
-def format_backtrace(frames: List[StackFrame]) -> str:
+def format_backtrace(frames: list[StackFrame]) -> str:
     """Format a backtrace for display."""
     lines = ["=== Call Stack Backtrace ==="]
     lines.append(f"{'#':>3} {'Stack Addr':>10} {'Return Addr':>10} {'Function':<40} {'Offset':>6}")

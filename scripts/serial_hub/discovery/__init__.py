@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """端口探测：枚举候选串口、按规则分类、挑出首选端口。
 
 规则表 = 本目录下各家族模块暴露的 ``RULES`` + 调用方临时追加的规则（例如命令行 ``--prefer``）。
@@ -14,13 +13,12 @@
 
 from __future__ import annotations
 
-
 from discovery import ch34x, cp210x, ftdi, usb_serial
 from discovery.base import (
     MATCH_NONE,
     PortInfo,
     PortRule,
-    order_key,  # noqa: F401
+    order_key,
     parse_rule_spec,
 )
 
@@ -119,7 +117,7 @@ def print_rules(rules=()) -> None:
     for rule in all_rules(rules):
         bits = []
         if rule.vid_pids:
-            bits.append("VID:PID=" + ",".join("%04X:%04X" % vp for vp in rule.vid_pids))
+            bits.append("VID:PID=" + ",".join("{:04X}:{:04X}".format(*vp) for vp in rule.vid_pids))
         if rule.hwid_keywords:
             bits.append("硬件ID含 " + "/".join(rule.hwid_keywords))
         if rule.description_keywords:

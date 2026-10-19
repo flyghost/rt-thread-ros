@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 serial_hub.py —— 串口中继：一个进程独占串口，多个客户端同时收发
 
@@ -91,7 +90,8 @@ from __future__ import annotations
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -108,9 +108,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from core.ports import autodetect_port, print_ports, print_rules  # noqa: E402
+from core.ports import autodetect_port, print_ports  # noqa: E402
 from core.relay import SerialHub  # noqa: E402
 from core.util import repo_root  # noqa: E402
+from discovery import print_rules  # noqa: E402
 from discovery.base import parse_rule_spec  # noqa: E402
 
 
@@ -231,7 +232,7 @@ def main(argv=None) -> int:
     try:
         rules = tuple(parse_rule_spec(spec) for spec in (args.prefer or ()))
     except ValueError as exc:
-        print("[hub] --prefer 规则无效：%s" % exc, file=sys.stderr)
+        print(f"[hub] --prefer 规则无效：{exc}", file=sys.stderr)
         return 2
     if args.list:
         print_ports(rules)

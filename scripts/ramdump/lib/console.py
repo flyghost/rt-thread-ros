@@ -3,6 +3,7 @@ Console interaction: MSH prompt check, ramdump trigger, CLI command dispatch.
 """
 
 import time
+
 from serial_utils import serial_read_until, serial_send
 
 

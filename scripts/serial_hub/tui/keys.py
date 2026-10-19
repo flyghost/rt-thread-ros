@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """键盘读取：把按键变成稳定的「token」字符串，UI 只认 token。
 
 token 形式：

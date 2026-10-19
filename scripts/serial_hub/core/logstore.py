@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """日志的格式与落盘原语。
 
 esc(data)                字节 -> 可读文本（除 \n 外全转义，别把终端搞乱）
@@ -25,7 +24,7 @@ def esc(data: bytes) -> str:
         elif 32 <= b < 127:
             out.append(chr(b))
         else:
-            out.append("\\x%02x" % b)
+            out.append(f"\\x{b:02x}")
     return "".join(out)
 
 
@@ -38,11 +37,11 @@ def hexdump_text(data: bytes, off: int, tag: str = "") -> tuple[str, int]:
     rows = []
     for i in range(0, len(data), cols):
         piece = data[i : i + cols]
-        left = (" ".join("%02x" % b for b in piece[:8]) + " ").ljust(8 * 3)
-        right = (" ".join("%02x" % b for b in piece[8:]) + " ").ljust(8 * 3)
+        left = (" ".join(f"{b:02x}" for b in piece[:8]) + " ").ljust(8 * 3)
+        right = (" ".join(f"{b:02x}" for b in piece[8:]) + " ").ljust(8 * 3)
         hexs = left + " " + right
         asc = "".join(chr(b) if 32 <= b < 127 else "." for b in piece)
-        rows.append("%s%08x  %s |%s|" % (tag, off + i, hexs, asc))
+        rows.append(f"{tag}{off + i:08x}  {hexs} |{asc}|")
     return "\n".join(rows), off + len(data)
 
 

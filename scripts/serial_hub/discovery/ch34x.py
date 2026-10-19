@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """CH340 / CH341 / CH343 / CH347 系列 USB 转串口。
 
 认法：VID 固定 0x1A86，PID 按型号；再补描述关键字兜住驱动改名的情形。
 """
 
 from __future__ import annotations
-
 
 from discovery.base import PortRule
 

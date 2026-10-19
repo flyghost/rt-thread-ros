@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """兜底规则：任何"看起来挂在 USB 上"的串口。
 
 放在最后、priority 最低 —— 只在没有任何具体家族规则命中时才起作用，
@@ -8,7 +7,6 @@
 """
 
 from __future__ import annotations
-
 
 from discovery.base import PortRule
 

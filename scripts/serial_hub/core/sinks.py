@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """内置 sink：落盘日志 + 本窗口文本/hex 流。
 
 第 1 步重构（引入事件层）**刻意保持行为逐字节不变**，所以这两个 sink 的代码
@@ -15,7 +14,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Dict
+from typing import Any
 
 from core.events import EV_HUB, EV_RX, EV_TX, Event
 from core.logstore import esc, hexdump_text, sync
@@ -59,7 +58,7 @@ class LogSink:
                 for i, chunk in enumerate(chunks):
                     if i == len(chunks) - 1 and chunk == "":
                         break
-                    self.hub.log_f.write("[%s] %s %s %s\n" % (ts(), direction, who, chunk))
+                    self.hub.log_f.write(f"[{ts()}] {direction} {who} {chunk}\n")
                 sync(self.hub.log_f)
             except Exception:
                 pass
@@ -74,7 +73,7 @@ class LogSink:
         elif ev.kind == EV_TX:
             self._data_lines("TX", ev.who, ev.data)
 
-    def on_state(self, st: Dict[str, Any]) -> None:
+    def on_state(self, st: dict[str, Any]) -> None:
         pass
 
     def close(self) -> None:
@@ -124,7 +123,7 @@ class StreamSink:
                 txt += "\n"
             self._out(txt)
 
-    def on_state(self, st: Dict[str, Any]) -> None:
+    def on_state(self, st: dict[str, Any]) -> None:
         pass
 
     def close(self) -> None:

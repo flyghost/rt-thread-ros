@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """ANSI 小工具：VT 模式、光标/颜色控制、按「显示宽度」对齐（中文算 2 列）。
 
 零依赖：只用 ANSI 转义序列 + ctypes 打开 Windows 控制台的 VT 处理能力。

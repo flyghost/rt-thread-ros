@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """采集入口（全流程）：编译 → 下载 → 等 MSH → 触发 ramdump → YMODEM 收 → 落盘。
 
     python scripts/ramdump/dump/dump.py                      # 自动找口，全流程
@@ -14,7 +13,8 @@
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -49,14 +49,14 @@ def pick_port(args):
     if not port:
         print("[COM] 没自动找到 USB-UART 口，请用 --com 指定")
         return None
-    print("[COM] 自动选中 %s" % port)
+    print(f"[COM] 自动选中 {port}")
     return port
 
 
 def enter_and_trigger(ser, region, crash=False, crash_cmd="RAMDUMP_ASSERT"):
     """把设备带进 @ramdump> 并让它开始发 YMODEM。"""
     if crash:
-        print("\n[CONSOLE] 触发真异常路径：%s" % crash_cmd)
+        print(f"\n[CONSOLE] 触发真异常路径：{crash_cmd}")
         serial_utils.serial_send(ser, crash_cmd, flush=False)
         out = serial_utils.serial_read_until(ser, "@ramdump>", timeout=30.0)
         if "@ramdump>" not in out:
@@ -68,7 +68,7 @@ def enter_and_trigger(ser, region, crash=False, crash_cmd="RAMDUMP_ASSERT"):
 
     time.sleep(0.3)
     cmd = REGION_CMD.get(region, "ramdump")
-    print("\n[CONSOLE] 开始 dump：%s" % cmd)
+    print(f"\n[CONSOLE] 开始 dump：{cmd}")
     serial_utils.serial_send(ser, cmd)
     print("[CONSOLE] 等 3s 让 YMODEM 发送方就绪 ...")
     time.sleep(3.0)
@@ -78,7 +78,7 @@ def enter_and_trigger(ser, region, crash=False, crash_cmd="RAMDUMP_ASSERT"):
 
 def receive(ser, out_dir=None):
     out = out_dir or str(OUT_DUMP_DIR / time.strftime("%Y%m%d_%H%M%S"))
-    print("[DUMP] 收到 %s" % out)
+    print(f"[DUMP] 收到 {out}")
     saved = ymodem_receiver.ymodem_receive(ser, out)
     if not saved:
         print("[DUMP] 没收到文件（设备没在发？先看 --region 命令是否被接受）")
@@ -169,7 +169,7 @@ def _run_usb(a, port):
         return 1
     try:
         cmd = REGION_CMD.get(a.region, "ramdump")
-        print("\n[USB] 在 %s 上下发：%s" % (usb_port, cmd))
+        print(f"\n[USB] 在 {usb_port} 上下发：{cmd}")
         serial_utils.serial_send(usb, cmd)
         time.sleep(3.0)
         usb.reset_input_buffer()

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """串口探针：列口 / 探控制台 / 回显自检（不碰 ramdump 逻辑）。
 
     python scripts/ramdump/test/test_serial.py --list
@@ -14,7 +13,8 @@
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -22,8 +22,8 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
-import sys
 import os
+import sys
 import time
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
@@ -44,7 +44,7 @@ def list_ports():
         return 0
     print("%-8s %-34s %-12s %s" % ("口", "描述", "VID:PID", ""))
     for p in ports:
-        vidpid = "%04X:%04X" % (p.vid, p.pid) if (p.vid and p.pid) else "----:----"
+        vidpid = f"{p.vid:04X}:{p.pid:04X}" if (p.vid and p.pid) else "----:----"
         mark = "  <== 自动选中" if p.device == pick else ""
         print("%-8s %-34s %-12s %s" % (p.device, (p.description or "")[:34], vidpid, mark))
     if not pick:
@@ -56,7 +56,7 @@ def probe(port, baud, seconds):
     try:
         ser = serial_utils.open_serial(port, baud)
     except Exception as exc:
-        print("[PROBE] 打不开 %s：%s" % (port, exc))
+        print(f"[PROBE] 打不开 {port}：{exc}")
         print("        口被占用时用 scripts/serial_hub/serial_hub.py --list 查占用者（别 taskkill python）")
         return 1
     print("[PROBE] 已打开 %s @ %d 8N1，%ds 内尝试敲回车 ..." % (port, baud, seconds))
@@ -76,10 +76,10 @@ def probe(port, baud, seconds):
             if "@ramdump>" in buf
             else "没识别（可能没跑固件/被别的进程占着）"
         )
-        print("[PROBE] 判定：%s" % shape)
+        print(f"[PROBE] 判定：{shape}")
         tail = [ln for ln in buf.replace("\r", "").split("\n") if ln.strip()][-8:]
         for ln in tail:
-            print("   | %s" % ln)
+            print(f"   | {ln}")
         return 0 if ("msh />" in buf or "@ramdump>" in buf) else 1
     finally:
         ser.close()
@@ -89,11 +89,11 @@ def echo_check(port, baud):
     try:
         ser = serial_utils.open_serial(port, baud)
     except Exception as exc:
-        print("[ECHO] 打不开 %s：%s" % (port, exc))
+        print(f"[ECHO] 打不开 {port}：{exc}")
         return 1
     token = "ramdump_echo_12345"
     try:
-        print("[ECHO] 发 %r，看是否回显 ..." % token)
+        print(f"[ECHO] 发 {token!r}，看是否回显 ...")
         serial_utils.serial_send(ser, token)
         out = serial_utils.serial_read_until(ser, token, timeout=3.0)
         hit = token in out
@@ -121,7 +121,7 @@ def main(argv=None):
             print("没自动找到口，请用 --com 指定")
             return 2
         if not a.com:
-            print("[COM] 自动选中 %s" % port)
+            print(f"[COM] 自动选中 {port}")
         return probe(port, a.baud, a.seconds) if a.probe else echo_check(port, a.baud)
     p.print_help()
     return 0

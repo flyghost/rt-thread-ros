@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """纯渲染：把「状态 + 行缓冲」画成固定 w×h 的字符帧。
 
 这里**只做字符串**：不读键盘、不碰串口、不写文件，所以能离线断言
@@ -71,7 +70,7 @@ _EMPTY = ("", "")
 def _status(state, w, *, paused, flash, mode, sidebar, extra_status):
     st = state or {}
     parts = [
-        "%s@%s" % (st.get("com") or "?", st.get("baud") or "?"),
+        "{}@{}".format(st.get("com") or "?", st.get("baud") or "?"),
         "OK" if st.get("ser_ok") else "断开",
     ]
     if extra_status:
@@ -80,14 +79,14 @@ def _status(state, w, *, paused, flash, mode, sidebar, extra_status):
         "运行 %ds" % int(st.get("uptime") or 0),
         "会话 %d" % int(st.get("clients") or 0),
         "写锁 %s" % (st.get("owner") or "无"),
-        "收 %s" % human(int(st.get("rx") or 0)),
-        "发 %s" % human(int(st.get("tx") or 0)),
+        "收 {}".format(human(int(st.get("rx") or 0))),
+        "发 {}".format(human(int(st.get("tx") or 0))),
     ]
     if st.get("drop_locked"):
-        parts.append("丢(锁) %s" % human(int(st["drop_locked"])))
+        parts.append("丢(锁) {}".format(human(int(st["drop_locked"]))))
     if st.get("drop_proto"):
-        parts.append("协议吃掉 %s" % human(int(st["drop_proto"])))
-    parts.append("视图 %s%s" % (mode, "+侧栏" if sidebar else ""))
+        parts.append("协议吃掉 {}".format(human(int(st["drop_proto"]))))
+    parts.append("视图 {}{}".format(mode, "+侧栏" if sidebar else ""))
     if paused:
         parts.append("已暂停")
     if int(st.get("sink_errors") or 0):

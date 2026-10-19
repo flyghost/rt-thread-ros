@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """串口枚举与首选端口的编排层。
 
 这里**只做枚举、选取、打印**，不含任何厂商/型号知识 —— "什么样的端口算哪一类"
@@ -8,14 +7,11 @@
 
 from __future__ import annotations
 
-
 import sys
 
 from discovery import (
-    classify,
     preferred,
-    print_ports_table,  # noqa: F401
-    print_rules,
+    print_ports_table,
     scan,
 )
 
@@ -36,7 +32,7 @@ def autodetect_port(rules=()) -> str | None:
     """按规则表挑一个端口；挑不出来时把原因打到 stderr（要人来指定 --com）。"""
     port, rule, why = preferred(rules=rules, require_usb=not rules)
     if port is None:
-        print("[hub] 自动选择失败：%s" % why, file=sys.stderr)
+        print(f"[hub] 自动选择失败：{why}", file=sys.stderr)
         return None
-    print("[hub] 自动选中 %s（%s：%s）" % (port.brief(), rule.label or rule.name, why))
+    print(f"[hub] 自动选中 {port.brief()}（{rule.label or rule.name}：{why}）")
     return port.device

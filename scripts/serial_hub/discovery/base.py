@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """端口探测的两块积木：`PortInfo`（端口事实）与 `PortRule`（判定规则）。
 
 这个模块**不含任何具体厂商知识** —— 具体家族（各 USB 转串口芯片）在 `discovery/` 下
@@ -7,7 +6,6 @@
 """
 
 from __future__ import annotations
-
 
 import fnmatch
 from dataclasses import dataclass
@@ -35,7 +33,7 @@ class PortInfo:
     location: str | None = None
 
     @classmethod
-    def from_pyserial(cls, p) -> "PortInfo":
+    def from_pyserial(cls, p) -> PortInfo:
         g = lambda k: getattr(p, k, None)  # noqa: E731
         return cls(
             device=str(g("device") or ""),
@@ -53,7 +51,7 @@ class PortInfo:
     def vidpid(self) -> str:
         if self.vid is None or self.pid is None:
             return "----:----"
-        return "%04X:%04X" % (self.vid, self.pid)
+        return f"{self.vid:04X}:{self.pid:04X}"
 
     @property
     def is_usb(self) -> bool:
@@ -63,7 +61,7 @@ class PortInfo:
         return "USB" in (self.hwid or "").upper()
 
     def brief(self) -> str:
-        return "%s (%s)" % (self.device, self.description or "-")
+        return "{} ({})".format(self.device, self.description or "-")
 
 
 @dataclass(frozen=True)
@@ -90,18 +88,18 @@ class PortRule:
     def match(self, port: PortInfo) -> tuple[int, str]:
         """返回 (命中强度, 命中理由)；不命中返回 (MATCH_NONE, "")。"""
         if port.vid is not None and port.pid is not None and (port.vid, port.pid) in self.vid_pids:
-            return MATCH_VIDPID, "VID:PID=%s" % port.vidpid
+            return MATCH_VIDPID, f"VID:PID={port.vidpid}"
         up_hwid = (port.hwid or "").upper()
         for kw in self.hwid_keywords:
             if kw.upper() in up_hwid:
-                return MATCH_HWID, "硬件ID含 %s" % kw
+                return MATCH_HWID, f"硬件ID含 {kw}"
         low_desc = (port.description or "").lower()
         for kw in self.description_keywords:
             if kw.lower() in low_desc:
-                return MATCH_DESC, "描述含 %s" % kw
+                return MATCH_DESC, f"描述含 {kw}"
         for pat in self.device_patterns:
             if fnmatch.fnmatch(port.device.upper(), pat.upper()):
-                return MATCH_NAME, "串口名匹配 %s" % pat
+                return MATCH_NAME, f"串口名匹配 {pat}"
         return MATCH_NONE, ""
 
 
@@ -151,6 +149,6 @@ def parse_rule_spec(spec: str, priority: int = 100) -> PortRule:
                 vid_pids=((int(parts[0], 16), int(parts[1], 16)),),
             )
         except ValueError:
-            raise ValueError("VID:PID 不是十六进制：%r" % spec)
+            raise ValueError(f"VID:PID 不是十六进制：{spec!r}") from None
     # 兜底：当串口名用（COM7 这种最自然的写法）
     return PortRule(name="cli-name", label="命令行指定串口名", priority=priority, device_patterns=(text,))

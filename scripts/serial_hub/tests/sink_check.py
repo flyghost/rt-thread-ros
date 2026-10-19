@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """离线自检：事件层 + 内置 sink 的行为（**不需要串口 / COM 口**）。
 
 这是"把渲染搬进 sink"（TUI 第 1 步）的回归测试：直接构造 hub 的输出侧，
@@ -10,7 +9,8 @@
 
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _d = _os.path.abspath(__file__)
 while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
@@ -23,12 +23,14 @@ import os
 import shutil
 import sys
 import time
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, suppress
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))  # scripts/serial_hub
 
-from core.events import EV_HUB, EV_RX, EV_TX, Event  # noqa: E402
+from pathlib import Path
+
+from core.events import EV_RX, EV_TX, Event  # noqa: E402
 from core.relay import SerialHub  # noqa: E402
 from core.util import repo_root  # noqa: E402
 
@@ -95,7 +97,7 @@ def new_hub(stdout="rx", log=True):
 
 
 def read_bytes(path):
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         return f.read()
 
 
@@ -137,10 +139,10 @@ def main():
         good = got == want
         if not good:
             failed.append(name)
-        print("  [%s] %s" % ("OK  " if good else "FAIL", name))
+        print("  [{}] {}".format("OK  " if good else "FAIL", name))
         if not good:
-            print("        got  = %r" % (got,))
-            print("        want = %r" % (want,))
+            print(f"        got  = {got!r}")
+            print(f"        want = {want!r}")
 
     # ---------------- 1. 落盘：.raw 只含 RX，.log 双向 + hub 消息 ----------------
     print("=== 1. LogSink：.raw / .log ===")
@@ -252,10 +254,8 @@ if __name__ == "__main__":
         code = main()
     finally:
         for h in _HUBS:  # 先关掉日志句柄（Windows 上不关就删不掉目录）
-            try:
+            with suppress(Exception):
                 h.sinks.close()
-            except Exception:
-                pass
             for f in (getattr(h, "log_f", None), getattr(h, "raw_f", None)):
                 try:
                     if f:
