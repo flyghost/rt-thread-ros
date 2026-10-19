@@ -11,7 +11,7 @@ import contextlib
 import os
 from pathlib import Path
 
-from guard.config import ARM_GCC_BIN, CHILD_TMP, ENV_ROOT
+from rtros.guard.config import ARM_GCC_BIN, CHILD_TMP, ENV_ROOT
 
 
 def cmd_label(argv: list[str]) -> str:

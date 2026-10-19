@@ -17,7 +17,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
-from guard.config import (
+from rtros.guard.config import (
     CHILD_TMP,
     DEFAULT_BIN,
     DEFAULT_EXPIRES,
@@ -31,7 +31,7 @@ from guard.config import (
     TASKS,
     TASKS_FILE,
 )
-from guard.mailbox import (
+from rtros.guard.mailbox import (
     Mailbox,
     _atomic_write_json,
     _now_iso,
@@ -40,11 +40,11 @@ from guard.mailbox import (
     _say,
     _stamp,
 )
-from guard.procenv import child_env, cmd_label, max_mtime
-from guard.request import build_argv, validate_request
-from runtime.errors import ToolMissingError
-from runtime.proc import TimeoutExpired, popen
-from runtime.proc import run as run_cmd
+from rtros.guard.procenv import child_env, cmd_label, max_mtime
+from rtros.guard.request import build_argv, validate_request
+from rtros.runtime.errors import ToolMissingError
+from rtros.runtime.proc import TimeoutExpired, popen
+from rtros.runtime.proc import run as run_cmd
 
 
 class Guard:

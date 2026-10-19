@@ -22,7 +22,7 @@ _SCRIPTS = _Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in _s.path:
     _s.path.insert(0, str(_SCRIPTS))
 
-from firmware import pipeline as _pipeline  # noqa: E402
+from rtros.firmware import pipeline as _pipeline  # noqa: E402
 
 
 def build_and_flash(new_console: bool = False) -> bool:

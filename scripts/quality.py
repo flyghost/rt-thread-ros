@@ -27,12 +27,16 @@ _sys.pycache_prefix = str(_Path(__file__).resolve().parents[1] / "out" / "pycach
 
 import argparse  # noqa: E402
 import os  # noqa: E402
+import os as _os  # noqa: E402
 import sys  # noqa: E402
 import time  # noqa: E402
 from pathlib import Path  # noqa: E402
 
-from runtime import proc  # noqa: E402
-from runtime.errors import ToolMissingError  # noqa: E402
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 0), "src")
+)  # rtros 包（P2）：唯一的包导入根
+from rtros.runtime import proc  # noqa: E402
+from rtros.runtime.errors import ToolMissingError  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent

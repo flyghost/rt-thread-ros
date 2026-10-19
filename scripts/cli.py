@@ -41,7 +41,12 @@ _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from runtime import logging as log  # noqa: E402
+import os as _os  # noqa: E402
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 0), "src")
+)  # rtros 包（P2）：唯一的包导入根
+from rtros.runtime import logging as log  # noqa: E402
 
 # 命令表：(名字, 分组, 帮助, 目标)
 # 目标写成 "模块:函数" 的字符串，dispatch 时才 import —— 保证 `cli.py list` 秒回，
@@ -111,7 +116,7 @@ def _quality_pkg() -> Path:
 
 def _tool_versions() -> dict[str, str | None]:
     """四个工具的版本；先找仓内 `tools/pyquality/pkg`，找不到退回当前解释器环境。"""
-    from runtime import proc
+    from rtros.runtime import proc
 
     pkg = _quality_pkg()
     env = proc.child_env({"PYTHONPATH": str(pkg)}) if pkg.is_dir() else None
@@ -129,7 +134,7 @@ def _tool_versions() -> dict[str, str | None]:
 
 def _cmd_doctor(as_json: bool) -> int:
     """环境自检：解释器、仓根、质量工具、烧录器、串口。任何一项缺失只报告，退出码仍 0。"""
-    from firmware import config, pyocd
+    from rtros.firmware import config, pyocd
 
     started = time.time()
     ports: list[str] = []
@@ -173,7 +178,7 @@ def _cmd_doctor(as_json: bool) -> int:
 
 def _cmd_status(as_json: bool) -> int:
     """构建状态：入口、中间文件目录、产物目录、产物大小、pyocd 版本。"""
-    from firmware import config, pyocd
+    from rtros.firmware import config, pyocd
 
     bin_path = config.TARGET_BIN
     elf_path = config.TARGET_ELF

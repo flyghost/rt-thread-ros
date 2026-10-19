@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
-from runtime.errors import CommandFailed, ToolMissingError
+from rtros.runtime.errors import CommandFailed, ToolMissingError
 
 DEFAULT_TIMEOUT = 1800.0
 

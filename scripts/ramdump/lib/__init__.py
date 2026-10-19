@@ -10,7 +10,12 @@
 """
 
 import os
+import os as _os
 import sys
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 2), "src")
+)  # rtros 包（P2）：唯一的包导入根
 
 _HERE = os.path.dirname(os.path.abspath(__file__))  # scripts/ramdump/lib
 _ROOT = os.path.dirname(_HERE)  # scripts/ramdump

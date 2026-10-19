@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 
-from firmware.config import (
+from rtros.firmware.config import (
     ARTIFACT_DIR,
     BSP_DIR,
     BUILD_DIR,
@@ -21,7 +21,7 @@ from firmware.config import (
     SCONS_JOBS,
     VENV_PY,
 )
-from firmware.exec import run
+from rtros.firmware.exec import run
 
 
 def scons_env() -> dict[str, str]:

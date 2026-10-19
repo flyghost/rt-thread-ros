@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-# scripts/runtime/paths.py → parents[0]=runtime, [1]=scripts, [2]=仓库根
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+# scripts/src/rtros/runtime/paths.py → [0]=runtime [1]=rtros [2]=src [3]=scripts [4]=仓库根
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def repo_root() -> Path:

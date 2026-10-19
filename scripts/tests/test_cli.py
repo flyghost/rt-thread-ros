@@ -10,7 +10,7 @@ import json
 import pytest
 
 import cli
-from runtime import logging as rtlog
+from rtros.runtime import logging as rtlog
 
 
 @pytest.fixture(autouse=True)

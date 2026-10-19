@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
-from firmware import pyocd, scons
-from firmware.config import TARGET_BIN
+from rtros.firmware import pyocd, scons
+from rtros.firmware.config import TARGET_BIN
 
 
 def build_and_flash(jobs: int | None = None) -> bool:

@@ -13,7 +13,7 @@ import re
 import sys
 from pathlib import Path
 
-from guard.config import (
+from rtros.guard.config import (
     DEFAULT_BIN,
     DEFAULT_TARGET,
     PATHS,

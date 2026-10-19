@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import datetime
 
-from firmware import pyocd
-from firmware.config import (
+from rtros.firmware import pyocd
+from rtros.firmware.config import (
     ARTIFACT_DIR,
     BSP_DIR,
     BUILD_DIR,

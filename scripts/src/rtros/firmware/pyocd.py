@@ -12,7 +12,7 @@ import os
 import shutil
 from pathlib import Path
 
-from firmware.config import (
+from rtros.firmware.config import (
     OUT_BIN_DIR,
     PYOCD_FLASH_OPTS,
     PYOCD_PACK,
@@ -24,8 +24,8 @@ from firmware.config import (
     TARGET_ELF,
     TARGET_MAP,
 )
-from firmware.exec import run
-from runtime import proc
+from rtros.firmware.exec import run
+from rtros.runtime import proc
 
 
 class PyocdUnavailable(RuntimeError):

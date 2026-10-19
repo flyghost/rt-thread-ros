@@ -12,7 +12,12 @@ _SCRIPTS = Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from firmware import config as _fc  # noqa: E402
+import os as _os  # noqa: E402
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 2), "src")
+)  # rtros 包（P2）：唯一的包导入根
+from rtros.firmware import config as _fc  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = _fc.REPO_ROOT

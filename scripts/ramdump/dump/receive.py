@@ -24,9 +24,15 @@ from pathlib import Path  # noqa: E402
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
+import os as _os  # noqa: E402
+
 from lib import console, serial_utils, ymodem_receiver  # noqa: E402
 from lib.config import OUT_DUMP_DIR  # noqa: E402
 from lib.serial_utils import BAUDRATE  # noqa: E402
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 2), "src")
+)  # rtros 包（P2）：唯一的包导入根
 
 REGION_CMD = {
     "all": "ramdump",

@@ -81,7 +81,7 @@ line-ending = "lf"
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
-files = ["src", "firmware", "guard", "runtime", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "serial_hub", "ramdump"]
+files = ["src", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "services_table.py", "run_rtros.py", "serial_hub", "ramdump"]
 # src 布局：包的真实位置在 src/ 下，mypy 需要它才认得出 rtros.* 模块
 mypy_path = "src"
 # 测试脚本由 pytest 与 ruff 覆盖；mypy 只看生产代码（它们多是「带 main() 的脚本」）
@@ -94,12 +94,12 @@ check_untyped_defs = true
 warn_unused_ignores = true
 show_error_codes = true
 
-# 严格度按包分层：firmware/guard/runtime/cli 等新代码要求每个函数有注解；
-# serial_hub/ramdump 是存量代码（无 __init__.py，模块名不带包前缀），先只要求「不报类型冲突」。
+# 严格度按包分层：rtros.*（已包化，src 布局）与 scripts 顶层入口要求每个函数有注解；
+# serial_hub/ramdump 仍是存量代码（还没有 __init__.py，模块名不带包前缀），先只要求「不报类型冲突」。
 # 注意：没有 __init__.py 的目录，mypy 认不出 "serial_hub.*" 这种模块名，所以这里反向写：
 # 全局放宽 + 对现代包逐个收紧。
 [[tool.mypy.overrides]]
-module = ["firmware.*", "guard.*", "runtime.*", "cli", "quality", "ai_services", "check_bat"]
+module = ["rtros.*", "cli", "quality", "ai_services", "check_bat", "services_table"]
 disallow_untyped_defs = true
 
 # ---------------------------------------------------------------------------

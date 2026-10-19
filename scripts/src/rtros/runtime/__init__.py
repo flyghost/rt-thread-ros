@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from runtime.errors import CommandFailed, RtrosError, ToolMissingError, UserError
+from rtros.runtime.errors import CommandFailed, RtrosError, ToolMissingError, UserError
 
 __all__ = [
     "CommandFailed",

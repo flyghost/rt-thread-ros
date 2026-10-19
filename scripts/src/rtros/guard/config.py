@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rtros.paths import tool_root
+
 PROTOCOL = 1
 
-
-REPO = Path(__file__).resolve().parents[2]
-
+REPO = tool_root().parent
 
 TASKS_FILE = Path(__file__).resolve().with_name("tasks.toml")
 

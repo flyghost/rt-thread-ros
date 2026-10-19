@@ -21,13 +21,17 @@ from __future__ import annotations
 
 import contextlib
 import os
+import os as _os
 import socket
 import sys
 import unicodedata
 from pathlib import Path
 
-from runtime import proc
-from runtime.errors import ToolMissingError
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 0), "src")
+)  # rtros 包（P2）：唯一的包导入根
+from rtros.runtime import proc
+from rtros.runtime.errors import ToolMissingError
 from services_table import SERVICES, Service, find
 
 REPO = Path(__file__).resolve().parents[1]

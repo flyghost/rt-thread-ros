@@ -17,20 +17,16 @@
 退出码：0 成功，1 失败，2 用法错误。
 """
 
-# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（parents[2]），不做搜索
+# __pycache__ 统一写到仓库 out/pycache：仓库根由本文件位置直接推出（scripts/src/rtros/firmware → parents[4]），不做搜索
 import sys as _sys
 from pathlib import Path as _Path
 
-_sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycache")
+_sys.pycache_prefix = str(_Path(__file__).resolve().parents[4] / "out" / "pycache")
 
 import argparse  # noqa: E402
 import os  # noqa: E402
 import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
-
-_SCRIPTS = Path(__file__).resolve().parents[1]  # scripts/
-if str(_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS))
 
 COMMANDS = ("build", "flash", "build-flash", "clean", "menuconfig", "status")
 
@@ -59,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     elif a.project:
         os.environ["PROJECT"] = a.project
 
-    from firmware import pipeline, pyocd, scons, status
+    from rtros.firmware import pipeline, pyocd, scons, status
 
     if a.command == "build":
         return scons.build(a.jobs)

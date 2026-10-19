@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from runtime import proc
-from runtime.errors import ToolMissingError
+from rtros.runtime import proc
+from rtros.runtime.errors import ToolMissingError
 
 
 def run(argv: Sequence[str | Path], cwd: str | Path, env: dict[str, str]) -> int:

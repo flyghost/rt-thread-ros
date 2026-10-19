@@ -15,7 +15,13 @@ import sys  # noqa: E402
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))  # scripts/serial_hub
 
+import os as _os  # noqa: E402
+
 from protocols import RawCodec, TelnetCodec  # noqa: E402
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 2), "src")
+)  # rtros 包（P2）：唯一的包导入根
 
 
 def hx(b):

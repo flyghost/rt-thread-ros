@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from guard.config import (
+from rtros.guard.config import (
     DEFAULT_EXPIRES,
     DEFAULT_TARGET,
     DEFAULT_WAIT,
@@ -22,9 +22,9 @@ from guard.config import (
     TASKS,
     TASKS_FILE,
 )
-from guard.executor import Guard
-from guard.mailbox import Mailbox, _atomic_write_json, _pid_alive, _read_json
-from guard.request import validate_request
+from rtros.guard.executor import Guard
+from rtros.guard.mailbox import Mailbox, _atomic_write_json, _pid_alive, _read_json
+from rtros.guard.request import validate_request
 
 
 def cmd_status(mb: Mailbox) -> int:

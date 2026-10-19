@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from runtime.errors import UserError
+from rtros.runtime.errors import UserError
 
 
 def read_text(path: str | Path, *, default: str | None = None) -> str:

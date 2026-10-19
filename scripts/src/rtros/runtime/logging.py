@@ -6,7 +6,7 @@
 - 将来换成 JSON 输出（`--json`）时只改这一处。
 
 用法：
-    from runtime import logging as log
+    from rtros.runtime import logging as log
     log.setup("verbose")
     log.human("烧录完成：26 页")      # stdout，给人看的结果
     log.diag("scons 用时 12.3s")     # stderr，默认不显示

@@ -1,13 +1,13 @@
 """`rtros` 命令行入口：子命令总表 + 公共开关。
 
-P1 阶段只有 `version` 与 `paths` 两条自带命令；其余子命令在 P2 把旧模块搬进
-`src/rtros/` 后逐个接管。迁移期间旧入口（`scripts/cli.py`、`scripts/firmware/build.py`
-等）继续可用。
+自带命令：`version`、`paths`；转发命令：`build`（固件编译/烧录）、`guard`（沙箱外执行器）。
+转发只做 import + 调对方 `main()`，不复制业务逻辑。
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import sys
 from typing import Any
@@ -15,9 +15,17 @@ from typing import Any
 from rtros import __version__
 from rtros.paths import ENV_REPO, ProjectRootError, out_dir, project_root, tool_root
 
+# 转发目标：子命令 -> 模块名（模块内固定有 `main(argv)`）
+DELEGATES = {
+    "build": "rtros.firmware.build",
+    "guard": "rtros.guard.cli",
+}
+
 COMMANDS = {
     "version": "打印版本",
     "paths": "打印工具仓库根 / 工程根 / 产物与字节码目录（--json 机器可读）",
+    "build": "固件编译/烧录（等价 `rtros build|flash|build-flash|clean|menuconfig|status`）",
+    "guard": "沙箱外执行器（--status / --list / --request / --tasks）",
 }
 
 
@@ -69,9 +77,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """入口函数（console_scripts 与 `python -m rtros` 都走这里）。"""
+    """入口函数（console_scripts、`python -m rtros`、`scripts/run_rtros.py` 都走这里）。"""
+    args_in = list(sys.argv[1:] if argv is None else argv)
+
+    # 子系统的入口仍是各自的 main()：这里只做转发，不复制业务逻辑
+    if args_in and args_in[0] in DELEGATES:
+        module_name = DELEGATES[args_in[0]]
+        module = importlib.import_module(module_name)
+        return int(module.main(args_in[1:]))
+
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(args_in)
 
     if args.version or args.command == "version":
         return _cmd_version()

@@ -33,10 +33,16 @@ _REPO = os.path.dirname(os.path.dirname(_PKG))  # 仓库根
 if _PKG not in sys.path:
     sys.path.insert(0, _PKG)
 
+import os as _os  # noqa: E402
+
 from core.logstore import hexdump_text  # noqa: E402
 from tui import ansi as A  # noqa: E402
 from tui.app import TuiApp  # noqa: E402
 from tui.view import render  # noqa: E402
+
+sys.path.insert(
+    0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), *([".."] * 2), "src")
+)  # rtros 包（P2）：唯一的包导入根
 
 CHECKS = []
 

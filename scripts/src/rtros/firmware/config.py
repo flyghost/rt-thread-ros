@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 
 # ---- 仓库布局 ----------------------------------------------------------
-SCRIPTS_DIR = Path(__file__).resolve().parents[1]  # scripts/
+from rtros.paths import tool_root
+
+SCRIPTS_DIR = tool_root()  # scripts/（包化后位置由 rtros.paths 统一给出，别再数父级层数）
 REPO_ROOT = SCRIPTS_DIR.parent  # 仓库根
 TOOLS_DIR = REPO_ROOT / "tools"
 BSP_DIR = REPO_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
