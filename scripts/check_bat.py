@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -23,7 +24,7 @@ REPO = HERE.parent
 SKIP_DIRS = {".git", "third-party", "out", "build", "node_modules", "scratch", "pkg", "__pycache__"}
 
 
-def _iter_bats(root: Path):
+def _iter_bats(root: Path) -> Iterator[Path]:
     """按目录遍历所有 .bat/.cmd，跳过 SKIP_DIRS 里的目录。"""
     stack = [root]
     while stack:

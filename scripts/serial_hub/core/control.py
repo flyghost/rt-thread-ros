@@ -20,7 +20,7 @@ class ControlServer:
         self.hub = hub
         self.host = host
         self.port = port
-        self.sock = None
+        self.sock: socket.socket | None = None
 
     def start(self) -> bool:
         try:
@@ -44,6 +44,8 @@ class ControlServer:
     def _accept_loop(self) -> None:
         while self.hub.running:
             try:
+                if self.sock is None:
+                    break
                 conn, addr = self.sock.accept()
             except OSError:
                 break

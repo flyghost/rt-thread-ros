@@ -81,11 +81,21 @@ line-ending = "lf"
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
-files = ["firmware", "guard", "cli.py"]
+files = ["firmware", "guard", "runtime", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "serial_hub", "ramdump"]
+# 测试脚本由 pytest 与 ruff 覆盖；mypy 只看生产代码（它们多是「带 main() 的脚本」）
+exclude = '(^|.*/)(tests|test)/'
 ignore_missing_imports = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false  # 存量脚本（serial_hub/ramdump）不逐个补注解；现代包在下面 overrides 里收紧
 warn_unused_ignores = true
 show_error_codes = true
+
+# 严格度按包分层：firmware/guard/runtime/cli 等新代码要求每个函数有注解；
+# serial_hub/ramdump 是存量代码（无 __init__.py，模块名不带包前缀），先只要求「不报类型冲突」。
+# 注意：没有 __init__.py 的目录，mypy 认不出 "serial_hub.*" 这种模块名，所以这里反向写：
+# 全局放宽 + 对现代包逐个收紧。
+[[tool.mypy.overrides]]
+module = ["firmware.*", "guard.*", "runtime.*", "cli", "quality", "ai_services", "check_bat"]
+disallow_untyped_defs = true
 
 # ---------------------------------------------------------------------------
 # 测试

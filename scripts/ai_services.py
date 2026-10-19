@@ -130,8 +130,8 @@ def run_service(service: Service, extra: list[str]) -> int:
 
     if service.group:
         worst = 0
-        for argv in service.group:
-            code = run_argv(expand(argv, hub))
+        for group_argv in service.group:
+            code = run_argv(expand(group_argv, hub))
             if code != 0 and not service.allow_fail:
                 return code
             worst = max(worst, code)
@@ -214,7 +214,7 @@ def menu_loop() -> int:
 
 def main(argv: list[str]) -> int:
     with contextlib.suppress(AttributeError, OSError):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
     args = list(argv)
     if not args:

@@ -338,6 +338,14 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 | `.github/workflows/ci.yml` | CI：质量门 + 固件编译 |
 | `.editorconfig` | 编辑器层面：Python LF/4 空格；`.bat` CRLF |
 
+**mypy 覆盖范围与严格度是分层的**（都在 `scripts/pyproject.toml` 里）：
+
+| 项 | 现状 | 为什么 |
+|---|---|---|
+| 覆盖 | 81 个文件（`firmware` `guard` `runtime` `cli.py` `quality.py` `ai_services.py` `check_bat.py` `serial_hub` `ramdump`） | 生产代码全覆盖；`exclude = '(^|.*/)(tests\|test)/'` 把测试脚本排除（它们由 pytest/ruff 管） |
+| 严格度 | `firmware.*` `guard.*` `runtime.*` `cli` `quality` `ai_services` `check_bat` 开 `disallow_untyped_defs`；`serial_hub` `ramdump` 只查函数体 | 前一组是新写的、注解齐全；后一组是历史代码 |
+| 为什么不用 `module = ["serial_hub.*"]` | 匹配不上 | 这两个包**没有 `__init__.py`**，mypy 认出的模块名是 `core.hub_base`、`lib.ymodem_receiver`（不带包前缀），所以只能「全局放宽 + 现代包逐个收紧」 |
+
 ### 11.4 CI（`.github/workflows/ci.yml`）
 
 | job | 内容 | 阻塞？ |

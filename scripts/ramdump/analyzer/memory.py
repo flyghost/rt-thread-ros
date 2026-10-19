@@ -27,7 +27,7 @@ def load_memory(path: str) -> bytes | None:
 
 def load_elf_symbols(elf_path: str) -> dict[int, str]:
     """Extract function symbols from an ELF file."""
-    symbols = {}
+    symbols: dict[int, str] = {}
     if not HAS_ELFTOOLS:
         print("Warning: pyelftools not installed. Symbol resolution disabled.")
         return symbols

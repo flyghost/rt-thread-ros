@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """环形缓冲：给 UI 面板用的「最近 N 字节 / N 行」，与 hub 状态解耦。
 
 刻意做成纯数据结构（无锁、无 IO、无线程）：
@@ -11,6 +12,7 @@
 
 from __future__ import annotations
 
+import builtins
 import collections
 
 
@@ -19,7 +21,7 @@ class ByteRing:
 
     def __init__(self, max_bytes: int = 65536):
         self.max_bytes = max(1024, int(max_bytes))
-        self._chunks = collections.deque()
+        self._chunks: collections.deque[bytes] = collections.deque()
         self._size = 0
         self.dirty = False
 
@@ -56,7 +58,7 @@ class ByteRing:
     def bytes(self) -> bytes:
         return b"".join(self._chunks)
 
-    def tail(self, n: int) -> bytes:
+    def tail(self, n: int) -> builtins.bytes:
         return self.bytes()[-n:] if n > 0 else b""
 
 
@@ -65,7 +67,7 @@ class LineRing:
 
     def __init__(self, max_lines: int = 2000):
         self.max_lines = max(16, int(max_lines))
-        self._lines = collections.deque(maxlen=self.max_lines)
+        self._lines: collections.deque[str] = collections.deque(maxlen=self.max_lines)
         self.dirty = False
 
     def add(self, line: str) -> None:

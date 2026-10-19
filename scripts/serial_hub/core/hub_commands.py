@@ -129,13 +129,13 @@ class CommandsMixin(HubBase):
             name = rest[1].lower()
             if name not in CODECS:
                 return "# err: 不支持的协议 {!r}（可选 {}）".format(name, "/".join(sorted(CODECS)))
-            c = self.clients.get(target)
-            if c is None:
+            sess = self.clients.get(target)
+            if sess is None:
                 return f"# err: 没有会话 {target:d}"
-            c.use_proto(name)
-            c.flush_held_out()
-            self.log(f"[hub] 会话 {c.name} 协议切换 -> {name}")
-            return f"# ok: {c.name} 协议 = {name}"
+            sess.use_proto(name)
+            sess.flush_held_out()
+            self.log(f"[hub] 会话 {sess.name} 协议切换 -> {name}")
+            return f"# ok: {sess.name} 协议 = {name}"
         if verb == "kill":
             if not rest:
                 return "# err: kill <cid>（见 sessions）"
@@ -143,11 +143,11 @@ class CommandsMixin(HubBase):
                 target = int(rest[0])
             except ValueError:
                 return "# err: kill 参数要是会话号"
-            c = self.clients.get(target)
-            if c is None:
+            sess = self.clients.get(target)
+            if sess is None:
                 return f"# err: 没有会话 {target:d}"
-            name = c.name
-            self.drop_client(c, "被控制口踢出")
+            name = sess.name
+            self.drop_client(sess, "被控制口踢出")
             return f"# ok: 已断开 {name}"
         if verb in ("shutdown", "quit", "exit"):
             if source != "control":

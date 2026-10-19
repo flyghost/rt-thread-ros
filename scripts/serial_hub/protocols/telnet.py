@@ -61,7 +61,7 @@ class TelnetCodec(Codec):
         self._st = "data"  # data | iac | opt | sb | sb_iac
         self._cmd = 0
         self._last_cr = False  # 客户端方向：上一个字节是 CR
-        self.notes = []  # 协商轨迹（人类可读），由 hub 打日志
+        self.notes: list[str] = []  # 协商轨迹（人类可读），由 hub 打日志
 
     def decode(self, data: bytes) -> tuple[bytes, bytes]:
         out = bytearray()

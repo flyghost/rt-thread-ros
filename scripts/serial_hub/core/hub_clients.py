@@ -89,7 +89,8 @@ class ClientsMixin(HubBase):
         self.next_cid += 1
         self.clients[c.cid] = c
         self.sel.register(conn, SEL_READ, ("data", c))
-        greet = c.codec.greeting()
+        codec = c.codec
+        greet = codec.greeting() if codec is not None else b""
         if greet:
             c.feed_raw(greet)
             self.log(f"[hub] {c.name} 主动协商 {esc(greet)}（WILL ECHO / WILL SGA / DO SGA，未转发给串口）")
@@ -132,8 +133,11 @@ class ClientsMixin(HubBase):
         c.rx += len(data)
         if c.codec is None:
             self.decide_proto(c, data)
-        to_board, reply = c.codec.decode(data)
-        notes = getattr(c.codec, "notes", None)
+            if c.codec is None:
+                return
+        codec = c.codec
+        to_board, reply = codec.decode(data)
+        notes = getattr(codec, "notes", None)
         if notes:
             self.log("[hub] {} 协商：{}".format(c.name, " | ".join(notes)))
             del notes[:]
