@@ -96,3 +96,4 @@ os/rt-thread/components/drivers/usb/cherryusb/class/mtp/test.py
 
 # Python 质量工具安装产物（ruff + mypy，用 tools/pyquality/install.py 复现）
 /tools/pyquality/pkg/
+pytest-cache-files-*/

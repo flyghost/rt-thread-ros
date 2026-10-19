@@ -85,7 +85,7 @@ show_error_codes = true
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers -p no:cacheprovider"
 testpaths = ["ramdump/test", "serial_hub/tests"]
 python_files = ["test_*.py", "*_test.py"]
 markers = [
