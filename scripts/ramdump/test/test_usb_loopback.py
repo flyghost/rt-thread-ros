@@ -10,8 +10,8 @@
 前置：设备侧已经进 USB dump CLI，并在该 CDC 口上敲过 `vcom` 进入回环模式。
 """
 
-# __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
-# 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
+# __pycache__ 统一写到仓库 out/pycache：sys.pycache_prefix 只影响之后的 import，
+# 因此必须放在任何本地 import 之前（docstring / from __future__ 之后）。
 import os as _os
 import sys as _sys
 

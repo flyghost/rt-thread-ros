@@ -16,7 +16,8 @@ projects/<name>/         # 项目层：一块板 + 一套配置 + 一套自有�
                          #   当前只有 base（出厂基线）；板级硬件仍只有 bsp/stm32/<board>/ 一份
 scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；guard/ 沙箱外守卫；
                          #   ramdump/ 采集与解析；serial_hub/ 串口服务器）
-out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin/<入口名>/（elf/map/bin）、dump、trace32 样本（全部 gitignore）
+out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin/<入口名>/（elf/map/bin）、
+                         #   out/pycache/（所有入口的 __pycache__ 都引到这里）、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
 构建接入：路径契约在 `bsp/stm32/tools/bsp_paths.py`，构建逻辑在 `bsp/stm32/tools/bsp_build.py`；各板 `SConstruct`

@@ -15,7 +15,8 @@
     python scripts\\ramdump\\build\\build.py --menuconfig
 """
 
-# __pycache__ 统一写到仓库的 out/pycache
+# __pycache__ 统一写到仓库 out/pycache：sys.pycache_prefix 只影响之后的 import，
+# 因此必须放在任何本地 import 之前（docstring / from __future__ 之后）。
 import os as _os
 import sys as _sys
 
