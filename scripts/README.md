@@ -412,29 +412,57 @@ _sys.pycache_prefix = str(_Path(__file__).resolve().parents[2] / "out" / "pycach
 2. **用 `parents[N]`，不许搜索标记文件**：曾经写成「向上找 `.git` 或 `AGENTS.md`」，结果被 `scripts/AGENTS.md`（本仓自己的规范模板）骗到，字节码分裂成 `out/pycache` 与 `scripts/out/pycache` 两处。`tests/test_layout.py` 里有参数化用例守着这条。
 3. **子进程用环境变量**：`scripts/quality.py` 给子进程设 `PYTHONPYCACHEPREFIX=<repo>/out/pycache`，pytest/ruff/mypy 收集模块时不会再往源码树写。
 
-### 12.2 `rtros` 包（P1 骨架，迁移中）
+### 12.2 `rtros` 包（可安装的单一入口）
 
-`scripts/src/rtros/` 是「未来独立仓库」的包本体；现在已能跑：
+`scripts/` 已是一个 src 布局的包，全部代码在 `scripts/src/rtros/`。两种用法：
 
-| 命令 | 作用 |
+| 用法 | 命令 | 适用 |
+|---|---|---|
+| 仓内 venv（推荐） | `python tools/pyenv/install.py --venv` 一次，之后 `out\venv\Scripts\rtros.cmd <子命令>` | 本机 / 受限环境；不碰系统 site-packages |
+| 当前解释器 editable | `python tools/pyenv/install.py` | 普通开发机（需要 pip 可写 site-packages） |
+| 不安装直接跑 | `python scripts/run_rtros.py <子命令>` | 临时用、CI、其它脚本转发 |
+
+`--venv` 做三件事（都在仓内，`out/` 已 gitignore）：
+
+1. `python -m venv --without-pip --system-site-packages out/venv`
+   —— **不用 ensurepip**：受限环境里它写临时目录会失败（ACL），而 `--system-site-packages`
+   能让 venv 直接看到已装的 `pyserial` / `pyelftools`；
+2. 在 `out/venv/Lib/site-packages/` 写 `rtros_dev.pth`，内容是 `scripts/src` 的绝对路径
+   —— 等价于 `pip install -e` 的效果，改了源码立即生效；
+3. 生成 `out/venv/Scripts/rtros.cmd`（纯 ASCII + CRLF，131 B），内容就是
+   `"%~dp0python.exe" -m rtros %*`。
+
+子命令与旧脚本的对应：
+
+| `rtros` 子命令 | 等价旧入口 |
 |---|---|
-| `python scripts/run_rtros.py --version` | 打印版本（装了 editable 就是 `rtros --version`，`python -m rtros` 也行） |
-| `python scripts/run_rtros.py paths` | 打印工具仓库根 / 工程根 / `out/{build,bin,pycache}`；`--json` 机器可读 |
-| 无工程根时（上面两条命令） | 退 1，并在 `project_root_error` 里说明该设 `RTROS_REPO` 还是放 `.rtros-root` |
+| `build` / `flash` / `build-flash` / `clean` / `menuconfig` / `status` | `scripts/run_rtros.py build <子命令>` |
+| `guard` | `scripts/run_rtros.py guard` |
+| `hub` | `scripts/run_rtros.py hub` |
+| `dump` / `recv` / `analyze` | `scripts/run_rtros.py dump|recv|analyze` |
+| `paths` / `version` / `--help` | —（包自带） |
 
-入口文件叫 `run_rtros.py` 而不是 `rtros.py`：后者会与包名 `rtros` 同名，`import rtros` 先命中脚本本身，把包遮住（实测报 `'rtros' is not a package`）。
+验证过的例子（仓内 venv）：
 
-工程根解析规则（`src/rtros/paths.py`，全仓唯一来源）：`RTROS_REPO` 环境变量 → 从当前目录向上找 `.git` 或 `.rtros-root` → 报错。**不猜路径、不写死父级层数。**
-
-装成 `rtros` 命令（可选，P3 统一解释器后会固定下来）：
-
-```bash
-python tools/pyenv/install.py          # 以 editable 方式装进当前解释器
-python tools/pyenv/install.py --check  # 只查是否已装
+```powershell
+python tools/pyenv/install.py --venv          # 建环境 + rtros.cmd
+python tools/pyenv/install.py --check-venv    # [pyenv] 仓内 venv 可用：rtros 0.1.0
+out\venv\Scripts\rtros.cmd --version        # rtros 0.1.0
+out\venv\Scripts\rtros.cmd build status     # 打印入口 / 中间目录 / 固件 / pyocd
+out\venv\Scripts\rtros.cmd build            # scons: out\bin\base\rt-thread.elf is up to date
+out\venv\Scripts\rtros.cmd hub --list       # 列串口
 ```
 
-注意：受限环境里 `pip` 的构建隔离会因临时目录 ACL 失败，所以这个安装器在调 pip 前替换了 `tempfile.mkdtemp`，并且走**进程内** pip（子进程管道会被拦）。
+**质量门**仍走 `quality.py`（它自己给子进程注入 `PYTHONPATH=tools/pyquality/pkg`）：
 
+```powershell
+out\venv\Scripts\python.exe scripts\quality.py all   # 实测四门全 PASS
+```
+
+已知限制：venv 里**没有** ruff / mypy / pytest 本体（它们是开发工具，装在
+`tools/pyquality/pkg`），所以 `out\venv\Scripts\python.exe -m pytest` 会报
+`No module named pytest` —— 要么用 `quality.py`，要么用装了开发工具的解释器。
+SCons 也仍跑在 `rtros.toml` 的 `[build].toolchain_root` 那个 venv 里。
 
 ## 13. 工程清单 `rtros.toml`（本仓事实的唯一来源）
 
