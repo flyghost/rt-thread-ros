@@ -20,6 +20,9 @@ out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin
                          #   out/pycache/（所有入口的 __pycache__ 都引到这里）、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
+**`scripts/` 是独立工具仓 `toolbelt` 的子模块**（`https://github.com/flyghost/toolbelt.git`）：
+改工具要在 `scripts/` 里提交并 push，再回本仓提交一次子模块指针；`git clone` 本仓需 `--recurse-submodules`。
+
 **本仓事实（板子 / 工具链 / 芯片 / 串口）在工程根的 `rtros.toml`**，Python 工具侧由
 `scripts/src/rtros/manifest.py` 读取校验；换板或换机器只改它，`scripts/` 不动。
 
