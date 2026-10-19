@@ -9,9 +9,7 @@
 from __future__ import annotations
 
 import contextlib
-import json
 import os
-import re
 import sys
 import threading
 import time
@@ -20,11 +18,9 @@ from datetime import datetime
 from pathlib import Path
 
 from guard.config import (
-    ARM_GCC_BIN,
     CHILD_TMP,
     DEFAULT_BIN,
     DEFAULT_EXPIRES,
-    ENV_ROOT,
     HEARTBEAT_SECONDS,
     POLL_SECONDS,
     PROTOCOL,
@@ -35,139 +31,20 @@ from guard.config import (
     TASKS,
     TASKS_FILE,
 )
+from guard.mailbox import (
+    Mailbox,
+    _atomic_write_json,
+    _now_iso,
+    _pid_alive,
+    _read_json,
+    _say,
+    _stamp,
+)
+from guard.procenv import child_env, cmd_label, max_mtime
 from guard.request import build_argv, validate_request
 from runtime.errors import ToolMissingError
 from runtime.proc import TimeoutExpired, popen
 from runtime.proc import run as run_cmd
-
-
-def _say(msg: str) -> None:
-    print(msg, flush=True)
-
-
-def _stamp() -> str:
-    return datetime.now().strftime("%H:%M:%S")
-
-
-def _now_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
-
-
-def _atomic_write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.parent / (path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def _atomic_write_json(path: Path, obj: dict) -> None:
-    _atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=2))
-
-
-def _read_json(path: Path) -> dict | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
-
-
-def _pid_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        import ctypes
-
-        k32 = ctypes.windll.kernel32
-        h = k32.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
-        if not h:
-            return False
-        code = ctypes.c_ulong(0)
-        ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
-        k32.CloseHandle(h)
-        return bool(ok) and code.value == 259  # STILL_ACTIVE
-    except Exception:
-        return False
-
-
-class Mailbox:
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.lock = root / "guard.lock"
-        self.heartbeat = root / "heartbeat.json"
-        self.running = root / "running.json"
-
-    def ensure(self) -> None:
-        self.root.mkdir(parents=True, exist_ok=True)
-
-    def req(self, n: int) -> Path:
-        return self.root / f"req_{n:04d}.json"
-
-    def rep(self, n: int) -> Path:
-        return self.root / f"rep_{n:04d}.json"
-
-    def log(self, n: int) -> Path:
-        return self.root / f"rep_{n:04d}.log"
-
-    def ids(self) -> list[int]:
-        out: list[int] = []
-        if not self.root.is_dir():
-            return out
-        for p in self.root.glob("req_*.json"):
-            m = re.match(r"req_(\d{4,})\.json$", p.name)
-            if m:
-                out.append(int(m.group(1)))
-        return sorted(out)
-
-    def pending(self) -> list[int]:
-        return [n for n in self.ids() if not self.rep(n).exists()]
-
-    def next_id(self) -> int:
-        ids = self.ids()
-        return (ids[-1] + 1) if ids else 1
-
-
-def _cmd_label(argv: list[str]) -> str:
-    """给人看的命令标签：`python.exe -m SCons`、`pyocd flash`，别只写解释器名。"""
-    exe = Path(argv[0]).name
-    if "-m" in argv:
-        i = argv.index("-m")
-        if i + 1 < len(argv):
-            return f"{exe} -m {argv[i + 1]}"
-    if "pyocd" in exe.lower():
-        return "pyocd " + (argv[1] if len(argv) > 1 else "")
-    return exe
-
-
-def child_env() -> dict:
-    env = dict(os.environ)
-    env["PYTHONIOENCODING"] = "utf-8"
-    env["PYTHONUNBUFFERED"] = "1"
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
-    if ENV_ROOT.is_dir():
-        env["ENV_ROOT"] = str(ENV_ROOT)
-        env["RTT_CC"] = "gcc"
-        if ARM_GCC_BIN.is_dir():
-            env["RTT_EXEC_PATH"] = str(ARM_GCC_BIN)
-            env["PATH"] = str(ARM_GCC_BIN) + os.pathsep + env.get("PATH", "")
-    # PyInstaller 打包的 pyocd.exe 启动时要先把自己解包到临时目录。**不要相信继承来的
-    # TEMP/TMP**：实测某个窗口带着已失效的 per-session 临时路径，pyocd 直接报
-    # "[18336] INTERNAL ERROR: cannot create temporary directory!" 并退 -1。
-    # 这里钉到仓库内的 out/tmp —— 谁能写仓库，谁就能写它。
-    try:
-        CHILD_TMP.mkdir(parents=True, exist_ok=True)
-        env["TEMP"] = env["TMP"] = env["TMPDIR"] = str(CHILD_TMP)
-    except OSError:
-        pass
-    return env
-
-
-def _self_mtime() -> float:
-    """脚本与任务表里最新的 mtime —— 发现「代码/配置更新了，进程还在跑老版本」。"""
-    newest = 0.0
-    for path in (Path(__file__), TASKS_FILE):
-        with contextlib.suppress(OSError):
-            newest = max(newest, path.stat().st_mtime)
-    return newest
 
 
 class Guard:
@@ -295,7 +172,7 @@ class Guard:
                 log.write(head + "\n")
                 log.flush()
                 _say(
-                    f"[{_stamp()}]   phase {phase}/{len(cmds)}: {_cmd_label(argv)} …（上限 {int(total_to)}s）"
+                    f"[{_stamp()}]   phase {phase}/{len(cmds)}: {cmd_label(argv)} …（上限 {int(total_to)}s）"
                 )
 
                 try:
@@ -437,12 +314,12 @@ class Guard:
         _say(f"[{_stamp()}] 待处理：{pending if pending else '无'}    把窗口开着就行，Ctrl+C 退出")
         _say("-" * 78)
 
-        code_mtime = _self_mtime()
+        code_mtime = max_mtime((Path(__file__), TASKS_FILE))
         reloads = 0
         try:
             while True:
                 # 长驻进程只认启动那刻加载的代码；改了脚本就该自动换一份，而不是让人再关窗口重开
-                new_mtime = _self_mtime()
+                new_mtime = max_mtime((Path(__file__), TASKS_FILE))
                 if new_mtime and new_mtime != code_mtime:
                     reloads += 1
                     if reloads <= 3:

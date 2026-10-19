@@ -22,7 +22,8 @@ from guard.config import (
     TASKS,
     TASKS_FILE,
 )
-from guard.executor import Guard, Mailbox, _atomic_write_json, _pid_alive, _read_json
+from guard.executor import Guard
+from guard.mailbox import Mailbox, _atomic_write_json, _pid_alive, _read_json
 from guard.request import validate_request
 
 
