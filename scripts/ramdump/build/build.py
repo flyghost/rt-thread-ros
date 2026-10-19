@@ -32,7 +32,7 @@ _SCRIPTS = Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from firmware import tools  # noqa: E402
+from firmware import pipeline, pyocd, scons  # noqa: E402
 
 
 def main(argv=None) -> int:
@@ -47,14 +47,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     if a.clean:
-        return tools.clean()
+        return scons.clean()
     if a.menuconfig:
-        return tools.menuconfig()
+        return scons.menuconfig()
     if a.flash_only:
-        return tools.flash()
+        return pyocd.flash()
     if a.flash:
-        return 0 if tools.build_and_flash() else 1
-    return tools.build()
+        return 0 if pipeline.build_and_flash() else 1
+    return scons.build()
 
 
 if __name__ == "__main__":

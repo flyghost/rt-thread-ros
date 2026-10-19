@@ -55,27 +55,26 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--board", action="store_true", help="直接编译板级 BSP（等价 PROJECT=none）")
     a = ap.parse_args(argv)
 
-    # config 在 import 时读取 PROJECT，所以必须先定好环境再导入 tools
+    # config 在 import 时读取 PROJECT，所以必须先定好环境再导入业务模块
     if a.board:
         _os.environ["PROJECT"] = "none"
     elif a.project:
         _os.environ["PROJECT"] = a.project
 
-    from firmware import tools
+    from firmware import pipeline, pyocd, scons, status
 
     if a.command == "build":
-        return tools.build(a.jobs)
+        return scons.build(a.jobs)
     if a.command == "clean":
-        return tools.clean()
+        return scons.clean()
     if a.command == "menuconfig":
-        return tools.menuconfig()
+        return scons.menuconfig()
     if a.command == "status":
-        return tools.status()
+        return status.report()
     if a.command == "flash":
-        return tools.flash(Path(a.bin) if a.bin else None)
+        return pyocd.flash(Path(a.bin) if a.bin else None)
     if a.command == "build-flash":
-        ok = tools.build_and_flash(a.jobs)
-        return 0 if ok else 1
+        return 0 if pipeline.build_and_flash(a.jobs) else 1
     ap.print_usage(sys.stderr)
     return 2
 

@@ -26,7 +26,7 @@ _SCRIPTS = _Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in _s.path:
     _s.path.insert(0, str(_SCRIPTS))
 
-from firmware import tools as _tools  # noqa: E402
+from firmware import pipeline as _pipeline  # noqa: E402
 
 
 def build_and_flash(new_console: bool = False) -> bool:
@@ -41,7 +41,7 @@ def build_and_flash(new_console: bool = False) -> bool:
     """
     if new_console:
         print("[builder] new_console 已废弃（不再经过 bat），本次仍在当前窗口输出")
-    return _tools.build_and_flash()
+    return _pipeline.build_and_flash()
 
 
 if __name__ == "__main__":
