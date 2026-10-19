@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from lib import ymodem_receiver
-from lib.ymodem_protocol import (
+
+from rtros.ramdump.lib import ymodem_receiver
+from rtros.ramdump.lib.ymodem_protocol import (
     ACK,
     BLOCK0_SIZE,
     CRC,

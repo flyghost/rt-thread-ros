@@ -69,7 +69,8 @@ ignore = [
 # 测试与一次性检查脚本不要求 docstring
 "tests/*" = ["D101"]
 "*/tests/*" = ["D101"]
-"ramdump/test/*" = ["D101"]
+"src/rtros/serial_hub/tests/*" = ["D101"]
+"src/rtros/ramdump/test/*" = ["D101"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -81,7 +82,7 @@ line-ending = "lf"
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.11"
-files = ["src", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "services_table.py", "run_rtros.py", "serial_hub", "ramdump"]
+files = ["src", "cli.py", "quality.py", "ai_services.py", "check_bat.py", "services_table.py", "run_rtros.py"]
 # src 布局：包的真实位置在 src/ 下，mypy 需要它才认得出 rtros.* 模块
 mypy_path = "src"
 # 测试脚本由 pytest 与 ruff 覆盖；mypy 只看生产代码（它们多是「带 main() 的脚本」）
@@ -99,7 +100,7 @@ show_error_codes = true
 # 注意：没有 __init__.py 的目录，mypy 认不出 "serial_hub.*" 这种模块名，所以这里反向写：
 # 全局放宽 + 对现代包逐个收紧。
 [[tool.mypy.overrides]]
-module = ["rtros.*", "cli", "quality", "ai_services", "check_bat", "services_table"]
+module = ["rtros.firmware.*", "rtros.guard.*", "rtros.runtime.*", "rtros.cli", "rtros.paths", "cli", "quality", "ai_services", "check_bat", "services_table"]
 disallow_untyped_defs = true
 
 # ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ disallow_untyped_defs = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-q --strict-markers -p no:cacheprovider"
-testpaths = ["tests", "ramdump/test", "serial_hub/tests"]
+testpaths = ["tests", "src/rtros/ramdump/test", "src/rtros/serial_hub/tests"]
 python_files = ["test_*.py", "*_test.py"]
 markers = [
     "hw: 需要真实硬件（板子/串口/调试器）的测试，默认不跑",

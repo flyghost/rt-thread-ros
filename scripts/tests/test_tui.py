@@ -6,8 +6,9 @@ import io
 from contextlib import redirect_stdout
 
 import pytest
-from core.events import Event
-from tui.app import TuiApp
+
+from rtros.serial_hub.core.events import Event
+from rtros.serial_hub.tui.app import TuiApp
 
 
 @pytest.fixture

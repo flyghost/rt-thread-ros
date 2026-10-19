@@ -15,18 +15,11 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[1]
 REPO = SCRIPTS.parent
 
-# 导入根：src/ 是 rtros 包的源码位置（等价于 `pip install -e scripts` 后的效果）；
-# 其余三套是历史遗留（P2 搬包后会删掉），测试里先统一补齐。
-for _root in (
-    SCRIPTS / "src",
-    SCRIPTS,
-    SCRIPTS / "serial_hub",
-    SCRIPTS / "ramdump",
-    SCRIPTS / "ramdump" / "analyzer",
-):
-    _path = str(_root)
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
+# 导入根：src/ 是 rtros 包的源码位置（等价于 `pip install -e scripts` 后的效果）。
+# 包化之后不再需要 serial_hub / ramdump / analyzer 那几套历史导入根。
+_SRC = SCRIPTS / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 
 @pytest.fixture

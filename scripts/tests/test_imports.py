@@ -38,54 +38,54 @@ for _name in (
     CASES.append((str(SCRIPTS), _name))
 
 for _name in (
-    "core.relay",
-    "core.hub_base",
-    "core.hub_serial",
-    "core.hub_clients",
-    "core.hub_commands",
-    "core.hub_state",
-    "core.control",
-    "core.session",
-    "core.sinks",
-    "core.events",
-    "core.logstore",
-    "core.util",
-    "core.ringbuf",
-    "discovery",
-    "protocols",
-    "serial_hub",
-    "tui.app",
-    "tui.base",
-    "tui.buffer",
-    "tui.render",
-    "tui.input",
-    "tui.output",
-    "tui.view",
-    "tui.keys",
+    "rtros.serial_hub.core.relay",
+    "rtros.serial_hub.core.hub_base",
+    "rtros.serial_hub.core.hub_serial",
+    "rtros.serial_hub.core.hub_clients",
+    "rtros.serial_hub.core.hub_commands",
+    "rtros.serial_hub.core.hub_state",
+    "rtros.serial_hub.core.control",
+    "rtros.serial_hub.core.session",
+    "rtros.serial_hub.core.sinks",
+    "rtros.serial_hub.core.events",
+    "rtros.serial_hub.core.logstore",
+    "rtros.serial_hub.core.util",
+    "rtros.serial_hub.core.ringbuf",
+    "rtros.serial_hub.discovery",
+    "rtros.serial_hub.protocols",
+    "rtros.serial_hub",
+    "rtros.serial_hub.tui.app",
+    "rtros.serial_hub.tui.base",
+    "rtros.serial_hub.tui.buffer",
+    "rtros.serial_hub.tui.render",
+    "rtros.serial_hub.tui.input",
+    "rtros.serial_hub.tui.output",
+    "rtros.serial_hub.tui.view",
+    "rtros.serial_hub.tui.keys",
 ):
     CASES.append((str(SCRIPTS / "serial_hub"), _name))
 
 for _name in (
-    "lib.builder",
-    "lib.config",
-    "lib.console",
-    "lib.serial_utils",
-    "lib.ymodem_protocol",
-    "lib.ymodem_session",
-    "lib.ymodem_receiver",
+    "rtros.ramdump.lib.builder",
+    "rtros.ramdump.lib.config",
+    "rtros.ramdump.lib.console",
+    "rtros.ramdump.lib.serial_utils",
+    "rtros.ramdump.lib.ymodem_protocol",
+    "rtros.ramdump.lib.ymodem_session",
+    "rtros.ramdump.lib.ymodem_receiver",
 ):
     CASES.append((str(SCRIPTS / "ramdump"), _name))
 
 for _name in (
-    "ramdump_analyzer",
-    "model",
-    "memory",
-    "analysis",
-    "report",
-    "arm_backtrace",
-    "rtthread_parser",
+    "rtros.ramdump.analyzer.ramdump_analyzer",
+    "rtros.ramdump.analyzer.model",
+    "rtros.ramdump.analyzer.memory",
+    "rtros.ramdump.analyzer.analysis",
+    "rtros.ramdump.analyzer.report",
+    "rtros.ramdump.analyzer.arm_backtrace",
+    "rtros.ramdump.analyzer.rtthread_parser",
 ):
-    CASES.append((str(SCRIPTS / "ramdump" / "analyzer"), _name))
+    CASES.append((str(SCRIPTS / "ramdump" / "rtros.ramdump.analyzer"), _name))
 
 
 @pytest.mark.parametrize(("root", "module"), CASES, ids=[f"{m}" for _, m in CASES])

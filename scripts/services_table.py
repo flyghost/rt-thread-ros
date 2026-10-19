@@ -70,7 +70,7 @@ SERVICES: tuple[Service, ...] = (
         group=(
             ("{python}", "scripts/run_rtros.py", "status"),
             ("{python}", "scripts/run_rtros.py", "guard", "--status"),
-            ("{hub_python}", "scripts/serial_hub/serial_hub.py", "--list"),
+            ("{hub_python}", "scripts/run_rtros.py", "hub", "--list"),
         ),
         needs_pyserial=True,
         allow_fail=True,
@@ -89,7 +89,8 @@ SERVICES: tuple[Service, ...] = (
         "8",
         argv=(
             PLACEHOLDER_HUB,
-            "scripts/serial_hub/serial_hub.py",
+            "scripts/run_rtros.py",
+            "hub",
             "--com",
             "COM46",
             "--baud",
@@ -116,7 +117,7 @@ SERVICES: tuple[Service, ...] = (
     Service(
         "hub-list",
         "列出串口",
-        argv=(PLACEHOLDER_HUB, "scripts/serial_hub/serial_hub.py", "--list"),
+        argv=(PLACEHOLDER_HUB, "scripts/run_rtros.py", "hub", "--list"),
         needs_pyserial=True,
     ),
     Service("help", "打印帮助", argv=("{python}", "scripts/ai_services.py", "--help")),
