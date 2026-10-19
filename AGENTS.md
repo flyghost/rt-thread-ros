@@ -37,7 +37,7 @@ BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`（仅 menuconfig 使用
 ```bash
 python scripts/tools/run.py build build-flash   # 编译 + 烧录（默认项目 projects/base）
 python scripts/tools/run.py build --board build # 直接编译板级 BSP（对照用）
-out\venv\Scripts\rtros.cmd build status      # 装过仓内 venv 后的正式入口（见 scripts/README.md §12.2）
+out\venv\Scripts\rtros.cmd build status      # 装过仓内 venv 后的正式入口（见 scripts/README.md 第 2 节）
 ai_services.bat                                # 人手动用：菜单（编译/烧录/守卫/串口 hub/状态）
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
