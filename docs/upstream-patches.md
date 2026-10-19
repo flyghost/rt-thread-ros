@@ -17,6 +17,7 @@
 | 3 | `bsp/stm32/libraries/STM32F1xx_HAL/SConscript` | `:89-94` | 同上，`startup_stm32f103xb.s` | 同上 | 同上 |
 | 4 | `os/rt-thread/libcpu/arm/cortex-m3/` | 整目录（5 文件） | `SConscript`、`cpuport.c`、`context_{gcc,rvds,iar}.S` | 本仓历史从未入库，两块 F103 链接报 `undefined reference to rt_hw_stack_init`；从本机 RT-Thread Studio 的 v5.1.0 树补齐 | 升级上游时用上游版本覆盖（注意 v5.1/v5.2 的 `cpuport.c` 差异） |
 | 5 | `bsp/stm32/libraries/STM32F1xx_HAL/` | 整目录（236 文件 / 15.9 MB） | 完整 F1 HAL 库 | 曾在 `32a96c7 瘦身` 中被删除，两块 F103 无法编译；从 `32a96c7^` 恢复 | 跟随上游/ST 版本更新 |
+| 6 | 4 份 `SConstruct`（3 板 + `projects/base`）+ 4 份 `rtconfig.py` | SConstruct 尾部 `TARGET`/`SConsignFile`/`Default(TARGET)`；rtconfig 末尾 | `TARGET = os.path.join(<artifact_dir>, 'rt-thread.' + TARGET_EXT)`、`SConsignFile(<build_dir>/.sconsign.dblite)`、`Default(TARGET)`；`rtconfig.py` 把 `-Map=rt-thread.map` 与 `POST_ACTION` 的 ` rtthread.bin` 改写成 `out/bin/<入口名>/` 下的绝对路径（幂等，靠 `RT_ARTIFACT_DIR`） | 上游把 elf/map/bin/`.sconsign` 全写在 cwd（`building.py` 的 `TARGET` + `LFLAGS -Map` + `POST_ACTION`），会让项目/板目录混入产物；`TARGET` 出树后默认目标 `.` 不再包含它，必须显式 `Default(TARGET)` | 升级后重建时若产物又落回 cwd：先查 `rtconfig.py` 末尾注入块是否还在，再查 SConstruct 的 `TARGET`/`Default(TARGET)`/`SConsignFile` 三行 |
 
 本仓新增（**不属于**上游偏离，随仓更新）：`bsp/stm32/tools/bsp_paths.py`、`bsp/stm32/tools/bsp_build.py`、`bsp/stm32/tools/sdk_dist.py`（上游也有）、三块板的 `SConstruct` 薄壳。
 
@@ -65,7 +66,8 @@ scons -f bsp/stm32/.../SConstruct                         # ✗ 不支持（顶�
 3. 若 `bsp/stm32/libraries/*/SConscript` 被替换，重贴偏离 #2/#3 的 startup 六行；
 4. 三块板各跑一次：`python scripts/firmware/build.py --board <name> clean` + `build`（或 `cd` 后 `scons`），要求 warning 0 / error 0；
 5. 确认源码树里 `.o` 数量为 0：`Get-ChildItem -Recurse -Filter *.o | Where-Object { $_.FullName -notmatch '\\out\\build\\' }` 只应命中 `third-party/`；
-6. 更新本文件与 `AGENTS.md` 的偏离条目。
+6. 确认产物落在 `out/bin/<入口名>/`（`rt-thread.elf` / `rt-thread.map` / `rtthread.bin`）、`.sconsign.dblite` 在 `out/build/<入口名>/`；入口目录里不应有 `*.elf` / `*.map` / `*.bin` / `.sconsign.dblite` / `__pycache__`（偏离 #6 生效的标志）；
+7. 更新本文件与 `AGENTS.md` 的偏离条目。
 
 ## 5. 新增一块板的检查清单
 

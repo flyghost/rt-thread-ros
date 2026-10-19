@@ -16,7 +16,7 @@ projects/<name>/         # 项目层：一块板 + 一套配置 + 一套自有�
                          #   当前只有 base（出厂基线）；板级硬件仍只有 bsp/stm32/<board>/ 一份
 scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；flash_guard/ 沙箱外守卫；
                          #   ramdump/ 采集与解析；serial_hub/ 串口服务器）
-out/                     # 中间文件 out/build/<入口目录名>/、最终 bin、dump、trace32 样本（全部 gitignore）
+out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin/<入口名>/（elf/map/bin）、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
 ```
 构建接入：路径契约在 `bsp/stm32/tools/bsp_paths.py`，构建逻辑在 `bsp/stm32/tools/bsp_build.py`；各板 `SConstruct`
@@ -38,7 +38,8 @@ ai_services.bat                                # 人手动用：菜单（编译/
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
 - **构建入口必须站在入口目录里运行**（`cd projects/<name>` 或 `cd bsp/stm32/<board>`，或 `scons -C <...>`）：
   上游 `building.py` 有 6 处按 cwd 解析的路径，跨目录 `scons -f` 会在薄壳里被明确拒绝（退 1）；
-  中间文件统一在 `out/build/<入口目录名>`（`RT_BUILD_DIR`），产物落在入口目录；
+  中间文件统一在 `out/build/<入口目录名>`（`RT_BUILD_DIR`），产物统一在 `out/bin/<入口目录名>`
+  （elf/map/bin，由 `RT_ARTIFACT_DIR` + 显式 `Default(TARGET)` 实现）；两者都在 `out/` 下，入口目录只留源码；
 - **pyocd 全仓只有一份**：pip 装进 `tools/pyocd/pkg`（已 gitignore，`python tools/pyocd/install.py` 复现），
   芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
 - **烧录两条路都通**：`python scripts/firmware/build.py flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，

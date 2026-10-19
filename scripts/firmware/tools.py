@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 from firmware.config import (
-    BSP_DIR, BUILD_DIR, ENTRY_DIR, ENTRY_KIND, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS,
+    ARTIFACT_DIR, BSP_DIR, BUILD_DIR, ENTRY_DIR, ENTRY_KIND, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS,
     PYOCD_PACK, PYOCD_PKG_DIR, PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RT_BUILD_DIR, RTT_EXEC_PATH,
     SCONS_JOBS, TARGET_BIN, TARGET_ELF, TARGET_MAP, VENV_PY,
 )
@@ -69,7 +69,7 @@ def clean() -> int:
     rc = _run([VENV_PY, "-m", "SCons", "-c"], ENTRY_DIR, _scons_env())
     # SCons -c 只删它这次认知的目标；换过 variant_dir、或历史遗留的 build 目录
     # 不会自动消失，这里兜底清掉，避免“清了还有残留”。
-    stale_dirs = [BUILD_DIR, ENTRY_DIR / "build"]
+    stale_dirs = [BUILD_DIR, ARTIFACT_DIR, ENTRY_DIR / "build"]
     if ENTRY_DIR != BSP_DIR:
         stale_dirs.append(BSP_DIR / "build")
     for stale in stale_dirs:
@@ -133,9 +133,10 @@ def flash(bin_path=None) -> int:
 
 
 def copy_artifacts() -> None:
+    """产物本来就落在 out/bin/<入口名>/（SConstruct 指定），这里只对旧布局做一次搬迁。"""
     OUT_BIN_DIR.mkdir(parents=True, exist_ok=True)
     for src in (TARGET_BIN, TARGET_ELF, TARGET_MAP):
-        if src.exists():
+        if src.exists() and src.parent != OUT_BIN_DIR:
             shutil.copy2(src, OUT_BIN_DIR / src.name)
 
 
@@ -155,6 +156,7 @@ def status() -> int:
     print(f"构建入口   : {ENTRY_DIR}  ({ENTRY_KIND})")
     print(f"板级 BSP   : {BSP_DIR}")
     print(f"中间文件   : {BUILD_DIR}  ({'存在' if BUILD_DIR.exists() else '未编译'})")
+    print(f"产物目录   : {ARTIFACT_DIR}  ({'存在' if ARTIFACT_DIR.exists() else '未编译'})")
     print(f"固件       : {TARGET_BIN}  "
           f"({'%.0f KB' % (TARGET_BIN.stat().st_size / 1024) if TARGET_BIN.exists() else '缺失'})")
     if TARGET_BIN.exists():

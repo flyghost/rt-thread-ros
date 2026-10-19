@@ -35,8 +35,12 @@ def load_project(project_dir):
     return meta
 
 
-def load_rtconfig(entry_dir):
-    """按文件路径加载入口目录的 ``rtconfig.py``（不依赖 sys.path / cwd）。"""
+def load_rtconfig(entry_dir, artifact_dir=None):
+    """按文件路径加载入口目录的 ``rtconfig.py``（不依赖 sys.path / cwd）。
+
+    * 注入 ``RT_ARTIFACT_DIR``：rtconfig 据此把 map/bin 写到 ``out/bin/<入口名>/``；
+    * 期间关闭字节码缓存：否则 import 会在入口目录留下 ``__pycache__/rtconfig.*.pyc``。
+    """
     import importlib.util
 
     path = os.path.join(os.path.abspath(entry_dir), 'rtconfig.py')
@@ -45,7 +49,14 @@ def load_rtconfig(entry_dir):
     name = 'rtconfig_%d' % (abs(hash(path)) % 100000)
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    if artifact_dir:
+        module.__dict__['RT_ARTIFACT_DIR'] = os.path.abspath(artifact_dir)
+    old_flag = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = old_flag
     return module
 
 
@@ -80,8 +91,13 @@ def resolve_paths(entry_dir, project_root, stm32_library, board_dir=None):
         build_dir = bsp_paths.build_root(entry_dir, project_root)
     build_dir_rel = os.path.relpath(build_dir, entry_dir)
 
+    artifact_dir = os.getenv('RT_ARTIFACT_DIR') or bsp_paths.artifact_dir(entry_dir, project_root)
+    artifact_dir = os.path.abspath(artifact_dir)
+    os.makedirs(artifact_dir, exist_ok=True)
+
     return {
         'entry_dir': entry_dir,
+        'artifact_dir': artifact_dir,
         'board_dir': board_dir,
         'project_root': project_root,
         'rtt_root': rtt_root,

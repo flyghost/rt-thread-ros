@@ -32,7 +32,8 @@ python scripts\firmware\build.py --board build # 直接编译板级 BSP（对照
 ```
 
 中间文件统一在 `out/build/base/`（板级模式是 `out/build/stm32f407-atk-explorer/`），
-**源码树里不会出现 `.o`**；产物是本目录的 `rt-thread.elf` / `rt-thread.map` / `rtthread.bin`。
+产物统一在 `out/bin/base/`（`rt-thread.elf` / `rt-thread.map` / `rtthread.bin`）；
+**项目目录里不会出现 `.o`、`.elf`、`.bin`、`.map`、`__pycache__`**，只剩源码与配置。
 
 ## 构建入口必须"站对目录"
 

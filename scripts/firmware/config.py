@@ -51,11 +51,12 @@ PYOCD_FLASH_OPTS = os.environ.get(
 PYOCD_PY = Path(os.environ.get("PYOCD_PY", sys.executable))
 
 # ---- 产物 --------------------------------------------------------------
-# 产物落在构建入口目录：项目 = projects/<name>/，板级 = bsp/stm32/<board>/
-TARGET_BIN = ENTRY_DIR / "rtthread.bin"
-TARGET_ELF = ENTRY_DIR / "rt-thread.elf"
-TARGET_MAP = ENTRY_DIR / "rt-thread.map"
-OUT_BIN_DIR = REPO_ROOT / "out" / "bin"
+# 产物统一在 out/bin/<入口目录名>/（elf/map/bin），构建入口目录只留源码。
+ARTIFACT_DIR = REPO_ROOT / "out" / "bin" / ENTRY_DIR.name
+TARGET_BIN = ARTIFACT_DIR / "rtthread.bin"
+TARGET_ELF = ARTIFACT_DIR / "rt-thread.elf"
+TARGET_MAP = ARTIFACT_DIR / "rt-thread.map"
+OUT_BIN_DIR = ARTIFACT_DIR
 
 # ---- 中间文件（.o/.d）目录 ---------------------------------------------
 # 统一收到仓内 out/build/<入口目录名>/（项目=项目名，板级=板名），不再散落源码树。

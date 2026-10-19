@@ -3,6 +3,9 @@
 import os
 import sys
 
+# 下面会 import bsp/stm32/tools/ 里的模块；关掉字节码缓存，避免源码树里出现 __pycache__
+sys.dont_write_bytecode = True
+
 # 1) 项目根：环境变量 PROJECT_ROOT 覆盖（必须存在）→ 否则从本目录向上找 .git；都不满足就报错退出。
 _root = os.getenv('PROJECT_ROOT')
 if _root:
@@ -40,7 +43,9 @@ if os.path.normcase(Dir('#').abspath) != os.path.normcase(BOARD_DIR):
         % (Dir('#').abspath, BOARD_DIR))
     sys.exit(1)
 
-rtconfig = bsp_build.load_rtconfig(BOARD_DIR)
+# 产物目录：out/bin/<入口目录名>（elf/map/bin 都在这里，入口目录只留源码）
+_ART = bsp_paths.artifact_dir(BOARD_DIR, _root)
+rtconfig = bsp_build.load_rtconfig(BOARD_DIR, artifact_dir=_ART)
 
 try:
     P = bsp_build.resolve_paths(BOARD_DIR, _root, getattr(rtconfig, 'STM32_LIBRARY', None))
@@ -54,13 +59,19 @@ env = bsp_build.make_env(rtconfig)
 sys.path = sys.path + [os.path.join(RTT_ROOT, 'tools')]
 from building import *          # noqa: E402,F401,F403
 
-TARGET = 'rt-thread.' + rtconfig.TARGET_EXT
+TARGET = os.path.join(P['artifact_dir'], 'rt-thread.' + rtconfig.TARGET_EXT)
 Export('RTT_ROOT')
 Export('rtconfig')
 Export('SDK_LIB')
 
 # 2) 中间文件目录显式注入（os/rt-thread/tools/building.py 读 RT_BUILD_DIR）
 os.environ['RT_BUILD_DIR'] = P['build_dir_rel']
+# os/rt-thread/tools/building.py 会自己 `import rtconfig`（从 cwd 找），那份模块
+# 也要知道产物目录，否则 POST_ACTION 的 objcopy 仍会写到入口目录。
+os.environ['RT_ARTIFACT_DIR'] = P['artifact_dir']
+
+# 构建签名库也收进中间文件目录，不再写进入口目录
+SConsignFile(os.path.join(P['build_dir'], '.sconsign.dblite'))
 
 objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
 
@@ -77,3 +88,7 @@ objs.extend(SConscript(os.path.join(P['app_root'], 'SConscript'),
                        duplicate=0))
 
 DoBuilding(TARGET, objs)
+
+# TARGET 位于树外（out/bin/<入口名>），而 `scons` 的默认目标是 '.'（顶层目录），
+# 不含树外文件；显式声明默认目标，否则只编 .o 不链接。
+Default(TARGET)

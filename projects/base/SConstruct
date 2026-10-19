@@ -3,6 +3,9 @@
 import os
 import sys
 
+# 下面会 import bsp/stm32/tools/ 里的模块；关掉字节码缓存，避免源码树里出现 __pycache__
+sys.dont_write_bytecode = True
+
 # SConstruct 里没有 __file__；SCons 的顶层目录就是本项目目录
 PROJECT_DIR = Dir('#').abspath
 
@@ -41,7 +44,8 @@ if os.path.normcase(os.getcwd()) != os.path.normcase(PROJECT_DIR):
 try:
     META = bsp_build.load_project(PROJECT_DIR)
     BOARD_DIR = os.path.join(PROJECT_ROOT, 'bsp', 'stm32', META['board'])
-    rtconfig = bsp_build.load_rtconfig(PROJECT_DIR)
+    _ART = bsp_paths.artifact_dir(PROJECT_DIR, PROJECT_ROOT)
+    rtconfig = bsp_build.load_rtconfig(PROJECT_DIR, artifact_dir=_ART)
     P = bsp_build.resolve_paths(PROJECT_DIR, PROJECT_ROOT, rtconfig.STM32_LIBRARY,
                                 board_dir=BOARD_DIR)
 except bsp_paths.BspPathError as _exc:
@@ -58,7 +62,7 @@ except Exception as _exc:  # noqa: BLE001 - 任何导入失败都要给出可读
     bsp_paths.fail(RuntimeError('无法从 %s 导入 RT-Thread 的 building.py：%r' % (RTT_ROOT, _exc)),
                    where=_WHERE)
 
-TARGET = os.path.join(PROJECT_DIR, META.get('target', 'rt-thread') + '.' + rtconfig.TARGET_EXT)
+TARGET = os.path.join(P['artifact_dir'], META.get('target', 'rt-thread') + '.' + rtconfig.TARGET_EXT)
 
 Export('RTT_ROOT')
 Export('rtconfig')
@@ -67,6 +71,12 @@ Export('BOARD_DIR')
 
 # 中间文件目录：项目自己的 out/build/<project>（相对项目目录传给上游 building.py）
 os.environ['RT_BUILD_DIR'] = P['build_dir_rel']
+# os/rt-thread/tools/building.py 会自己 `import rtconfig`（从 cwd 找），那份模块
+# 也要知道产物目录，否则 POST_ACTION 的 objcopy 仍会写到入口目录。
+os.environ['RT_ARTIFACT_DIR'] = P['artifact_dir']
+
+# 构建签名库也收进中间文件目录，不再写进入口目录
+SConsignFile(os.path.join(P['build_dir'], '.sconsign.dblite'))
 
 objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
 
@@ -80,3 +90,7 @@ objs.extend(SConscript(os.path.join(P['app_root'], 'SConscript'),
                        variant_dir=os.path.join(_V, 'app'), duplicate=0))
 
 DoBuilding(TARGET, objs)
+
+# TARGET 位于树外（out/bin/<入口名>），而 `scons` 的默认目标是 '.'（顶层目录），
+# 不含树外文件；显式声明默认目标，否则只编 .o 不链接。
+Default(TARGET)

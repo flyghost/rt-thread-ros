@@ -72,6 +72,13 @@ def fail(exc, where=''):
     sys.exit(1)
 
 
+def artifact_dir(entry_dir, project_root=None):
+    """返回 ``out/bin/<entry 目录名>`` 的绝对路径（产物 elf/map/bin 都放这里）。"""
+    root = project_root or find_project_root(entry_dir)
+    name = os.path.basename(os.path.abspath(entry_dir).rstrip('\\/'))
+    return os.path.join(root, 'out', 'bin', name)
+
+
 def build_root(entry_dir, project_root=None):
     """返回 ``out/build/<entry 目录名>`` 的绝对路径（没有就返回默认值，不创建）。"""
     root = project_root or find_project_root(entry_dir)

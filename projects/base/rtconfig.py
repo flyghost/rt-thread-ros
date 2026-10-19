@@ -30,6 +30,9 @@ BOARD_DIR = os.path.join(_repo_root(), 'bsp', 'stm32', _META['board'])
 _spec = importlib.util.spec_from_file_location(
     'board_rtconfig', os.path.join(BOARD_DIR, 'rtconfig.py'))
 _board = importlib.util.module_from_spec(_spec)
+# 把产物目录也告诉板级 rtconfig：它负责把 map/bin 从 cwd 指到 out/bin/<入口名>/
+_board.__dict__['RT_ARTIFACT_DIR'] = os.path.join(
+    _repo_root(), 'out', 'bin', os.path.basename(_HERE))
 _spec.loader.exec_module(_board)
 
 # 透传板级全部配置（CROSS_TOOL / PLATFORM / CC / CFLAGS / LFLAGS / TARGET_EXT / BUILD ...）
@@ -41,3 +44,5 @@ for _name in dir(_board):
 # “board/linker_scripts/link.lds” 在这里并不存在。
 _LDS = os.path.join(BOARD_DIR, 'board', 'linker_scripts', 'link.lds').replace('\\', '/')
 LFLAGS = re.sub(r'-T\s+\S*board[/\\]linker_scripts[/\\]link\.lds', '-T ' + _LDS, LFLAGS)
+
+# 产物目录的 map/bin 改写由板级 rtconfig 完成（上面已注入 RT_ARTIFACT_DIR）。

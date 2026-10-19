@@ -78,8 +78,9 @@ out/build/stm32f407-atk-explorer/    # 板级 BSP
 └── applications/
 ```
 
-最终 `rt-thread.elf` / `rtthread.bin` / `rt-thread.map` 落在**入口目录**（项目 = `projects/<name>/`，
-板级 = `bsp/stm32/<board>/`），`flash` 成功后还会复制一份到 `out/bin/`。
+最终产物 `rt-thread.elf` / `rt-thread.map` / `rtthread.bin` 也**不在入口目录**，统一在
+`out/bin/<入口目录名>/`（项目 = `out/bin/base/`，板级 = `out/bin/stm32f407-atk-explorer/`）；
+`.sconsign.dblite`（SCons 构建签名库）收在 `out/build/<入口目录名>/`。入口目录因此只剩源码与配置。
 
 实现方式（P1 之后）：
 
@@ -104,11 +105,11 @@ out/build/stm32f407-atk-explorer/    # 板级 BSP
 |---|---|---|
 | 只烧现有 bin | `python scripts\firmware\build.py flash` | `ai_services.bat flash`（菜单 2） |
 | 编译 + 烧录 | `python scripts\firmware\build.py build-flash` | `ai_services.bat build-flash`（菜单 3） |
-| 烧指定文件 | `python scripts\firmware\build.py flash --bin out\bin\rtthread.bin` | — |
+| 烧指定文件 | `python scripts\firmware\build.py flash --bin out\bin\base\rtthread.bin` | — |
 | 老命令（兼容） | `python scripts\ramdump\build\build.py --flash` | `ramdump.bat build --flash` / `ramdump.bat flash` |
 
-`flash` 默认烧**当前构建入口**的 `rtthread.bin`（项目 = `projects/<name>/rtthread.bin`，
-板级 = `bsp/stm32/<board>/rtthread.bin`），所以先 `build` 再 `flash` 不会烧错目标。
+`flash` 默认烧**当前构建入口**的 `rtthread.bin`（项目 = `out/bin/base/rtthread.bin`，
+板级 = `out/bin/stm32f407-atk-explorer/rtthread.bin`），所以先 `build` 再 `flash` 不会烧错目标。
 
 固定参数（写死在 `scripts/firmware/tools.py`）：
 

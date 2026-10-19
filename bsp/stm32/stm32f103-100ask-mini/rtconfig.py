@@ -185,3 +185,16 @@ def dist_handle(BSP_ROOT, dist_dir):
     sys.path.append(os.path.join(os.path.dirname(BSP_ROOT), 'tools'))
     from sdk_dist import dist_do_building
     dist_do_building(BSP_ROOT, dist_dir)
+
+
+# --- 产物目录（由构建入口注入 RT_ARTIFACT_DIR；见 bsp/stm32/tools/bsp_build.py）---
+# 上游 building.py 默认把 -Map（map）与 POST_ACTION 的 bin 都写在 cwd（构建入口目录），
+# 这里改到注入的 out/bin/<入口名>/，使入口目录只保留源码。
+# 幂等：项目级 rtconfig 也会把本文件跑一遍（注入同一个目录），重复替换会把绝对路径再嵌一层。
+_ART = globals().get('RT_ARTIFACT_DIR') or os.environ.get('RT_ARTIFACT_DIR')
+if _ART and PLATFORM == 'gcc':
+    _ART = str(_ART).replace('\\', '/')
+    if '-Map=rt-thread.map' in LFLAGS:
+        LFLAGS = LFLAGS.replace('-Map=rt-thread.map', '-Map=' + _ART + '/rt-thread.map')
+    if ' rtthread.bin' in POST_ACTION:
+        POST_ACTION = POST_ACTION.replace(' rtthread.bin', ' ' + _ART + '/rtthread.bin')
