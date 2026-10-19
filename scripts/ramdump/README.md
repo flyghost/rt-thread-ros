@@ -47,7 +47,7 @@ python scripts/ramdump/analyzer/ramdump_analyzer.py out/dump/20260722_015005
 - **编译/下载**：编译下载已统一到 `scripts/firmware/`（`build.py` CLI + `config.py` 常量 + `tools.py` 实现），
   本目录的 `lib/config.py` 只是转发常量；pyocd 只有一份，装在 `tools/pyocd/pkg`（见 `tools/pyocd/README.md`），
   芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`（target `STM32F407VE`，
-  `--erase=auto --frequency=1000000`）。烧录在会话里可直接跑；`scripts/flash_guard/` 的守卫是可选的
+  `--erase=auto --frequency=1000000`）。烧录在会话里可直接跑；`scripts/guard/` 的守卫是可选的
   长任务执行器（信箱 + 日志 + 自动重启）。
 - **analyzer** 额外依赖见 `analyzer/requirements.txt`。
 - 产物：固件落 `out/bin/`，dump 落 `out/dump/<YYYYmmdd_HHMMSS>/`；两者都在 `.gitignore` 里。

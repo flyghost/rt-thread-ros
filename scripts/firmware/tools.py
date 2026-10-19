@@ -4,7 +4,7 @@
 
 给两个入口共用：
     scripts/firmware/build.py   —— 人/AI 的 CLI
-    scripts/flash_guard/flash_guard.py —— 沙箱外守卫（同样调这里的函数）
+    scripts/guard/guard.py —— 沙箱外守卫（同样调这里的函数）
 所以这里只做"干活"，不解析命令行参数。
 """
 

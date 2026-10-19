@@ -90,7 +90,7 @@ SERVICES: tuple[Service, ...] = (
         "6",
         group=(
             ("{python}", "scripts/firmware/build.py", "status"),
-            ("{python}", "scripts/flash_guard/flash_guard.py", "--status"),
+            ("{python}", "scripts/guard/guard.py", "--status"),
             ("{hub_python}", "scripts/serial_hub/serial_hub.py", "--list"),
         ),
         needs_pyserial=True,
@@ -98,9 +98,9 @@ SERVICES: tuple[Service, ...] = (
     ),
     Service(
         "guard",
-        "guard 起烧录守卫（前台常驻，AI 无人值守用）",
+        "guard 起守卫（前台常驻，AI 无人值守用）",
         "7",
-        argv=("{python}", "scripts/flash_guard/flash_guard.py"),
+        argv=("{python}", "scripts/guard/guard.py"),
         daemon=True,
         note="窗口别关；Ctrl+C 结束",
     ),
@@ -128,7 +128,8 @@ SERVICES: tuple[Service, ...] = (
         "9",
         note="先开 hub 窗口，再前台起守卫",
     ),
-    Service("guard-status", "守卫状态", argv=("{python}", "scripts/flash_guard/flash_guard.py", "--status")),
+    Service("guard-status", "守卫状态", argv=("{python}", "scripts/guard/guard.py", "--status")),
+    Service("guard-tasks", "守卫允许的任务（tasks.toml）", argv=("{python}", "scripts/guard/guard.py", "--tasks")),
     Service("hub-list", "列出串口", argv=(PLACEHOLDER_HUB, "scripts/serial_hub/serial_hub.py", "--list"), needs_pyserial=True),
     Service("help", "打印帮助", argv=("{python}", "scripts/ai_services.py", "--help")),
 )

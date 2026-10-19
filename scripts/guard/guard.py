@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""flash_guard.py — 烧录守卫：把「沙箱里跑不了」的硬件动作交给一个由人手动启动的进程。
+"""guard.py — 守卫：把「沙箱里跑不了」的硬件动作交给一个由人手动启动的进程。
 
 问题不是权限不够，而是进程位置不对：
   `pyocd`（在 `tools/pyocd/pkg`，用 `python -m pyocd` 跑）启动时要把随包的 DLL / 临时文件
@@ -16,17 +16,17 @@
   会话侧    用 `--wait` 收应答，或事后 `--list` / 读 `rep_NNNN.log`。
 
 边界：守卫是「白名单执行器」，不是远程 shell —— 不接任意命令、不联网、不读凭据，
-只认下面 ACTIONS 里那几个动作，参数值里带 shell 元字符一律拒。
+只认 scripts/guard/tasks.toml 里列出的任务，参数值里带 shell 元字符一律拒。
 
 用法
   人（沙箱之外，常驻；Ctrl+C 退出）：
-      python scripts\\flash_guard\\flash_guard.py
-      python scripts\\flash_guard\\flash_guard.py --once      # 处理完积压就退（可挂计划任务）
+      python scripts\\guard\\guard.py
+      python scripts\\guard\\guard.py --once      # 处理完积压就退（可挂计划任务）
   会话侧（沙箱内可跑）：
-      python scripts\\flash_guard\\flash_guard.py --status
-      python scripts\\flash_guard\\flash_guard.py --list
-      python scripts\\flash_guard\\flash_guard.py --request flash --wait
-      python scripts\\flash_guard\\flash_guard.py --request build_flash --wait --wait-timeout 600
+      python scripts\\guard\\guard.py --status
+      python scripts\\guard\\guard.py --list
+      python scripts\\guard\\guard.py --request flash --wait
+      python scripts\\guard\\guard.py --request build_flash --wait --wait-timeout 600
 """
 
 from __future__ import annotations
@@ -47,47 +47,83 @@ PROTOCOL = 1
 
 REPO = Path(__file__).resolve().parents[2]
 
-# ---------------------------------------------------------------- 板级事实（改这里）
-# 唯一 pyocd：pip 装进 tools/pyocd/pkg（gitignore），用 `python -m pyocd` 运行。
-# 不再有"自带 exe 兜底"：0.27 的 pyocd.exe 认不到 CMSIS-DAP v2（WinUSB/bulk）探针，
-# 留着只会让调用方选错实现。装法见 tools/pyocd/install.py。
-PYOCD_DIR = REPO / "tools" / "pyocd"
-PYOCD_PKG_DIR = PYOCD_DIR / "pkg"
+# ---------------------------------------------------------------- 任务表（改 tasks.toml）
+# 「哪些命令允许被请求执行」不写在代码里，全部在 scripts/guard/tasks.toml。
+# 本文件只负责执行：校验请求 → 按任务模板拼 argv → 跑 → 把退出码与日志写回信箱。
+# 加一条任务 = 往 tasks.toml 加一段 [[tasks]]；只有需要内嵌 Python 源码的任务
+# （probe / usb / selftest）才要在这里写 builtin 实现。
+TASKS_FILE = Path(__file__).resolve().with_name("tasks.toml")
+
+
+class Task:
+    """tasks.toml 里 [[tasks]] 的一条。"""
+
+    __slots__ = ("id", "title", "timeout", "allow", "run", "builtin", "cwd")
+
+    def __init__(self, raw: dict) -> None:
+        self.id = str(raw["id"])
+        self.title = str(raw.get("title", self.id))
+        self.timeout = float(raw.get("timeout", 180))
+        self.allow = tuple(str(x) for x in raw.get("allow", ()))
+        self.run = [[str(x) for x in argv] for argv in raw.get("run", ())]
+        self.builtin = raw.get("builtin")
+        self.cwd = str(raw.get("cwd", "."))
+
+
+def _load_config() -> tuple[dict, dict, dict]:
+    """读 tasks.toml → (guard 设置, paths, 任务表)。配置坏了直接退出，别静默半残。"""
+    try:
+        import tomllib
+    except ImportError:
+        raise SystemExit("守卫需要 Python 3.11+（tasks.toml 用 tomllib 读）")
+    if not TASKS_FILE.is_file():
+        raise SystemExit(f"找不到任务表：{TASKS_FILE}")
+    with open(TASKS_FILE, "rb") as fh:
+        doc = tomllib.load(fh)
+    settings = dict(doc.get("guard", {}))
+    paths = {str(k): str(v) for k, v in doc.get("paths", {}).items()}
+    tasks: dict[str, Task] = {}
+    for raw in doc.get("tasks", ()):
+        task = Task(raw)
+        if task.id in tasks:
+            raise SystemExit(f"tasks.toml 任务 id 重复：{task.id}")
+        if not task.builtin and not task.run:
+            raise SystemExit(f"tasks.toml 任务 {task.id} 既没有 run 也没有 builtin")
+        tasks[task.id] = task
+    if not tasks:
+        raise SystemExit("tasks.toml 里一条任务都没有")
+    return settings, paths, tasks
+
+
+SETTINGS, PATHS, TASKS = _load_config()
+
+
+def _path(name: str, default: str = "") -> Path:
+    """[paths] 里的值：绝对路径原样用，相对路径相对仓库根。"""
+    raw = PATHS.get(name) or default
+    path = Path(raw)
+    return path if path.is_absolute() else (REPO / raw)
+
+
+PYOCD_PKG_DIR = _path("pyocd_pkg", "tools/pyocd/pkg")
 # pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，必须用同 ABI 的解释器。
-PY_PKG_PY = Path(r"E:\software\InstallerEdition\DevTools\Python\Python313\python.exe")
-# 新版 pyocd 不内置芯片定义，必须显式给仓内精简 pack（100% 离线、可复现）。
-PYOCD_PACK = PYOCD_DIR / "packs" / "Keil.STM32F4xx_DFP.2.14.0-small.pack"
-PYOCD = [str(PY_PKG_PY), "-m", "pyocd"]
-# 编译/烧录统一入口（build_and_flash.bat 已删）
-BUILD_ENTRY = REPO / "scripts" / "firmware" / "build.py"
-BSP_DIR = REPO / "bsp" / "stm32" / "stm32f407-atk-explorer"
-DEFAULT_BIN = BSP_DIR / "rtthread.bin"
-DEFAULT_TARGET = "STM32F407VE"
+PY_PKG_PY = _path("pyocd_python", r"E:\software\InstallerEdition\DevTools\Python\Python313\python.exe")
+PYOCD_PACK = _path("pyocd_pack", "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack")
+BUILD_ENTRY = _path("build_entry", "scripts/firmware/build.py")
+VENV_PY = _path("venv_python", r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe")
+ENV_ROOT = _path("env_root", r"E:\software\EnvEdition\rt-thread-env\env-windows")
+ARM_GCC_BIN = _path("arm_gcc_bin", r"E:\software\EnvEdition\rt-thread-env\env-windows\tools\gnu_gcc\arm_gcc\mingw\bin")
+DEFAULT_BIN = _path("default_bin", "out/bin/base/rtthread.bin")
+DEFAULT_TARGET = PATHS.get("default_target") or "STM32F407VE"
 
-ENV_ROOT = Path(r"E:\software\EnvEdition\rt-thread-env\env-windows")
-VENV_PY = ENV_ROOT / ".venv" / "Scripts" / "python.exe"
-ARM_GCC_BIN = ENV_ROOT / "tools" / "gnu_gcc" / "arm_gcc" / "mingw" / "bin"
-
-# 动作白名单：action -> (单次总时长上限秒, 说明)
-ACTIONS = {
-    "flash": (180, "pyocd flash：把 rtthread.bin 烧进板子"),
-    "build_flash": (1100, "编译 + 烧录（都走 scripts/firmware/build.py）"),
-    "build": (900, "只在守卫里编译（沙箱内其实也能编，留着给环境异常时用）"),
-    "list": (60, "pyocd list -v：看看调试器认不认得到"),
-    "erase": (180, "pyocd erase --chip：整片擦除"),
-    "reset": (60, "pyocd reset：复位目标"),
-    "probe": (90, "环境自检：TEMP 能不能写、pyocd 版本、pkg 在不在"),
-    "usb": (60, "用 pyusb/libusb 枚举 USB 设备（看 libusb 到底能看见谁）"),
-    "selftest": (30, "守卫自检：只跑一条无害的 python -c，用来验证信箱协议"),
-}
-
-POLL_SECONDS = 2.0
-HEARTBEAT_SECONDS = 2.0
+POLL_SECONDS = float(SETTINGS.get("poll_seconds", 2.0))
+HEARTBEAT_SECONDS = float(SETTINGS.get("heartbeat_seconds", 2.0))
 RUNNING_SECONDS = 1.0
-STALL_SECONDS = 180.0
-DEFAULT_EXPIRES = 900
-DEFAULT_WAIT = 300.0
+STALL_SECONDS = float(SETTINGS.get("stall_seconds", 180.0))
+DEFAULT_EXPIRES = int(SETTINGS.get("default_expires", 900))
+DEFAULT_WAIT = float(SETTINGS.get("default_wait", 300.0))
 TAIL_LINES = 40
+MAILBOX_DEFAULT = str(SETTINGS.get("mailbox", "out/guard"))
 
 # 子进程统一用的临时目录：仓库内，谁开守卫谁就能写。
 CHILD_TMP = REPO / "out" / "tmp"
@@ -265,17 +301,17 @@ def validate_request(req: dict) -> tuple[dict | None, str]:
     if req.get("protocol") != PROTOCOL:
         return None, f"protocol 必须是 {PROTOCOL}"
     action = req.get("action")
-    if action not in ACTIONS:
-        return None, f"动作不在白名单：{action!r}（只接受 {', '.join(ACTIONS)}）"
+    if action not in TASKS:
+        return None, f"任务不在白名单：{action!r}（tasks.toml 里只有 {', '.join(TASKS)}）"
     raw = req.get("args") or {}
     if not isinstance(raw, dict):
         return None, "args 必须是对象"
-    extra = set(raw) - {"target", "bin", "note"}
+    extra = set(raw) - set(TASKS[action].allow) - {"note"}
     if extra:
         return None, f"多余的参数名：{sorted(extra)}"
 
     args: dict = {}
-    target = raw.get("target", DEFAULT_TARGET)
+    target = raw.get("target") or DEFAULT_TARGET
     if not isinstance(target, str) or not SAFE_NAME.match(target):
         return None, "target 只许字母数字与 _ . + -"
     args["target"] = target
@@ -304,54 +340,51 @@ def validate_request(req: dict) -> tuple[dict | None, str]:
     return args, ""
 
 
-def _bin_path(args: dict) -> Path:
+def _expand_paths() -> dict[str, str]:
+    """[paths] → 占位符表；值是相对路径的补成仓内绝对路径。
+
+    注意键是「裸名」：`str.format_map` 只认 `{名字}` 里的名字，不认带花括号的键。
+    """
+    table: dict[str, str] = {"repo": str(REPO), "python": sys.executable}
+    for key, value in PATHS.items():
+        for token, resolved in list(table.items()):
+            value = value.replace("{" + token + "}", resolved)
+        path = Path(value)
+        table[key] = str(path if path.is_absolute() else (REPO / value))
+    return table
+
+
+def _bin_abs(args: dict) -> str:
     rel = args.get("bin")
-    return (REPO / rel) if rel else DEFAULT_BIN
+    return str((REPO / rel) if rel else DEFAULT_BIN)
 
 
-def _pyocd_prefix(args: dict) -> list[str]:
-    """唯一 pyocd：`python -m pyocd`（tools/pyocd/pkg 里的 0.45）。"""
-    return list(PYOCD)
+def _builtin_argv(name: str) -> list[str]:
+    """内嵌在 guard.py 里的任务实现（需要把一段 Python 源码喂给解释器）。"""
+    if name == "probe":
+        return [sys.executable, "-c", PROBE_SRC, str(PYOCD_PKG_DIR)]
+    if name == "usb":
+        return [str(PY_PKG_PY), "-c", USB_SRC]
+    if name == "selftest":
+        return [sys.executable, "-c", "print('guard selftest ok')"]
+    raise SystemExit(f"tasks.toml 里写了未知 builtin：{name}")
 
 
-def _pack_opt(args: dict) -> list[str]:
-    """显式给仓内 pack —— 新版 pyocd 不内置 STM32F407VE 的芯片定义。"""
-    if not PYOCD_PACK.is_file():
-        return []
-    return ["--pack", str(PYOCD_PACK)]
+def _cwd_of(task: Task) -> Path:
+    path = Path(task.cwd)
+    return path if path.is_absolute() else (REPO / task.cwd)
 
 
 def build_argv(action: str, args: dict) -> tuple[list[list[str]], Path]:
-    """返回 (命令序列, 工作目录)。build_flash 是两条命令。"""
-    tgt = args["target"]
-    if action == "probe":
-        return ([[sys.executable, "-c", PROBE_SRC, str(PYOCD_PKG_DIR)]], REPO)
-    if action == "usb":
-        return ([[str(PY_PKG_PY), "-c", USB_SRC]], REPO)
-    if action == "selftest":
-        return ([[sys.executable, "-c", "print('flash_guard selftest ok')"]], REPO)
-    if action == "list":
-        return ([[*_pyocd_prefix(args), "list", "-v", *_pack_opt(args)]], REPO)
-    if action == "reset":
-        return ([[*_pyocd_prefix(args), "reset", *_pack_opt(args), "--target", tgt]], REPO)
-    if action == "erase":
-        return ([[*_pyocd_prefix(args), "erase", *_pack_opt(args), "--target", tgt, "--chip"]], REPO)
-    if action == "build":
-        return ([[str(VENV_PY), str(BUILD_ENTRY), "build"]], REPO)
-
-    flash_cmd = [
-        *_pyocd_prefix(args),
-        "flash",
-        *_pack_opt(args),
-        "--target",
-        tgt,
-        "--erase=auto",
-        "--frequency=1000000",
-        str(_bin_path(args)),
-    ]
-    if action == "flash":
-        return ([flash_cmd], REPO)
-    return ([[str(VENV_PY), str(BUILD_ENTRY), "build"], flash_cmd], REPO)
+    """按任务模板拼 argv：返回 (命令序列, 工作目录)。不经过 shell。"""
+    task = TASKS[action]
+    if task.builtin:
+        return ([_builtin_argv(task.builtin)], _cwd_of(task))
+    table = _expand_paths()
+    table["bin"] = _bin_abs(args)
+    table["target"] = args.get("target") or DEFAULT_TARGET
+    cmds = [[token.format_map(table) for token in argv] for argv in task.run]
+    return (cmds, _cwd_of(task))
 
 
 def _cmd_label(argv: list[str]) -> str:
@@ -390,11 +423,14 @@ def child_env() -> dict:
 
 
 def _self_mtime() -> float:
-    """守卫脚本自身的修改时间的 mtime —— 用来发现「代码更新了，但进程还在跑老版本」。"""
-    try:
-        return Path(__file__).stat().st_mtime
-    except OSError:
-        return 0.0
+    """脚本与任务表里最新的 mtime —— 发现「代码/配置更新了，进程还在跑老版本」。"""
+    newest = 0.0
+    for path in (Path(__file__), TASKS_FILE):
+        try:
+            newest = max(newest, path.stat().st_mtime)
+        except OSError:
+            pass
+    return newest
 
 
 # ---------------------------------------------------------------- 守卫侧
@@ -443,7 +479,7 @@ class Guard:
                 "startedAt": self.started,
                 "beatAt": _now_iso(),
                 "mailbox": str(self.mb.root),
-                "actions": {k: v[0] for k, v in ACTIONS.items()},
+                "tasks": {k: task.timeout for k, task in TASKS.items()},
                 "pending": len(self.mb.pending()),
                 "running": self._running_info,
             },
@@ -491,7 +527,7 @@ class Guard:
             return
 
         cmds, cwd = build_argv(req["action"], args)
-        total_to = self.timeout_override or ACTIONS[req["action"]][0]
+        total_to = self.timeout_override or TASKS[req["action"]].timeout
         started = _now_iso()
         _say(f"[{_stamp()}] req_{n:04d} 开始：{req['action']}（上限 {int(total_to)}s，cwd={cwd}）")
 
@@ -644,7 +680,7 @@ class Guard:
             pass
 
         _say("=" * 78)
-        _say(" rt-thread-ros 烧录守卫 —— 替你跑「沙箱里跑不了」的烧录动作")
+        _say(" rt-thread-ros 守卫 —— 在沙箱外替你跑长任务（任务表驱动）")
         _say("=" * 78)
         _say(f" 仓库      : {REPO}")
         _say(f" 信箱      : {self.mb.root}   ← 会话侧往这里写 req_NNNN.json")
@@ -654,9 +690,9 @@ class Guard:
         _say(f" 轮询      : 每 {POLL_SECONDS:.0f}s 一次；心跳每 {HEARTBEAT_SECONDS:.0f}s")
         _say(f" 子进程TEMP: {CHILD_TMP}  (pyocd 解包用，不继承窗口 TEMP={os.environ.get('TEMP')!r})")
         _say(f" 停滞判据  : 日志连续 {int(self.stall)}s 没有新字节 ⇒ 判卡住并连进程树一起杀")
-        _say(" 白名单    :")
-        for a, (to, desc) in ACTIONS.items():
-            _say(f"   {a:<12} 上限 {int(to):>4}s   {desc}")
+        _say(f" 任务表    : {TASKS_FILE.name}（{len(TASKS)} 条；改文件即自动重启生效）")
+        for tid, task in TASKS.items():
+            _say(f"   {tid:<12} 上限 {int(task.timeout):>4}s   {task.title}")
         _say(" 拒绝      : 任意命令、多余参数、参数里的 shell 元字符 → rejected，永不执行")
         if self.once:
             _say(" 模式      : --once（处理完积压就退）")
@@ -674,7 +710,7 @@ class Guard:
                 if new_mtime and new_mtime != code_mtime:
                     reloads += 1
                     if reloads <= 3:
-                        _say(f"[{_stamp()}] 检测到 {Path(__file__).name} 被改动 —— 自动重启以载入新代码（第 {reloads} 次）")
+                        _say(f"[{_stamp()}] 检测到脚本或任务表被改动 —— 自动重启以载入新配置（第 {reloads} 次）")
                         try:
                             os.execv(sys.executable, [sys.executable, *sys.argv])
                         except OSError as exc:  # 换进程失败：退回到「继续跑老代码」
@@ -812,6 +848,17 @@ def cmd_request(mb: Mailbox, action: str, target: str | None, binrel: str | None
     return 2
 
 
+def cmd_tasks() -> int:
+    """列出 tasks.toml 允许的任务（--tasks）。"""
+    print(f"任务表：{TASKS_FILE}")
+    print(f"{'id':<12} {'上限':>6}   {'允许参数':<14} 说明")
+    for tid, task in TASKS.items():
+        allow = ",".join(task.allow) or "-"
+        print(f"{tid:<12} {int(task.timeout):>5}s   {allow:<14} {task.title}")
+    print("\n用 --request <id> 下请求；不带参数启动守卫 = 常驻。")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     for s in (sys.stdout, sys.stderr):
         try:
@@ -825,15 +872,16 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     ap = argparse.ArgumentParser(
-        description="rt-thread-ros 烧录守卫：白名单执行器（烧录 / 编译 / 探针），文件信箱协议",
+        description="rt-thread-ros 守卫：任务表驱动的沙箱外执行器（烧录 / 编译 / 探针），文件信箱协议",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("--mailbox", default=None, help="信箱目录（默认 <仓库>/out/guard）")
+    ap.add_argument("--mailbox", default=None, help=f"信箱目录（默认 <仓库>/{MAILBOX_DEFAULT}）")
     ap.add_argument("--status", action="store_true", help="守卫生不活着 ＋ 积压一览")
     ap.add_argument("--list", action="store_true", help="已处理请求一览")
-    ap.add_argument("--request", metavar="ACTION", help=f"下请求：{', '.join(ACTIONS)}")
+    ap.add_argument("--tasks", action="store_true", help="列出 tasks.toml 允许的任务")
+    ap.add_argument("--request", metavar="TASK", help=f"下请求：{', '.join(TASKS)}")
     ap.add_argument("--target", default=None, help=f"芯片型号（默认 {DEFAULT_TARGET}）")
-    ap.add_argument("--bin", dest="binrel", default=None, help="要烧的固件（仓内相对路径，默认 BSP/rtthread.bin）")
+    ap.add_argument("--bin", dest="binrel", default=None, help="要烧的固件（仓内相对路径，默认 tasks.toml 的 default_bin）")
     ap.add_argument("--note", default="", help="备注，最长 200 字符")
     ap.add_argument("--expires", type=int, default=DEFAULT_EXPIRES, help=f"请求有效期秒数（默认 {DEFAULT_EXPIRES}）")
     ap.add_argument("--wait", action="store_true", help="等到应答并回显日志尾")
@@ -843,12 +891,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--stall", type=float, default=STALL_SECONDS, help=f"守卫模式：停滞判据秒（0=关闭，默认 {int(STALL_SECONDS)}）")
     ns = ap.parse_args(argv)
 
-    mb = Mailbox(Path(ns.mailbox).resolve() if ns.mailbox else (REPO / "out" / "guard"))
+    mb = Mailbox(Path(ns.mailbox).resolve() if ns.mailbox else (REPO / MAILBOX_DEFAULT))
 
     if ns.status:
         return cmd_status(mb)
     if ns.list:
         return cmd_list(mb)
+    if ns.tasks:
+        return cmd_tasks()
     if ns.request:
         return cmd_request(mb, ns.request, ns.target, ns.binrel, ns.note, ns.expires, ns.wait, ns.wait_timeout)
     return Guard(mb, ns.once, ns.timeout, ns.stall).loop()

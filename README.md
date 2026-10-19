@@ -26,7 +26,7 @@
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
 | ramdump 采集与解析的完整用法 | `scripts/ramdump/README.md` |
 | 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/serial_hub/README.md` |
-| 烧录守卫（信箱协议 / 白名单 / 排错） | `scripts/flash_guard/README.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/guard/README.md` |
 | pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
@@ -46,5 +46,5 @@ python scripts/firmware/build.py status        # 固件 / pyocd / pack 状态
 python scripts/ramdump/build/build.py --flash
 ```
 
-> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/flash_guard/`
+> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/guard/`
 > 是**可选**的长任务执行器（信箱 + 完整日志 + 改脚本自动重启 + 无人值守）。

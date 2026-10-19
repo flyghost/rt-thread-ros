@@ -14,7 +14,7 @@ app/                     # 自有代码（与上游物理分离）
   └── ros/               # ANO_DT 等业务
 projects/<name>/         # 项目层：一块板 + 一套配置 + 一套自有源（SConstruct/rtconfig.py/project.toml）
                          #   当前只有 base（出厂基线）；板级硬件仍只有 bsp/stm32/<board>/ 一份
-scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；flash_guard/ 沙箱外守卫；
+scripts/                 # 自有 Python 脚本（firmware/ 编译烧录；guard/ 沙箱外守卫；
                          #   ramdump/ 采集与解析；serial_hub/ 串口服务器）
 out/                     # out/build/<入口名>/（.o/.d/.sconsign）、out/bin/<入口名>/（elf/map/bin）、dump、trace32 样本（全部 gitignore）
 docs/                    # 设计文档：reference/ 外来原始方案；archive/ 已落地设计稿；根下为实现方案（历史稿）
@@ -43,7 +43,7 @@ ai_services.bat                                # 人手动用：菜单（编译/
 - **pyocd 全仓只有一份**：pip 装进 `tools/pyocd/pkg`（已 gitignore，`python tools/pyocd/install.py` 复现），
   芯片定义用仓内 `tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack`，不写用户目录缓存；
 - **烧录两条路都通**：`python scripts/firmware/build.py flash` 会话里直接跑即可（现代 pyocd 用 `python -m pyocd`，
-  不再有 PyInstaller 解包那堵墙，沙箱内实测可烧）；`scripts/flash_guard/` 的守卫是**可选**的长任务执行器
+  不再有 PyInstaller 解包那堵墙，沙箱内实测可烧）；`scripts/guard/` 的守卫是**可选**的长任务执行器
   （信箱 + 完整日志 + 改脚本自动重启 + 无人值守），由人双击 `ai_services.bat` 启动。
 
 ## 关键路径
@@ -84,7 +84,7 @@ do STM32F407_Restore.cmm                                    # GUI界面
 | 组件级：异常链路 / 传输层 / 协议 / 脚本 | `app/ramdump/AGENTS.md` |
 | 采集与解析用法 | `scripts/ramdump/README.md` |
 | 串口服务器 | `scripts/serial_hub/README.md` |
-| 烧录守卫（信箱协议 / 白名单 / 排错） | `scripts/flash_guard/README.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/guard/README.md` |
 | pyocd 安装与版本（唯一实现） | `tools/pyocd/README.md` |
 | USB 双栈（CherryUSB / ST） | `app/usb/README.md` |
 | **上游偏离与构建约束（6 处 cwd 约定 / 升级清单 / 新增板与项目清单）** | `docs/upstream-patches.md` |

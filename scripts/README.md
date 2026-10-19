@@ -11,7 +11,7 @@
 | [1. 环境搭建](#1-环境搭建) | `tools/pyocd/install.py`、`pip` | — |
 | [2. 编译 / 配置 / 状态](#2-编译--配置--状态) | `scripts/firmware/build.py` | `ai_services.bat`、`ramdump.bat` |
 | [3. 烧录](#3-烧录) | `scripts/firmware/build.py` | `ai_services.bat`、`ramdump.bat` |
-| [4. 烧录守卫（可选）](#4-烧录守卫可选) | `scripts/flash_guard/flash_guard.py` | `ai_services.bat` |
+| [4. 守卫（可选）](#4-守卫可选) | `scripts/guard/guard.py` | `ai_services.bat` |
 | [5. 串口服务](#5-串口服务) | `scripts/serial_hub/serial_hub.py`、`scripts/ramdump/test/test_serial.py` | `ai_services.bat`、`ramdump.bat` |
 | [6. 采集 dump](#6-采集-dump) | `scripts/ramdump/dump/{dump,receive}.py`、`test_usb_loopback.py` | `ramdump.bat` |
 | [7. 解析 dump](#7-解析-dump) | `scripts/ramdump/analyzer/ramdump_analyzer.py` | `ramdump.bat` |
@@ -47,8 +47,8 @@ python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 | 3 | `build-flash` | `build.py build-flash` | 编译成功才烧 |
 | 4 | `board-build` | `build.py --board build` | 板级 BSP 对照编译 |
 | 5 | `clean` | `build.py clean` | 清 `out/build/*`、`out/bin/*`、旧 `build/` |
-| 6 | `status` | `build.py status` + `flash_guard --status` + `serial_hub --list` | 末行附 5555/5556 端口状态 |
-| 7 | `guard` | `flash_guard.py` | 前台常驻，Ctrl+C 结束 |
+| 6 | `status` | `build.py status` + `guard --status` + `serial_hub --list` | 末行附 5555/5556 端口状态 |
+| 7 | `guard` | `guard.py` | 前台常驻，Ctrl+C 结束 |
 | 8 | `hub` | `serial_hub.py --com COM46 --baud 115200 --ui tui` | 前台常驻；`ai_services.bat hub COM5 9600` 可覆盖 |
 | 9 | `both` | 新窗口起 hub，本窗口起守卫 | — |
 
@@ -143,16 +143,18 @@ python -m pyocd flash --target STM32F407VE --erase=auto --frequency=1000000 \
 
 pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正常的（不代表失败，看退出码）。
 
-## 4. 烧录守卫（可选）
+## 4. 守卫（可选）
 
 守卫是「信箱 + 完整日志 + 改脚本自动重启 + 无人值守」的长任务执行器：AI 写请求文件，人在沙箱外开的窗口执行，结果写回 `out/guard/`。
 **日常烧录不需要它**（`build.py flash` 直接就能跑）。
+**能跑哪些命令不写在代码里**，全在 `scripts/guard/tasks.toml`（加任务 = 加一段 `[[tasks]]`）。
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 起守卫（常驻） | `python scripts\flash_guard\flash_guard.py` | `ai_services.bat guard`（菜单 7，人手动） |
-| 活没活 / 积压 | `python scripts\flash_guard\flash_guard.py --status` | `ai_services.bat status` |
-| 历史请求 | `python scripts\flash_guard\flash_guard.py --list` | — |
+| 起守卫（常驻） | `python scripts\guard\guard.py` | `ai_services.bat guard`（菜单 7，人手动） |
+| 活没活 / 积压 | `python scripts\guard\guard.py --status` | `ai_services.bat status` |
+| **列出允许的任务** | `python scripts\guard\guard.py --tasks` | `ai_services.bat guard-tasks` |
+| 历史请求 | `python scripts\guard\guard.py --list` | — |
 | 烧录 | `--request flash --wait` | `ai_services.bat flash` |
 | 编译 + 烧录 | `--request build_flash --wait --wait-timeout 900` | `ai_services.bat build-flash` |
 | 只编译 | `--request build --wait` | `ai_services.bat build` |
@@ -166,7 +168,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | 换信箱（并行测试） | `--mailbox out\guard_test` | — |
 
 退出码：`0` 成功 / `1` 跑了但失败 / `2` 用法错、被拒或等待超时 / `3` 守卫不在跑。
-细节与排错：`scripts/flash_guard/README.md`。
+细节与排错：`scripts/guard/README.md`。
 
 ## 5. 串口服务
 
@@ -242,7 +244,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `RT_BUILD_DIR` | `../../out/build/<入口目录名>`（由脚本设） | SCons 中间文件目录，**相对入口目录**（项目目录或板目录）；不设则回到上游默认的 `build/` |
 | `PROJECT` | `base`（默认） | 构建哪个项目（`projects/<名字>`）；设为空 / `none` 等价于板级编译 |
 | `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | `scripts\ai_services.py` 的 `hub`/`both` 条目读取（可覆盖默认值） |
-| `FLASH_GUARD_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
+| `AI_SERVICES_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |
 
 依赖一览：Python 3.13（PATH 上的 `python`）、pyserial（hub/采集）、pyocd 0.45.1 + 18 个依赖（`tools/pyocd/install.py` 装）、
@@ -275,7 +277,7 @@ python scripts\ramdump\analyzer\ramdump_analyzer.py --sram out\dump\<时间>\SRA
     --elf bsp\stm32\stm32f407-atk-explorer\rt-thread.elf --text
 
 # 无人值守长任务（先让守卫窗口开着）
-python scripts\flash_guard\flash_guard.py --request build_flash --wait --wait-timeout 900
+python scripts\guard\guard.py --request build_flash --wait --wait-timeout 900
 ```
 
 ## 10. 已废弃 / 兼容入口
