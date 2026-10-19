@@ -1,0 +1,32 @@
+# 项目级编译组建：把「板级源」和「项目自有源」合到一棵构建树里。
+#
+# 关键点：板级 SConscript 在项目目录**之外**，必须用绝对路径调用，并显式给
+# variant_dir —— 否则上游 building.py 的变体目录映射不到它，.o 会漏回源码树。
+# 注意：variant_dir 是相对**当前变体目录**（= RT_BUILD_DIR）解析的，
+#       所以这里只写 'board/<name>'、'project/<name>'，不要带 '../..'。
+import os
+
+Import('BOARD_DIR')
+from building import *
+
+cwd = GetCurrentDir()
+objs = []
+
+
+def _add_group(root, variant_prefix):
+    """编译 root 下所有带 SConscript 的子目录（root 自身的 SConscript 不含在内）。"""
+    for name in sorted(os.listdir(root)):
+        scon = os.path.join(root, name, 'SConscript')
+        if os.path.isfile(scon):
+            objs.extend(SConscript(scon,
+                                   variant_dir=os.path.join(variant_prefix, name),
+                                   duplicate=0))
+
+
+# 1) 板级：board/（时钟、msp、中断、ramdump 钩子）、applications/（板级 main）
+_add_group(BOARD_DIR, 'board')
+
+# 2) 项目自有：本目录下的 applications/、src/ 等（有 SConscript 就会被收进来）
+_add_group(cwd, 'project')
+
+Return('objs')

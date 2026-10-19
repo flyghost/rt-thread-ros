@@ -52,45 +52,51 @@ python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 编译 | `python scripts\firmware\build.py build` | `ai_services.bat build`（菜单 1） |
+| 编译（默认 `projects/base`） | `python scripts\firmware\build.py build` | `ai_services.bat build`（菜单 1） |
+| 编译指定项目 | `python scripts\firmware\build.py --project base build` | — |
+| 直接编译板级 BSP（对照用） | `python scripts\firmware\build.py --board build` | — |
 | 指定并行数 | `python scripts\firmware\build.py build -j8` | — |
 | 清理产物 | `python scripts\firmware\build.py clean` | `ramdump.bat clean` |
-| menuconfig | `python scripts\firmware\build.py menuconfig` | `ramdump.bat menuconfig` |
+| menuconfig（始终在板目录） | `python scripts\firmware\build.py menuconfig` | `ramdump.bat menuconfig` |
 | 看状态 | `python scripts\firmware\build.py status` | `ai_services.bat status`（菜单 7） |
 
-`status` 打印：BSP 路径、`rtthread.bin` 大小与时间、pyocd 版本、芯片 pack 是否存在、目标芯片。
+**构建入口**由 `PROJECT` 环境变量 / `--project` / `--board` 决定：默认 `projects/base`（项目层），
+`--board` 直接编译板级 BSP。`status` 第一行会打印当前入口（`(project)` 或 `(board)`）。
+`status` 打印：入口、BSP 路径、`rtthread.bin` 大小与时间、pyocd 版本、芯片 pack 是否存在、目标芯片。
 
 ### 中间文件（`.o`/`.d`）在哪
 
-统一收在**仓库根的 `out/build/<board>/`**（已被 `/out/` 忽略），不再散落在 `bsp/.../build`：
+统一收在**仓库根的 `out/build/<入口目录名>/`**（已被 `/out/` 忽略），不再散落在源码树：
 
 ```
-out/build/stm32f407-atk-explorer/
+out/build/base/                      # 项目 projects/base
+out/build/stm32f407-atk-explorer/    # 板级 BSP
 ├── kernel/        ← os/rt-thread 内核与组件
 ├── libraries/     ← STM32F4xx_HAL（含 startup_stm32f407xx.o）+ HAL_Drivers
 ├── app/           ← app/ramdump、app/usb
-├── board/
+├── board/         ← 板级 board/、applications/（项目模式下多一层 board/）
 └── applications/
 ```
 
-最终 `rt-thread.elf` / `rtthread.bin` / `rt-thread.map` 仍在 `bsp/stm32/stm32f407-atk-explorer/`
-（那是链接输出目录），`flash` 成功后它们会被复制一份到 `out/bin/`。
+最终 `rt-thread.elf` / `rtthread.bin` / `rt-thread.map` 落在**入口目录**（项目 = `projects/<name>/`，
+板级 = `bsp/stm32/<board>/`），`flash` 成功后还会复制一份到 `out/bin/`。
 
 实现方式（P1 之后）：
 
-- 各板 `SConstruct` 是薄壳，逻辑在 `bsp/stm32/tools/bsp_build.py`：默认就把中间目录算成
-  `<PROJECT_ROOT>/out/build/<入口目录名>`，并把 `RT_BUILD_DIR` 注入给 `os/rt-thread/tools/building.py:376`；
-- `scripts/firmware/` 仍可显式传 `RT_BUILD_DIR` 覆盖（相对 BSP 目录，如 `../../../out/build/stm32f407-atk-explorer`）；
-- **直接敲 `scons`（在板目录里）也落到 `out/build/<板名>`**，不再生成 `bsp/<board>/build`；
+- 各板 `SConstruct` 与 `projects/<name>/SConstruct` 都是薄壳，逻辑在 `bsp/stm32/tools/bsp_build.py`：
+  默认把中间目录算成 `<PROJECT_ROOT>/out/build/<入口目录名>`，并把 `RT_BUILD_DIR` 注入给
+  `os/rt-thread/tools/building.py:376`；
+- `scripts/firmware/` 仍可显式传 `RT_BUILD_DIR` 覆盖（**相对入口目录**）；
+- **直接敲 `scons`（在板目录或项目目录里）也落到 `out/build/<入口目录名>`**；
   但需要先备好工具链环境变量（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`，
   否则 rtconfig.py 会报 `the toolchain path ... is not exist`）。用 `scripts/firmware/` 或 `ai_services.bat`
   时这些变量已内置，不必手工设置。
 
-**入口位置约束**：SCons 必须在板目录里跑（`cd <板目录>` 或 `scons -C <板目录>`）。
-跨目录 `scons -f bsp/stm32/.../SConstruct` 会被薄壳拒绝（退 1）——上游 `building.py` 有 6 处按 cwd
+**入口位置约束**：SCons 必须在入口目录里跑（`cd <板目录/项目目录>` 或 `scons -C <...>`）。
+跨目录 `scons -f .../SConstruct` 会被薄壳拒绝（退 1）——上游 `building.py` 有 6 处按 cwd
 解析的路径，详见 `docs/upstream-patches.md`。
 
-`clean` 会把 `out/build/<board>` 和遗留的 `bsp/<board>/build` 一起删掉。
+`clean` 会把 `out/build/<入口目录名>` 和遗留的 `build/` 一起删掉。
 
 ## 3. 烧录
 
@@ -100,6 +106,9 @@ out/build/stm32f407-atk-explorer/
 | 编译 + 烧录 | `python scripts\firmware\build.py build-flash` | `ai_services.bat build-flash`（菜单 3） |
 | 烧指定文件 | `python scripts\firmware\build.py flash --bin out\bin\rtthread.bin` | — |
 | 老命令（兼容） | `python scripts\ramdump\build\build.py --flash` | `ramdump.bat build --flash` / `ramdump.bat flash` |
+
+`flash` 默认烧**当前构建入口**的 `rtthread.bin`（项目 = `projects/<name>/rtthread.bin`，
+板级 = `bsp/stm32/<board>/rtthread.bin`），所以先 `build` 再 `flash` 不会烧错目标。
 
 固定参数（写死在 `scripts/firmware/tools.py`）：
 
@@ -206,7 +215,8 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `PYOCD_PY` | 当前解释器 | 跑 `-m pyocd` 的解释器（要与 `pkg/` 里二进制 wheel 的 ABI 一致，即 CPython 3.13） |
 | `PYOCD_TARGET` | `STM32F407VE` | pyocd 目标名 |
 | `SCONS_JOBS` | `20` | 并行编译数 |
-| `RT_BUILD_DIR` | `../../../out/build/<board>`（由脚本设） | SCons 中间文件目录，**相对 BSP 目录**；不设则回到上游默认的 `build/` |
+| `RT_BUILD_DIR` | `../../out/build/<入口目录名>`（由脚本设） | SCons 中间文件目录，**相对入口目录**（项目目录或板目录）；不设则回到上游默认的 `build/` |
+| `PROJECT` | `base`（默认） | 构建哪个项目（`projects/<名字>`）；设为空 / `none` 等价于板级编译 |
 | `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | 仅 `ai_services.bat` 用 |
 | `FLASH_GUARD_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |

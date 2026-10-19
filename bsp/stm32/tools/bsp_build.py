@@ -19,6 +19,22 @@ import sys
 import bsp_paths
 
 
+def load_project(project_dir):
+    """读取 ``project.toml``（单一事实来源），返回 ``[project]`` 段。"""
+    import tomllib
+
+    path = os.path.join(os.path.abspath(project_dir), 'project.toml')
+    if not os.path.isfile(path):
+        raise bsp_paths.BspPathError('项目目录缺少 project.toml：%s' % path)
+    with open(path, 'rb') as fp:
+        data = tomllib.load(fp)
+    meta = data.get('project') or {}
+    if not meta.get('board'):
+        raise bsp_paths.BspPathError(
+            '%s 缺少 [project].board（必须写明用哪块板，例：board = "stm32f407-atk-explorer"）' % path)
+    return meta
+
+
 def load_rtconfig(entry_dir):
     """按文件路径加载入口目录的 ``rtconfig.py``（不依赖 sys.path / cwd）。"""
     import importlib.util

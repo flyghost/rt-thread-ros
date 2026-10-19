@@ -14,9 +14,9 @@ import subprocess
 import sys
 
 from firmware.config import (
-    BSP_DIR, BUILD_DIR, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS, PYOCD_PACK, PYOCD_PKG_DIR,
-    PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RT_BUILD_DIR, RTT_EXEC_PATH, SCONS_JOBS, TARGET_BIN,
-    TARGET_ELF, TARGET_MAP, VENV_PY,
+    BSP_DIR, BUILD_DIR, ENTRY_DIR, ENTRY_KIND, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS,
+    PYOCD_PACK, PYOCD_PKG_DIR, PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RT_BUILD_DIR, RTT_EXEC_PATH,
+    SCONS_JOBS, TARGET_BIN, TARGET_ELF, TARGET_MAP, VENV_PY,
 )
 
 
@@ -60,16 +60,19 @@ def build(jobs: int | None = None) -> int:
     if not VENV_PY.exists():
         print(f"[build] 找不到装了 SCons 的解释器：{VENV_PY}")
         return 1
-    print(f"[build] SCons -j{jobs}  (cwd={BSP_DIR})")
-    return _run([VENV_PY, "-m", "SCons", f"-j{jobs}"], BSP_DIR, _scons_env())
+    print(f"[build] SCons -j{jobs}  ({ENTRY_KIND}: {ENTRY_DIR})")
+    return _run([VENV_PY, "-m", "SCons", f"-j{jobs}"], ENTRY_DIR, _scons_env())
 
 
 def clean() -> int:
-    print(f"[clean] SCons -c  (中间文件目录: {BUILD_DIR})")
-    rc = _run([VENV_PY, "-m", "SCons", "-c"], BSP_DIR, _scons_env())
-    # SCons -c 只删它这次认知的目标；换过 variant_dir、或历史遗留的 bsp/.../build
+    print(f"[clean] SCons -c  ({ENTRY_KIND}: {ENTRY_DIR})")
+    rc = _run([VENV_PY, "-m", "SCons", "-c"], ENTRY_DIR, _scons_env())
+    # SCons -c 只删它这次认知的目标；换过 variant_dir、或历史遗留的 build 目录
     # 不会自动消失，这里兜底清掉，避免“清了还有残留”。
-    for stale in (BUILD_DIR, BSP_DIR / "build"):
+    stale_dirs = [BUILD_DIR, ENTRY_DIR / "build"]
+    if ENTRY_DIR != BSP_DIR:
+        stale_dirs.append(BSP_DIR / "build")
+    for stale in stale_dirs:
         if stale.exists():
             shutil.rmtree(stale, ignore_errors=True)
             print(f"[clean] 已删除 {stale}")
@@ -77,7 +80,8 @@ def clean() -> int:
 
 
 def menuconfig() -> int:
-    print("[menuconfig] SCons --menuconfig")
+    # 配置仍归属板级：板级 Kconfig 的 RTT_DIR 是相对板目录的常量。
+    print(f"[menuconfig] SCons --menuconfig  (cwd={BSP_DIR})")
     return _run([VENV_PY, "-m", "SCons", "--menuconfig"], BSP_DIR, _scons_env())
 
 
@@ -148,7 +152,8 @@ def build_and_flash(jobs: int | None = None) -> bool:
 
 
 def status() -> int:
-    print(f"BSP        : {BSP_DIR}")
+    print(f"构建入口   : {ENTRY_DIR}  ({ENTRY_KIND})")
+    print(f"板级 BSP   : {BSP_DIR}")
     print(f"中间文件   : {BUILD_DIR}  ({'存在' if BUILD_DIR.exists() else '未编译'})")
     print(f"固件       : {TARGET_BIN}  "
           f"({'%.0f KB' % (TARGET_BIN.stat().st_size / 1024) if TARGET_BIN.exists() else '缺失'})")

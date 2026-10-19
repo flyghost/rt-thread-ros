@@ -1,0 +1,16 @@
+# 项目级 Kconfig（P2 阶段为占位）
+#
+# 现状：menuconfig 仍应在 **板目录** 执行（`cd bsp/stm32/stm32f407-atk-explorer && python scripts/firmware/build.py menuconfig`），
+#       本项目的 rtconfig.h 从板级的 rtconfig.h 复制而来（见 P2 迁移说明）。
+# 原因：板级 Kconfig 里 `RTT_DIR := ../../../os/rt-thread` 是相对板目录的常量，
+#       从项目目录 source 它会让 RTT_DIR 解析错位。
+# P3 计划：改成 `defconfig`（板级默认）+ `config.fragment`（本项目覆盖）+ 生成器产出 rtconfig.h，
+#       届时本文件会 source 板级与 app 的 Kconfig，并提供项目级选项。
+
+mainmenu "rt-thread-ros project (base)"
+
+config PROJECT_NAME
+    string
+    default "base"
+    help
+        Project identifier, keeps parity with project.toml [project].name.

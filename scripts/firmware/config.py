@@ -14,6 +14,17 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]        # scripts/
 REPO_ROOT = SCRIPTS_DIR.parent                           # 仓库根
 TOOLS_DIR = REPO_ROOT / "tools"
 BSP_DIR = REPO_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
+PROJECTS_DIR = REPO_ROOT / "projects"
+
+# ---- 构建入口：项目优先，缺省回落到板级 ---------------------------------
+# PROJECT 环境变量：'base' 之类 = projects/<名字>； 空 / 'none' / 'board' = 直接编译板级 BSP。
+# 目前只在 projects/base 上验证（多项目并行构建留给后续批次）。
+PROJECT_NAME = os.environ.get("PROJECT", "base").strip()
+PROJECT_DIR = PROJECTS_DIR / PROJECT_NAME if PROJECT_NAME else None
+if PROJECT_DIR is not None and (PROJECT_DIR / "SConstruct").is_file():
+    ENTRY_DIR, ENTRY_KIND = PROJECT_DIR, "project"
+else:
+    ENTRY_DIR, ENTRY_KIND = BSP_DIR, "board"
 
 # ---- RT-Thread 工具链（SCons + arm-none-eabi-gcc）----------------------
 ENV_ROOT = Path(os.environ.get("ENV_ROOT", r"E:\software\EnvEdition\rt-thread-env\env-windows"))
@@ -40,15 +51,16 @@ PYOCD_FLASH_OPTS = os.environ.get(
 PYOCD_PY = Path(os.environ.get("PYOCD_PY", sys.executable))
 
 # ---- 产物 --------------------------------------------------------------
-TARGET_BIN = BSP_DIR / "rtthread.bin"
-TARGET_ELF = BSP_DIR / "rt-thread.elf"
-TARGET_MAP = BSP_DIR / "rt-thread.map"
+# 产物落在构建入口目录：项目 = projects/<name>/，板级 = bsp/stm32/<board>/
+TARGET_BIN = ENTRY_DIR / "rtthread.bin"
+TARGET_ELF = ENTRY_DIR / "rt-thread.elf"
+TARGET_MAP = ENTRY_DIR / "rt-thread.map"
 OUT_BIN_DIR = REPO_ROOT / "out" / "bin"
 
 # ---- 中间文件（.o/.d）目录 ---------------------------------------------
-# 统一收到仓内 out/build/<board>/，不再散落在 bsp/.../build 下。
+# 统一收到仓内 out/build/<入口目录名>/（项目=项目名，板级=板名），不再散落源码树。
 # SCons 的 variant_dir 只能写「相对顶层 SConstruct 目录」的路径，所以这里换算成
-# 从 BSP 目录出发的相对路径，通过 RT_BUILD_DIR 传给 SConstruct/building.py。
+# 从入口目录出发的相对路径，通过 RT_BUILD_DIR 传给 SConstruct/building.py。
 # 不设该变量时构建系统仍退回上游默认的 build/。
-BUILD_DIR = REPO_ROOT / "out" / "build" / BSP_DIR.name
-RT_BUILD_DIR = os.path.relpath(BUILD_DIR, BSP_DIR).replace("\\", "/")
+BUILD_DIR = REPO_ROOT / "out" / "build" / ENTRY_DIR.name
+RT_BUILD_DIR = os.path.relpath(BUILD_DIR, ENTRY_DIR).replace("\\", "/")
