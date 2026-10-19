@@ -85,6 +85,11 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RET", "PTH", "ARG", "RUF"]
 ignore = ["E501"]                      # 行长交给 formatter，避免两套规则互相打架
+# 规则集要按项目形态取舍，并在 pyproject 里写明理由：
+#   纯命令行工具集   → 可去掉 T20（stdout 就是结果通道），改由代码评审守住「诊断走 stderr」
+#   存量 os.path 多  → PTH 无自动修复，先按包渐进迁移，暂缓开启
+#   内部实现类多     → D102/D103 收益低，保留 D100/D101（模块/类必须写）即可
+# 判断标准只有一个：**这条规则逼出的是真问题，还是格式化的废话**。
 
 [tool.ruff.lint.isort]
 known-first-party = ["myproject"]
