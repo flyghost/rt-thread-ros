@@ -5,6 +5,7 @@
 这个模块**不含任何具体厂商知识** —— 具体家族（各 USB 转串口芯片）在 `discovery/` 下
 各自一个文件里，靠 `PortRule` 描述自己怎么被认出来。加新家族不用改这里的代码。
 """
+
 from __future__ import annotations
 
 
@@ -35,7 +36,7 @@ class PortInfo:
 
     @classmethod
     def from_pyserial(cls, p) -> "PortInfo":
-        g = lambda k: getattr(p, k, None)          # noqa: E731
+        g = lambda k: getattr(p, k, None)  # noqa: E731
         return cls(
             device=str(g("device") or ""),
             description=str(g("description") or ""),
@@ -125,22 +126,31 @@ def parse_rule_spec(spec: str, priority: int = 100) -> PortRule:
         raise ValueError("空的 --prefer 规则")
     low = text.lower()
     if low.startswith("name:"):
-        return PortRule(name="cli-name", label="命令行指定串口名", priority=priority,
-                        device_patterns=(text[5:].strip(),))
+        return PortRule(
+            name="cli-name", label="命令行指定串口名", priority=priority, device_patterns=(text[5:].strip(),)
+        )
     if low.startswith("desc:"):
-        return PortRule(name="cli-desc", label="命令行指定描述", priority=priority,
-                        description_keywords=(text[5:].strip(),))
+        return PortRule(
+            name="cli-desc",
+            label="命令行指定描述",
+            priority=priority,
+            description_keywords=(text[5:].strip(),),
+        )
     if low.startswith("hwid:"):
-        return PortRule(name="cli-hwid", label="命令行指定硬件ID", priority=priority,
-                        hwid_keywords=(text[5:].strip(),))
+        return PortRule(
+            name="cli-hwid", label="命令行指定硬件ID", priority=priority, hwid_keywords=(text[5:].strip(),)
+        )
     body = text[7:] if low.startswith("vidpid:") else text
     parts = body.replace("-", ":").split(":")
     if len(parts) == 2:
         try:
-            return PortRule(name="cli-vidpid", label="命令行指定 VID:PID", priority=priority,
-                            vid_pids=((int(parts[0], 16), int(parts[1], 16)),))
+            return PortRule(
+                name="cli-vidpid",
+                label="命令行指定 VID:PID",
+                priority=priority,
+                vid_pids=((int(parts[0], 16), int(parts[1], 16)),),
+            )
         except ValueError:
             raise ValueError("VID:PID 不是十六进制：%r" % spec)
     # 兜底：当串口名用（COM7 这种最自然的写法）
-    return PortRule(name="cli-name", label="命令行指定串口名", priority=priority,
-                    device_patterns=(text,))
+    return PortRule(name="cli-name", label="命令行指定串口名", priority=priority, device_patterns=(text,))

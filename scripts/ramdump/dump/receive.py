@@ -9,13 +9,15 @@
 
 和 dump.py 的区别：不编译、不下载、不进 ramdump（除 --no-check 外会先探一次 MSH）。
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import os
@@ -23,30 +25,28 @@ import sys
 import time
 from pathlib import Path
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
-from lib import console, serial_utils, ymodem_receiver                 # noqa: E402
-from lib.config import OUT_DUMP_DIR                                    # noqa: E402
-from lib.serial_utils import BAUDRATE                                  # noqa: E402
+from lib import console, serial_utils, ymodem_receiver  # noqa: E402
+from lib.config import OUT_DUMP_DIR  # noqa: E402
+from lib.serial_utils import BAUDRATE  # noqa: E402
 
 REGION_CMD = {
-    "all":   "ramdump",
+    "all": "ramdump",
     "flash": "ramdump_flash",
-    "sram":  "ramdump sram",
-    "ccm":   "ramdump ccm",
+    "sram": "ramdump sram",
+    "ccm": "ramdump ccm",
 }
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="receive.py",
-                                description="只做 YMODEM 收取（设备已在运行）")
+    p = argparse.ArgumentParser(prog="receive.py", description="只做 YMODEM 收取（设备已在运行）")
     p.add_argument("--com", help="串口号（省略则按 VID:PID 自动找 CH340）")
     p.add_argument("--baud", type=int, default=BAUDRATE)
     p.add_argument("--region", choices=sorted(REGION_CMD), default="all")
     p.add_argument("--out-dir", help="落盘目录（默认 out/dump/<时间戳>）")
-    p.add_argument("--no-trigger", action="store_true",
-                   help="不下发任何命令，设备已经在等/在发 YMODEM")
+    p.add_argument("--no-trigger", action="store_true", help="不下发任何命令，设备已经在等/在发 YMODEM")
     p.add_argument("--no-check", action="store_true", help="跳过 MSH 探测")
     a = p.parse_args(argv)
 

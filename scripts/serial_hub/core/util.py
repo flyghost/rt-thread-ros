@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """通用小工具：时间戳、字节数人话、仓库根定位。"""
+
 from __future__ import annotations
 
 import os
@@ -9,7 +10,6 @@ from datetime import datetime
 
 def ts() -> str:
     return datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
 
 
 def human(n: int) -> str:
@@ -22,5 +22,5 @@ def human(n: int) -> str:
 
 def repo_root() -> str:
     """本文件在 scripts/serial_hub/core/util.py —— 往上四级才是仓库根。"""
-    here = os.path.dirname(os.path.abspath(__file__))          # .../scripts/serial_hub/core
+    here = os.path.dirname(os.path.abspath(__file__))  # .../scripts/serial_hub/core
     return os.path.dirname(os.path.dirname(os.path.dirname(here)))

@@ -27,11 +27,11 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse                                          # noqa: E402
-import sys                                               # noqa: E402
-from pathlib import Path                                 # noqa: E402
+import argparse  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-_SCRIPTS = Path(__file__).resolve().parents[1]           # scripts/
+_SCRIPTS = Path(__file__).resolve().parents[1]  # scripts/
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
@@ -44,14 +44,16 @@ def main(argv=None) -> int:
         description="STM32F407 固件构建/烧录统一入口（默认项目 projects/base）",
         epilog="命令：" + " | ".join(COMMANDS),
     )
-    ap.add_argument("command", nargs="?", default="build", choices=COMMANDS,
-                    help="要做的事（默认 build）")
+    ap.add_argument("command", nargs="?", default="build", choices=COMMANDS, help="要做的事（默认 build）")
     ap.add_argument("-j", "--jobs", type=int, default=None, help="并行编译任务数")
     ap.add_argument("--bin", default=None, help="烧录用别的 bin 文件")
-    ap.add_argument("--project", default=None, metavar="NAME",
-                    help="构建 projects/<NAME>（默认取环境变量 PROJECT，未设则 base）")
-    ap.add_argument("--board", action="store_true",
-                    help="直接编译板级 BSP（等价 PROJECT=none）")
+    ap.add_argument(
+        "--project",
+        default=None,
+        metavar="NAME",
+        help="构建 projects/<NAME>（默认取环境变量 PROJECT，未设则 base）",
+    )
+    ap.add_argument("--board", action="store_true", help="直接编译板级 BSP（等价 PROJECT=none）")
     a = ap.parse_args(argv)
 
     # config 在 import 时读取 PROJECT，所以必须先定好环境再导入 tools
@@ -60,7 +62,7 @@ def main(argv=None) -> int:
     elif a.project:
         _os.environ["PROJECT"] = a.project
 
-    from firmware import tools                            # noqa: E402
+    from firmware import tools  # noqa: E402
 
     if a.command == "build":
         return tools.build(a.jobs)

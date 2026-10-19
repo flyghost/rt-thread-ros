@@ -1,0 +1,27 @@
+# 行尾与文本/二进制判定：让「同一份仓库在任何机器上 checkout 出来都一样」。
+#
+# 背景：本仓此前只有 core.autocrlf=true（Git 全局/本地配置），没有 .gitattributes，
+# 于是同一文件在不同机器上可能 checkout 成 CRLF 或 LF，配合 ruff format 的
+# line-ending="lf" 会产生无意义的整文件 diff。这里把规则写进仓库，不依赖个人配置。
+
+# 默认：Git 自动识别文本文件，仓库内一律存 LF，checkout 也出 LF。
+* text=auto eol=lf
+
+# Windows 批处理必须是 CRLF（纯 LF 会让 cmd 的 goto/标签解析错乱，曾出现死循环），
+# 且必须是纯 ASCII（中文在 GBK 控制台下会被按字节拆碎）。见 scripts/check_bat.py。
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# 这些是二进制，不能做行尾转换。
+*.png   binary
+*.jpg   binary
+*.pdf   binary
+*.pack  binary
+*.bin   binary
+*.elf   binary
+*.o     binary
+*.a     binary
+*.hex   binary
+*.rar   binary
+*.zip   binary

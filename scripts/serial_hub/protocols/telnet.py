@@ -6,6 +6,7 @@
 （NAWS / TERMINAL-TYPE / DO ECHO ...），这些字节必须在这里被吃掉，否则设备把它们
 回显回来、客户端又当协商解析，两边状态机打架 —— 表现就是满屏 "^M^M^M help ^M"。
 """
+
 from __future__ import annotations
 
 
@@ -41,17 +42,26 @@ class TelnetCodec(Codec):
     SE = 240
     ECHO = 1
     SGA = 3
-    OPT_NAMES = {0: "BINARY", 1: "ECHO", 3: "SGA", 5: "STATUS", 24: "TTYPE",
-                 31: "NAWS", 32: "TSPEED", 34: "LINEMODE", 39: "NEW-ENVIRON"}
+    OPT_NAMES = {
+        0: "BINARY",
+        1: "ECHO",
+        3: "SGA",
+        5: "STATUS",
+        24: "TTYPE",
+        31: "NAWS",
+        32: "TSPEED",
+        34: "LINEMODE",
+        39: "NEW-ENVIRON",
+    }
 
     def __init__(self):
         self.reset()
 
     def reset(self) -> None:
-        self._st = "data"       # data | iac | opt | sb | sb_iac
+        self._st = "data"  # data | iac | opt | sb | sb_iac
         self._cmd = 0
-        self._last_cr = False   # 客户端方向：上一个字节是 CR
-        self.notes = []         # 协商轨迹（人类可读），由 hub 打日志
+        self._last_cr = False  # 客户端方向：上一个字节是 CR
+        self.notes = []  # 协商轨迹（人类可读），由 hub 打日志
 
     def decode(self, data: bytes) -> tuple[bytes, bytes]:
         out = bytearray()
@@ -66,7 +76,7 @@ class TelnetCodec(Codec):
                 self._st = "data" if b == self.SE else "sb"
                 continue
             if st == "iac":
-                if b == self.IAC:                       # IAC IAC = 字面 0xFF
+                if b == self.IAC:  # IAC IAC = 字面 0xFF
                     self._st = "data"
                     out += bytes((b,))
                     continue
@@ -77,7 +87,7 @@ class TelnetCodec(Codec):
                 if b == self.SB:
                     self._st = "sb"
                     continue
-                self._st = "data"                       # NOP/DM/BRK/AYT/GA：丢掉
+                self._st = "data"  # NOP/DM/BRK/AYT/GA：丢掉
                 continue
             if st == "opt":
                 self._reply_opt(reply, self._cmd, b)
@@ -89,10 +99,10 @@ class TelnetCodec(Codec):
                 self._st = "iac"
                 self._last_cr = False
                 continue
-            if self._last_cr and b in (0x0A, 0x00):     # CR LF / CR NUL -> 一个 Enter
+            if self._last_cr and b in (0x0A, 0x00):  # CR LF / CR NUL -> 一个 Enter
                 self._last_cr = False
                 continue
-            self._last_cr = (b == 0x0D)
+            self._last_cr = b == 0x0D
             out += bytes((b,))
         return bytes(out), bytes(reply)
 
@@ -109,16 +119,16 @@ class TelnetCodec(Codec):
             b = data[i]
             if b == 0x0D:
                 if i + 1 < n and data[i + 1] == 0x0A:
-                    out += b"\r\n"                      # CR LF 原样（不重复补 CR）
+                    out += b"\r\n"  # CR LF 原样（不重复补 CR）
                     i += 2
                 else:
-                    out += b"\r\x00"                    # 单独 CR -> CR NUL（NVT 合法）
+                    out += b"\r\x00"  # 单独 CR -> CR NUL（NVT 合法）
                     i += 1
             elif b == 0x0A:
-                out += b"\r\n"                          # 单独 LF -> CR LF
+                out += b"\r\n"  # 单独 LF -> CR LF
                 i += 1
             elif b == 0xFF:
-                out += b"\xff\xff"                      # Telnet：字面 0xFF 要翻倍
+                out += b"\xff\xff"  # Telnet：字面 0xFF 要翻倍
                 i += 1
             else:
                 out += bytes((b,))
@@ -127,9 +137,9 @@ class TelnetCodec(Codec):
 
     def greeting(self) -> bytes:
         """telnet 口一建立就把立场说清楚，别等客户端先问。"""
-        return bytes((self.IAC, self.WILL, self.ECHO,
-                      self.IAC, self.WILL, self.SGA,
-                      self.IAC, self.DO, self.SGA))
+        return bytes(
+            (self.IAC, self.WILL, self.ECHO, self.IAC, self.WILL, self.SGA, self.IAC, self.DO, self.SGA)
+        )
 
     def _oname(self, opt: int) -> str:
         return self.OPT_NAMES.get(opt, "opt%d" % opt)

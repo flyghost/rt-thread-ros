@@ -20,17 +20,19 @@ from dataclasses import dataclass
 @dataclass
 class StackFrame:
     """Represents one stack frame in a backtrace."""
+
     depth: int
-    stack_addr: int        # address on the stack where this frame was found
-    return_addr: int       # the return address (value on stack)
-    call_addr: int         # the call instruction address
-    func_name: str         # resolved function name (or "unknown")
-    func_offset: int       # offset into the function
+    stack_addr: int  # address on the stack where this frame was found
+    return_addr: int  # the return address (value on stack)
+    call_addr: int  # the call instruction address
+    func_name: str  # resolved function name (or "unknown")
+    func_offset: int  # offset into the function
 
 
 @dataclass
 class RegisterSnapshot:
     """Hardware exception frame registers (from ARM cortex-M auto-stack)."""
+
     r0: int = 0
     r1: int = 0
     r2: int = 0
@@ -41,12 +43,18 @@ class RegisterSnapshot:
     xpsr: int = 0
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'RegisterSnapshot':
+    def from_bytes(cls, data: bytes) -> "RegisterSnapshot":
         """Parse 32 bytes of hardware-stacked frame."""
-        values = struct.unpack('<8I', data[:32])
+        values = struct.unpack("<8I", data[:32])
         return cls(
-            r0=values[0], r1=values[1], r2=values[2], r3=values[3],
-            r12=values[4], lr=values[5], pc=values[6], xpsr=values[7]
+            r0=values[0],
+            r1=values[1],
+            r2=values[2],
+            r3=values[3],
+            r12=values[4],
+            lr=values[5],
+            pc=values[6],
+            xpsr=values[7],
         )
 
     def __str__(self):
@@ -93,23 +101,28 @@ def is_call_instruction(data: bytes, addr: int) -> bool:
     """
     # Try 4-byte instruction at (addr - 4)
     if addr >= 4:
-        instr = struct.unpack('<I', data[addr - 4:addr])[0]
+        instr = struct.unpack("<I", data[addr - 4 : addr])[0]
         if _is_thumb_bl(instr):
             return True
 
     # Try 2-byte instruction at (addr - 2) -- BLX reg is 16-bit
     if addr >= 2:
-        instr16 = struct.unpack('<H', data[addr - 2:addr])[0]
+        instr16 = struct.unpack("<H", data[addr - 2 : addr])[0]
         if _is_thumb_blx(instr16):
             return True
 
     return False
 
 
-def backtrace(memory: bytes, memory_base: int,
-              sp: int, stack_limit: int,
-              code_start: int, code_end: int,
-              symbols: Dict[int, str]) -> List[StackFrame]:
+def backtrace(
+    memory: bytes,
+    memory_base: int,
+    sp: int,
+    stack_limit: int,
+    code_start: int,
+    code_end: int,
+    symbols: Dict[int, str],
+) -> List[StackFrame]:
     """Perform ARM Thumb-2 stack backtrace.
 
     Args:
@@ -141,20 +154,21 @@ def backtrace(memory: bytes, memory_base: int,
     # Helper: read 32-bit word from memory image
     def read32(addr: int) -> Optional[int]:
         if memory_base <= addr < memory_base + len(memory):
-            return struct.unpack('<I',
-                memory[addr - memory_base:addr - memory_base + 4])[0]
+            return struct.unpack("<I", memory[addr - memory_base : addr - memory_base + 4])[0]
         return None
 
     # Add initial frame from pc
     name, offset = resolve(sp)
-    frames.append(StackFrame(
-        depth=0,
-        stack_addr=0,
-        return_addr=0,
-        call_addr=sp,
-        func_name=name,
-        func_offset=offset,
-    ))
+    frames.append(
+        StackFrame(
+            depth=0,
+            stack_addr=0,
+            return_addr=0,
+            call_addr=sp,
+            func_name=name,
+            func_offset=offset,
+        )
+    )
 
     # Walk the stack looking for return addresses
     depth = 1
@@ -177,14 +191,16 @@ def backtrace(memory: bytes, memory_base: int,
 
         # This is a valid return address
         name, func_offset = resolve(value)
-        frames.append(StackFrame(
-            depth=depth,
-            stack_addr=addr,
-            return_addr=value,
-            call_addr=value - 4,  # approximate call site
-            func_name=name,
-            func_offset=func_offset,
-        ))
+        frames.append(
+            StackFrame(
+                depth=depth,
+                stack_addr=addr,
+                return_addr=value,
+                call_addr=value - 4,  # approximate call site
+                func_name=name,
+                func_offset=func_offset,
+            )
+        )
         depth += 1
 
     return frames
@@ -193,19 +209,22 @@ def backtrace(memory: bytes, memory_base: int,
 def format_backtrace(frames: List[StackFrame]) -> str:
     """Format a backtrace for display."""
     lines = ["=== Call Stack Backtrace ==="]
-    lines.append(f"{'#':>3} {'Stack Addr':>10} {'Return Addr':>10} "
-                 f"{'Function':<40} {'Offset':>6}")
+    lines.append(f"{'#':>3} {'Stack Addr':>10} {'Return Addr':>10} {'Function':<40} {'Offset':>6}")
     lines.append("-" * 80)
 
     for frame in frames:
         if frame.depth == 0:
-            lines.append(f"{frame.depth:>3} {'(crash pc)':>10} "
-                         f"0x{frame.call_addr:08X} "
-                         f"{frame.func_name:<40} +0x{frame.func_offset:X}")
+            lines.append(
+                f"{frame.depth:>3} {'(crash pc)':>10} "
+                f"0x{frame.call_addr:08X} "
+                f"{frame.func_name:<40} +0x{frame.func_offset:X}"
+            )
         else:
-            lines.append(f"{frame.depth:>3} 0x{frame.stack_addr:08X} "
-                         f"0x{frame.return_addr:08X} "
-                         f"{frame.func_name:<40} +0x{frame.func_offset:X}")
+            lines.append(
+                f"{frame.depth:>3} 0x{frame.stack_addr:08X} "
+                f"0x{frame.return_addr:08X} "
+                f"{frame.func_name:<40} +0x{frame.func_offset:X}"
+            )
 
     lines.append("=" * 80)
     return "\n".join(lines)

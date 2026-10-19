@@ -6,6 +6,7 @@
 广播语义的关键：串口来的**原始字节**交给每个会话各自 encode（feed），
 而不是广播"已编码"的字节。
 """
+
 from __future__ import annotations
 
 
@@ -19,23 +20,22 @@ from protocols import CODECS, Codec
 class Client:
     """一个连接 = 一个会话（数据口 raw/嗅探，或 telnet 口）。"""
 
-    def __init__(self, sock: socket.socket, addr, cid: int,
-                 proto: str | None = None, locked: bool = False):
+    def __init__(self, sock: socket.socket, addr, cid: int, proto: str | None = None, locked: bool = False):
         self.sock = sock
         self.addr = addr
         self.cid = cid
         self.lock = threading.Lock()
-        self.out = bytearray()      # 待发给本客户端的字节（已 encode）
-        self.linebuf = b""          # 内联控制命令的半行缓冲
-        self.rx = 0                 # 本客户端 -> hub
-        self.tx = 0                 # hub -> 本客户端（encode 后的字节数）
+        self.out = bytearray()  # 待发给本客户端的字节（已 encode）
+        self.linebuf = b""  # 内联控制命令的半行缓冲
+        self.rx = 0  # 本客户端 -> hub
+        self.tx = 0  # hub -> 本客户端（encode 后的字节数）
         self.closed = False
         self.since = time.time()
         self.codec: Codec | None = None
         self.proto = ""
         self.proto_locked = locked  # True = 端口/参数已定，不再嗅探
-        self.held_out = bytearray() # 协议未判定前，设备来的字节先攒着
-        self.drop_proto = 0         # 被协议层吃掉的字节数（IAC/协商等）
+        self.held_out = bytearray()  # 协议未判定前，设备来的字节先攒着
+        self.drop_proto = 0  # 被协议层吃掉的字节数（IAC/协商等）
         if proto:
             self.use_proto(proto)
         sock.setblocking(False)
@@ -58,7 +58,7 @@ class Client:
         with self.lock:
             if self.closed:
                 return
-            if self.codec is None:      # 协议还没判定，先攒着
+            if self.codec is None:  # 协议还没判定，先攒着
                 self.held_out += data
                 return
             enc = self.codec.encode(data)

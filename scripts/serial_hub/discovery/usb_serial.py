@@ -6,6 +6,7 @@
 用来支持"机器上只有一个 USB 转串口就直接用它"这种常见情形。
 虚拟串口对、蓝牙 SPP 端口一般不带 USB 标记，因此不会被它选中。
 """
+
 from __future__ import annotations
 
 

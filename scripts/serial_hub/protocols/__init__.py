@@ -4,6 +4,7 @@
 
 加新协议（rfc2217 / websocket）只需两步：写一个 Codec 子类，在 CODECS 里登记。
 """
+
 from __future__ import annotations
 
 

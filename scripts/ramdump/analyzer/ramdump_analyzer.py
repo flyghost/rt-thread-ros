@@ -21,10 +21,11 @@ Requirements:
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import struct
@@ -37,16 +38,14 @@ from datetime import datetime
 # Optional imports
 try:
     from elftools.elf.elffile import ELFFile
+
     HAS_ELFTOOLS = True
 except ImportError:
     HAS_ELFTOOLS = False
 
-from exception_decoder import (decode_fault_registers, get_fault_summary,
-                                decode_cfsr, decode_hfsr)
-from arm_backtrace import (RegisterSnapshot, backtrace, format_backtrace,
-                           StackFrame)
-from rtthread_parser import (ThreadInfo, scan_threads, format_thread_list,
-                              compute_stack_usage)
+from exception_decoder import decode_fault_registers, get_fault_summary, decode_cfsr, decode_hfsr
+from arm_backtrace import RegisterSnapshot, backtrace, format_backtrace, StackFrame
+from rtthread_parser import ThreadInfo, scan_threads, format_thread_list, compute_stack_usage
 
 
 # ---- Constants ----
@@ -54,8 +53,8 @@ from rtthread_parser import (ThreadInfo, scan_threads, format_thread_list,
 # STM32F407 memory layout
 SRAM_BASE = 0x20000000
 SRAM_SIZE = 128 * 1024
-CCM_BASE  = 0x10000000
-CCM_SIZE  = 64 * 1024
+CCM_BASE = 0x10000000
+CCM_SIZE = 64 * 1024
 FLASH_BASE = 0x08000000
 FLASH_SIZE = 1024 * 1024
 
@@ -64,7 +63,7 @@ EXCEPTION_MAGIC = 0x52414D44  # "RAMD"
 
 # Struct layout (from ramdump_exception.h):
 #   9 x uint32_t (36 bytes) + char[8] (8 bytes) + 2 x uint32_t (8 bytes) = 52 bytes
-EXCEPTION_STRUCT_FORMAT = '<9I8sII'
+EXCEPTION_STRUCT_FORMAT = "<9I8sII"
 
 # RT-Thread constants
 RT_NAME_MAX = 8
@@ -81,6 +80,7 @@ FAULT_NAMES = {
 @dataclass
 class ExceptionRecord:
     """Parsed exception record from ramdump."""
+
     valid: bool
     fault_type: int = 0
     fault_name: str = ""
@@ -119,6 +119,7 @@ class ExceptionRecord:
 @dataclass
 class RamdumpAnalysis:
     """Complete ramdump analysis result."""
+
     exception: ExceptionRecord
     fault_decode: str
     backtrace: List[StackFrame]
@@ -133,7 +134,7 @@ def load_memory(path: str) -> Optional[bytes]:
     """Load a binary memory dump file."""
     if not path or not os.path.exists(path):
         return None
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         return f.read()
 
 
@@ -143,7 +144,7 @@ def parse_exception_record(data: bytes) -> ExceptionRecord:
         return ExceptionRecord(valid=False)
 
     # Unpack the struct: 9 x uint32_t + 8-byte char array + 2 x uint32_t = 52 bytes
-    fmt = '<9I8sII'
+    fmt = "<9I8sII"
     try:
         fields = struct.unpack(fmt, data[:52])
     except struct.error:
@@ -170,14 +171,14 @@ def parse_exception_record(data: bytes) -> ExceptionRecord:
     calc_sum = 0
     for i in range(9):  # first 9 uint32 fields
         calc_sum ^= fields[i]
-    tn1 = struct.unpack('<I', thread_name_bytes[:4])[0]
-    tn2 = struct.unpack('<I', thread_name_bytes[4:])[0]
+    tn1 = struct.unpack("<I", thread_name_bytes[:4])[0]
+    tn2 = struct.unpack("<I", thread_name_bytes[4:])[0]
     calc_sum ^= tn1 ^ tn2 ^ tick
 
-    valid = (calc_sum == checksum)
+    valid = calc_sum == checksum
 
     # Decode thread name
-    thread_name = thread_name_bytes.split(b'\x00')[0].decode('ascii', errors='replace')
+    thread_name = thread_name_bytes.split(b"\x00")[0].decode("ascii", errors="replace")
 
     return ExceptionRecord(
         valid=valid,
@@ -203,25 +204,25 @@ def load_elf_symbols(elf_path: str) -> Dict[int, str]:
         return symbols
 
     try:
-        with open(elf_path, 'rb') as f:
+        with open(elf_path, "rb") as f:
             elf = ELFFile(f)
 
             # Get .text section bounds
-            text_section = elf.get_section_by_name('.text')
+            text_section = elf.get_section_by_name(".text")
             if text_section:
-                code_start = text_section['sh_addr']
-                code_end = code_start + text_section['sh_size']
+                code_start = text_section["sh_addr"]
+                code_end = code_start + text_section["sh_size"]
 
             # Extract symbols from symbol table
-            symtab = elf.get_section_by_name('.symtab')
+            symtab = elf.get_section_by_name(".symtab")
             if symtab is None:
                 print("Warning: No .symtab section in ELF file.")
                 return symbols
 
             for symbol in symtab.iter_symbols():
-                if symbol['st_info']['type'] == 'STT_FUNC':
+                if symbol["st_info"]["type"] == "STT_FUNC":
                     name = symbol.name
-                    addr = symbol['st_value']
+                    addr = symbol["st_value"]
                     if addr > 0:
                         symbols[addr] = name
 
@@ -232,8 +233,7 @@ def load_elf_symbols(elf_path: str) -> Dict[int, str]:
     return symbols
 
 
-def build_memory_map(sram_data: Optional[bytes],
-                     ccm_data: Optional[bytes]) -> Tuple[bytes, int]:
+def build_memory_map(sram_data: Optional[bytes], ccm_data: Optional[bytes]) -> Tuple[bytes, int]:
     """Build a unified memory map from SRAM and CCM dumps.
 
     Returns (memory_bytes, memory_base_address).
@@ -253,13 +253,12 @@ def build_memory_map(sram_data: Optional[bytes],
         ccm_offset = CCM_BASE - SRAM_BASE
         copy_len = min(len(ccm_data), CCM_SIZE)
         end = min(ccm_offset + copy_len, len(memory))
-        memory[ccm_offset:end] = ccm_data[:end - ccm_offset]
+        memory[ccm_offset:end] = ccm_data[: end - ccm_offset]
 
     return bytes(memory), memory_base
 
 
-def analyze_registers(memory: bytes, memory_base: int,
-                      hw_frame_ptr: int) -> Optional[RegisterSnapshot]:
+def analyze_registers(memory: bytes, memory_base: int, hw_frame_ptr: int) -> Optional[RegisterSnapshot]:
     """Extract hardware exception frame registers from memory."""
     if hw_frame_ptr == 0:
         return None
@@ -268,13 +267,12 @@ def analyze_registers(memory: bytes, memory_base: int,
     if offset < 0 or offset + 32 > len(memory):
         return None
 
-    return RegisterSnapshot.from_bytes(memory[offset:offset + 32])
+    return RegisterSnapshot.from_bytes(memory[offset : offset + 32])
 
 
 def generate_html_report(analysis: RamdumpAnalysis) -> str:
     """Generate an HTML analysis report."""
-    fault_summary = get_fault_summary(
-        analysis.exception.cfsr, analysis.exception.hfsr)
+    fault_summary = get_fault_summary(analysis.exception.cfsr, analysis.exception.hfsr)
 
     backtrace_html = "<pre>" + format_backtrace(analysis.backtrace) + "</pre>"
 
@@ -329,10 +327,10 @@ def generate_html_report(analysis: RamdumpAnalysis) -> str:
 <h1> RAM Dump Analysis Report</h1>
 
 <div class="meta">
-  <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-  <p>SRAM: {os.path.basename(analysis.sram_path) if analysis.sram_path else 'N/A'}
-     | CCM: {os.path.basename(analysis.ccm_path) if analysis.ccm_path else 'N/A'}
-     | ELF: {os.path.basename(analysis.elf_path) if analysis.elf_path else 'N/A'}</p>
+  <p>Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+  <p>SRAM: {os.path.basename(analysis.sram_path) if analysis.sram_path else "N/A"}
+     | CCM: {os.path.basename(analysis.ccm_path) if analysis.ccm_path else "N/A"}
+     | ELF: {os.path.basename(analysis.elf_path) if analysis.elf_path else "N/A"}</p>
 </div>
 
 <!-- Fault Summary -->
@@ -343,7 +341,7 @@ def generate_html_report(analysis: RamdumpAnalysis) -> str:
     <strong>Summary:</strong> {fault_summary}<br>
     <strong>Thread:</strong> {e.thread_name} (tick: {e.tick})<br>
     <strong>PC:</strong> <code>0x{e.registers.pc:08X}</code>
-    {' (' + analysis.symbols.get(e.registers.pc, 'unknown') + ')' if e.registers else ''}
+    {" (" + analysis.symbols.get(e.registers.pc, "unknown") + ")" if e.registers else ""}
   </div>
 
   <table>
@@ -393,29 +391,35 @@ def generate_html_report(analysis: RamdumpAnalysis) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Analyze RT-Thread RAM dump images',
+        description="Analyze RT-Thread RAM dump images",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python ramdump_analyzer.py --sram SRAM.bin --ccm CCM.bin --elf rtthread.elf
   python ramdump_analyzer.py --sram SRAM.bin --elf rtthread.elf --output report.html
   python ramdump_analyzer.py --sram SRAM.bin --exception exception_record.bin --text
-        """)
+        """,
+    )
 
-    parser.add_argument('--sram', '-s', help='SRAM.bin dump file (128KB)')
-    parser.add_argument('--ccm', '-c', help='CCM.bin dump file (64KB)')
-    parser.add_argument('--flash', '-f', help='Flash dump file (1MB, optional)')
-    parser.add_argument('--exception', '-e', help='exception_record.bin file')
-    parser.add_argument('--elf', '-l', help='ELF file with debug symbols')
-    parser.add_argument('--output', '-o', help='Output HTML report file path')
-    parser.add_argument('--text', '-t', action='store_true',
-                        help='Output plain text report to stdout')
-    parser.add_argument('--object-start', type=lambda x: int(x, 0),
-                        default=SRAM_BASE,
-                        help='Start address for thread scan (default: SRAM base)')
-    parser.add_argument('--object-end', type=lambda x: int(x, 0),
-                        default=SRAM_BASE + SRAM_SIZE,
-                        help='End address for thread scan (default: SRAM end)')
+    parser.add_argument("--sram", "-s", help="SRAM.bin dump file (128KB)")
+    parser.add_argument("--ccm", "-c", help="CCM.bin dump file (64KB)")
+    parser.add_argument("--flash", "-f", help="Flash dump file (1MB, optional)")
+    parser.add_argument("--exception", "-e", help="exception_record.bin file")
+    parser.add_argument("--elf", "-l", help="ELF file with debug symbols")
+    parser.add_argument("--output", "-o", help="Output HTML report file path")
+    parser.add_argument("--text", "-t", action="store_true", help="Output plain text report to stdout")
+    parser.add_argument(
+        "--object-start",
+        type=lambda x: int(x, 0),
+        default=SRAM_BASE,
+        help="Start address for thread scan (default: SRAM base)",
+    )
+    parser.add_argument(
+        "--object-end",
+        type=lambda x: int(x, 0),
+        default=SRAM_BASE + SRAM_SIZE,
+        help="End address for thread scan (default: SRAM end)",
+    )
 
     return parser
 
@@ -439,9 +443,7 @@ def main():
 
     # Build unified memory map
     memory, memory_base = build_memory_map(sram_data, ccm_data)
-    print(f"Memory map: 0x{memory_base:08X} - "
-          f"0x{memory_base + len(memory):08X} "
-          f"({len(memory)} bytes)")
+    print(f"Memory map: 0x{memory_base:08X} - 0x{memory_base + len(memory):08X} ({len(memory)} bytes)")
 
     # Parse exception record
     exception = ExceptionRecord(valid=False)
@@ -458,52 +460,45 @@ def main():
         symbols = load_elf_symbols(args.elf)
         # Try to get actual code section bounds from ELF
         try:
-            with open(args.elf, 'rb') as f:
+            with open(args.elf, "rb") as f:
                 elf = ELFFile(f)
-                text = elf.get_section_by_name('.text')
+                text = elf.get_section_by_name(".text")
                 if text:
-                    code_start = text['sh_addr']
-                    code_end = code_start + text['sh_size']
+                    code_start = text["sh_addr"]
+                    code_end = code_start + text["sh_size"]
                     print(f".text: 0x{code_start:08X} - 0x{code_end:08X}")
         except Exception:
             pass
     elif args.elf and not HAS_ELFTOOLS:
-        print("Warning: Install pyelftools for symbol resolution: "
-              "pip install pyelftools")
+        print("Warning: Install pyelftools for symbol resolution: pip install pyelftools")
 
     # Extract registers from exception frame
     registers = None
     if exception.valid and exception.hw_frame_ptr:
-        registers = analyze_registers(memory, memory_base,
-                                     exception.hw_frame_ptr)
+        registers = analyze_registers(memory, memory_base, exception.hw_frame_ptr)
         exception.registers = registers
 
     # Perform backtrace
     sp = exception.current_thread_sp if exception.valid else SRAM_BASE + 0x10000
     stack_limit = SRAM_BASE + SRAM_SIZE
 
-    frames = backtrace(memory, memory_base, sp, stack_limit,
-                       code_start, code_end, symbols)
+    frames = backtrace(memory, memory_base, sp, stack_limit, code_start, code_end, symbols)
     print(f"Backtrace: {len(frames)} frames")
 
     # Scan for threads (heuristic)
-    print(f"Scanning for threads in 0x{args.object_start:08X}.."
-          f"0x{args.object_end:08X}...")
-    threads = scan_threads(memory, memory_base,
-                           args.object_start, args.object_end)
+    print(f"Scanning for threads in 0x{args.object_start:08X}..0x{args.object_end:08X}...")
+    threads = scan_threads(memory, memory_base, args.object_start, args.object_end)
     print(f"Found {len(threads)} potential threads")
 
     # Build analysis result
     analysis = RamdumpAnalysis(
         exception=exception,
-        fault_decode=decode_fault_registers(
-            exception.cfsr, exception.hfsr,
-            exception.mmfar, exception.bfar),
+        fault_decode=decode_fault_registers(exception.cfsr, exception.hfsr, exception.mmfar, exception.bfar),
         backtrace=frames,
         threads=threads,
-        sram_path=args.sram or '',
-        ccm_path=args.ccm or '',
-        elf_path=args.elf or '',
+        sram_path=args.sram or "",
+        ccm_path=args.ccm or "",
+        elf_path=args.elf or "",
         symbols=symbols,
     )
 
@@ -520,7 +515,7 @@ def main():
 
     if args.output:
         html = generate_html_report(analysis)
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)
         print(f"\nHTML report saved to: {args.output}")
 

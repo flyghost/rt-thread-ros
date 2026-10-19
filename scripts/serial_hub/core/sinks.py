@@ -11,6 +11,7 @@
 锁复用 hub 的 `log_lock` / `print_lock`：与重构前是同一把锁，串行化语义不变。
 句柄由 `relay.open_logs()` 打开、`relay.run()` 的 finally 关闭，sink 只负责写。
 """
+
 from __future__ import annotations
 
 import sys
@@ -68,7 +69,7 @@ class LogSink:
         if ev.kind == EV_HUB:
             self._write(ev.text + "\n")
         elif ev.kind == EV_RX:
-            self._write_raw(ev.data)          # 二进制留档：设备 -> PC 的原始字节
+            self._write_raw(ev.data)  # 二进制留档：设备 -> PC 的原始字节
             self._data_lines("RX", ev.who, ev.data)
         elif ev.kind == EV_TX:
             self._data_lines("TX", ev.who, ev.data)

@@ -112,7 +112,9 @@ PYOCD_PACK = _path("pyocd_pack", "tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-sm
 BUILD_ENTRY = _path("build_entry", "scripts/firmware/build.py")
 VENV_PY = _path("venv_python", r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe")
 ENV_ROOT = _path("env_root", r"E:\software\EnvEdition\rt-thread-env\env-windows")
-ARM_GCC_BIN = _path("arm_gcc_bin", r"E:\software\EnvEdition\rt-thread-env\env-windows\tools\gnu_gcc\arm_gcc\mingw\bin")
+ARM_GCC_BIN = _path(
+    "arm_gcc_bin", r"E:\software\EnvEdition\rt-thread-env\env-windows\tools\gnu_gcc\arm_gcc\mingw\bin"
+)
 DEFAULT_BIN = _path("default_bin", "out/bin/base/rtthread.bin")
 DEFAULT_TARGET = PATHS.get("default_target") or "STM32F407VE"
 
@@ -128,7 +130,7 @@ MAILBOX_DEFAULT = str(SETTINGS.get("mailbox", "out/guard"))
 # 子进程统一用的临时目录：仓库内，谁开守卫谁就能写。
 CHILD_TMP = REPO / "out" / "tmp"
 
-PROBE_SRC = r'''
+PROBE_SRC = r"""
 import os, subprocess, sys, tempfile
 print("cwd      :", os.getcwd())
 for k in ("TEMP", "TMP", "TMPDIR"):
@@ -161,9 +163,9 @@ try:
     print("  err    :", (r.stderr or "").strip()[:400])
 except Exception as exc:
     print("  FAILED :", exc)
-'''
+"""
 
-USB_SRC = r'''
+USB_SRC = r"""
 import sys
 try:
     import usb.core
@@ -203,10 +205,10 @@ for d in devs:
                          intf.bInterfaceSubClass, intf.bInterfaceProtocol, eps))
     except Exception as exc:
         print("  读接口失败:", exc)
-'''
+"""
 
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_.+-]{1,64}$")
-BAD_CHARS = set('&|;<>$`"\'\\ \t\n*?[]{}()!^%')
+BAD_CHARS = set("&|;<>$`\"'\\ \t\n*?[]{}()!^%")
 
 
 def _say(msg: str) -> None:
@@ -491,7 +493,14 @@ class Guard:
         rep_path = self.mb.rep(n)
         log_path = self.mb.log(n)
 
-        def finish(status: str, exit_code: int | None, message: str, started: str | None, queued: int | None, tail: list[str]) -> None:
+        def finish(
+            status: str,
+            exit_code: int | None,
+            message: str,
+            started: str | None,
+            queued: int | None,
+            tail: list[str],
+        ) -> None:
             _atomic_write_json(
                 rep_path,
                 {
@@ -503,7 +512,9 @@ class Guard:
                     "startedAt": started,
                     "finishedAt": _now_iso(),
                     "queuedSeconds": queued,
-                    "log": str(log_path.relative_to(REPO)) if log_path.is_relative_to(REPO) else str(log_path),
+                    "log": str(log_path.relative_to(REPO))
+                    if log_path.is_relative_to(REPO)
+                    else str(log_path),
                     "tail": tail,
                 },
             )
@@ -541,7 +552,7 @@ class Guard:
             old = env.get("PYTHONPATH")
             env["PYTHONPATH"] = str(PYOCD_PKG_DIR) + ((os.pathsep + old) if old else "")
             if req["action"] == "usb":
-                env["LIBUSB_DEBUG"] = "4"   # 让 libusb 自己说清楚「为什么没看见某个设备」
+                env["LIBUSB_DEBUG"] = "4"  # 让 libusb 自己说清楚「为什么没看见某个设备」
 
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("w", encoding="utf-8", errors="replace") as log:
@@ -549,7 +560,9 @@ class Guard:
                 head = f"$ {' '.join(argv)}"
                 log.write(head + "\n")
                 log.flush()
-                _say(f"[{_stamp()}]   phase {phase}/{len(cmds)}: {_cmd_label(argv)} …（上限 {int(total_to)}s）")
+                _say(
+                    f"[{_stamp()}]   phase {phase}/{len(cmds)}: {_cmd_label(argv)} …（上限 {int(total_to)}s）"
+                )
 
                 try:
                     proc = subprocess.Popen(
@@ -624,7 +637,9 @@ class Guard:
                             {
                                 "elapsedSeconds": int(now - t0),
                                 "logBytes": log_bytes,
-                                "lastGrowthAt": datetime.fromtimestamp(last_growth).isoformat(timespec="seconds"),
+                                "lastGrowthAt": datetime.fromtimestamp(last_growth).isoformat(
+                                    timespec="seconds"
+                                ),
                             }
                         )
                         _atomic_write_json(self.mb.running, self._running_info)
@@ -685,7 +700,10 @@ class Guard:
         _say(f" 仓库      : {REPO}")
         _say(f" 信箱      : {self.mb.root}   ← 会话侧往这里写 req_NNNN.json")
         _say(f" 应答      : rep_NNNN.json ＋ rep_NNNN.log（退出码与完整日志）")
-        _say(f" 调试器    : pyocd {PYOCD_PKG_DIR} "f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python tools/pyocd/install.py'}")
+        _say(
+            f" 调试器    : pyocd {PYOCD_PKG_DIR} "
+            f"{'(已装)' if PYOCD_PKG_DIR.is_dir() else '!! 未安装：跑 python tools/pyocd/install.py'}"
+        )
         _say(f" 固件      : {DEFAULT_BIN if DEFAULT_BIN.exists() else '!! 还没有 rtthread.bin，先编译'}")
         _say(f" 轮询      : 每 {POLL_SECONDS:.0f}s 一次；心跳每 {HEARTBEAT_SECONDS:.0f}s")
         _say(f" 子进程TEMP: {CHILD_TMP}  (pyocd 解包用，不继承窗口 TEMP={os.environ.get('TEMP')!r})")
@@ -710,7 +728,9 @@ class Guard:
                 if new_mtime and new_mtime != code_mtime:
                     reloads += 1
                     if reloads <= 3:
-                        _say(f"[{_stamp()}] 检测到脚本或任务表被改动 —— 自动重启以载入新配置（第 {reloads} 次）")
+                        _say(
+                            f"[{_stamp()}] 检测到脚本或任务表被改动 —— 自动重启以载入新配置（第 {reloads} 次）"
+                        )
                         try:
                             os.execv(sys.executable, [sys.executable, *sys.argv])
                         except OSError as exc:  # 换进程失败：退回到「继续跑老代码」
@@ -767,7 +787,9 @@ def cmd_status(mb: Mailbox) -> int:
     print(f"心跳      : {beat_at or '?'}（{age if age is not None else '?'}s 前）")
     run = hb.get("running")
     if run:
-        print(f"正在执行  : req_{run.get('id'):04d} {run.get('action')} —— 已跑 {run.get('elapsedSeconds')}s，日志 {run.get('logBytes')} 字节")
+        print(
+            f"正在执行  : req_{run.get('id'):04d} {run.get('action')} —— 已跑 {run.get('elapsedSeconds')}s，日志 {run.get('logBytes')} 字节"
+        )
     else:
         print("正在执行  : 没有")
     p = mb.pending()
@@ -785,14 +807,27 @@ def cmd_list(mb: Mailbox) -> int:
         req = _read_json(mb.req(n)) or {}
         rep = _read_json(mb.rep(n))
         if rep is None:
-            print(f"{n:>5}  {req.get('action', '?'):<12} {'排队中':<9} {'-':>6}  写于 {req.get('createdAt') and datetime.fromtimestamp(req['createdAt']).strftime('%m-%d %H:%M:%S') or '?'}")
+            print(
+                f"{n:>5}  {req.get('action', '?'):<12} {'排队中':<9} {'-':>6}  写于 {req.get('createdAt') and datetime.fromtimestamp(req['createdAt']).strftime('%m-%d %H:%M:%S') or '?'}"
+            )
             continue
         ec = rep.get("exitCode")
-        print(f"{n:>5}  {req.get('action', '?'):<12} {rep.get('status', '?'):<9} {('-' if ec is None else ec):>6}  {rep.get('message', '')}")
+        print(
+            f"{n:>5}  {req.get('action', '?'):<12} {rep.get('status', '?'):<9} {('-' if ec is None else ec):>6}  {rep.get('message', '')}"
+        )
     return 0
 
 
-def cmd_request(mb: Mailbox, action: str, target: str | None, binrel: str | None, note: str, expires: int, wait: bool, wait_timeout: float) -> int:
+def cmd_request(
+    mb: Mailbox,
+    action: str,
+    target: str | None,
+    binrel: str | None,
+    note: str,
+    expires: int,
+    wait: bool,
+    wait_timeout: float,
+) -> int:
     args: dict = {}
     if target:
         args["target"] = target
@@ -881,14 +916,31 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--tasks", action="store_true", help="列出 tasks.toml 允许的任务")
     ap.add_argument("--request", metavar="TASK", help=f"下请求：{', '.join(TASKS)}")
     ap.add_argument("--target", default=None, help=f"芯片型号（默认 {DEFAULT_TARGET}）")
-    ap.add_argument("--bin", dest="binrel", default=None, help="要烧的固件（仓内相对路径，默认 tasks.toml 的 default_bin）")
+    ap.add_argument(
+        "--bin",
+        dest="binrel",
+        default=None,
+        help="要烧的固件（仓内相对路径，默认 tasks.toml 的 default_bin）",
+    )
     ap.add_argument("--note", default="", help="备注，最长 200 字符")
-    ap.add_argument("--expires", type=int, default=DEFAULT_EXPIRES, help=f"请求有效期秒数（默认 {DEFAULT_EXPIRES}）")
+    ap.add_argument(
+        "--expires", type=int, default=DEFAULT_EXPIRES, help=f"请求有效期秒数（默认 {DEFAULT_EXPIRES}）"
+    )
     ap.add_argument("--wait", action="store_true", help="等到应答并回显日志尾")
-    ap.add_argument("--wait-timeout", type=float, default=DEFAULT_WAIT, help=f"会话侧等待上限秒（默认 {DEFAULT_WAIT:.0f}）")
+    ap.add_argument(
+        "--wait-timeout",
+        type=float,
+        default=DEFAULT_WAIT,
+        help=f"会话侧等待上限秒（默认 {DEFAULT_WAIT:.0f}）",
+    )
     ap.add_argument("--once", action="store_true", help="守卫模式：处理完积压就退")
     ap.add_argument("--timeout", type=float, default=None, help="守卫模式：覆盖单次执行上限秒")
-    ap.add_argument("--stall", type=float, default=STALL_SECONDS, help=f"守卫模式：停滞判据秒（0=关闭，默认 {int(STALL_SECONDS)}）")
+    ap.add_argument(
+        "--stall",
+        type=float,
+        default=STALL_SECONDS,
+        help=f"守卫模式：停滞判据秒（0=关闭，默认 {int(STALL_SECONDS)}）",
+    )
     ns = ap.parse_args(argv)
 
     mb = Mailbox(Path(ns.mailbox).resolve() if ns.mailbox else (REPO / MAILBOX_DEFAULT))
@@ -900,7 +952,9 @@ def main(argv: list[str] | None = None) -> int:
     if ns.tasks:
         return cmd_tasks()
     if ns.request:
-        return cmd_request(mb, ns.request, ns.target, ns.binrel, ns.note, ns.expires, ns.wait, ns.wait_timeout)
+        return cmd_request(
+            mb, ns.request, ns.target, ns.binrel, ns.note, ns.expires, ns.wait, ns.wait_timeout
+        )
     return Guard(mb, ns.once, ns.timeout, ns.stall).loop()
 
 

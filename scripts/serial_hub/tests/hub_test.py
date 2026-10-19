@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """serial_hub 功能自测（对着已经在跑的 hub 测（不碰串口，只连 TCP））：
-   1) 两个客户端(A=自动化脚本角色, B=人开的终端角色) 同时连 5555
-   2) A 写 version -> 看串口回复是否【两个客户端都收到】（广播）
-   3) A 发 @@lock -> B 再写 -> 应被丢弃（status 的"丢弃(锁)"增长）
-   4) A 发 @@unlock -> B 再写 -> 应放行
-   5) 通过控制口 5556 查 status/clients
+1) 两个客户端(A=自动化脚本角色, B=人开的终端角色) 同时连 5555
+2) A 写 version -> 看串口回复是否【两个客户端都收到】（广播）
+3) A 发 @@lock -> B 再写 -> 应被丢弃（status 的"丢弃(锁)"增长）
+4) A 发 @@unlock -> B 再写 -> 应放行
+5) 通过控制口 5556 查 status/clients
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import socket
 import sys

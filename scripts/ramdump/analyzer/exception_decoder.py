@@ -24,8 +24,8 @@ CFSR_MMFSR = {
 
 # BusFault Status Register (BFSR) -- bits [15:8]
 CFSR_BFSR = {
-    8:  "IBUSERR - Instruction bus error",
-    9:  "PRECISERR - Precise data bus error",
+    8: "IBUSERR - Instruction bus error",
+    9: "PRECISERR - Precise data bus error",
     10: "IMPRECISERR - Imprecise data bus error",
     11: "UNSTKERR - Exception return unstacking bus error",
     12: "STKERR - Exception entry stacking bus error",
@@ -80,8 +80,7 @@ def decode_hfsr(hfsr: int) -> List[str]:
     return faults
 
 
-def decode_fault_registers(cfsr: int, hfsr: int,
-                           mmfar: int, bfar: int) -> str:
+def decode_fault_registers(cfsr: int, hfsr: int, mmfar: int, bfar: int) -> str:
     """Decode all SCB fault registers and return a formatted string."""
     lines = []
     lines.append("=== ARM Cortex-M Fault Decode ===")

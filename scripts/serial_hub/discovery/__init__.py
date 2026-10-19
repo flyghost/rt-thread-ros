@@ -11,12 +11,18 @@
     preferred(ports, rules)    -> (PortInfo, PortRule, 理由) | (None, None, 原因)
     print_ports_table(ports, rules)                                   给人看的表格
 """
+
 from __future__ import annotations
 
 
 from discovery import ch34x, cp210x, ftdi, usb_serial
-from discovery.base import (MATCH_NONE, PortInfo, PortRule, order_key,  # noqa: F401
-                            parse_rule_spec)
+from discovery.base import (
+    MATCH_NONE,
+    PortInfo,
+    PortRule,
+    order_key,  # noqa: F401
+    parse_rule_spec,
+)
 
 # 内置规则（顺序无关，判定靠"命中强度 + priority"）
 BUILTIN_RULES: tuple[PortRule, ...] = (
@@ -32,6 +38,7 @@ def all_rules(extra=()) -> tuple:
 def scan() -> list:
     """枚举当前机器上的串口（pyserial 的 comports()）。"""
     from serial.tools import list_ports
+
     return [PortInfo.from_pyserial(p) for p in list_ports.comports()]
 
 
@@ -75,8 +82,12 @@ def preferred(ports=None, rules=(), require_usb: bool = True) -> tuple:
     if len(top) == 1:
         _, port, rule, why = top[0]
         return port, rule, why
-    return None, None, "有 %d 个端口同级命中（%s），请用 --com 指定" % (
-        len(top), "、".join(p.brief() for _, p, _, _ in top))
+    return (
+        None,
+        None,
+        "有 %d 个端口同级命中（%s），请用 --com 指定"
+        % (len(top), "、".join(p.brief() for _, p, _, _ in top)),
+    )
 
 
 def print_ports_table(ports=None, rules=(), picked=None) -> None:
@@ -89,9 +100,17 @@ def print_ports_table(ports=None, rules=(), picked=None) -> None:
     for p in ports:
         rule, why = classify(p, rules)
         mark = "  <== 自动选中" if picked and p.device == picked else ""
-        print("  %-10s %-38s %-9s %-22s %s%s"
-              % (p.device, (p.description or "-")[:38], p.vidpid,
-                 (rule.label or rule.name) if rule else "-", why, mark))
+        print(
+            "  %-10s %-38s %-9s %-22s %s%s"
+            % (
+                p.device,
+                (p.description or "-")[:38],
+                p.vidpid,
+                (rule.label or rule.name) if rule else "-",
+                why,
+                mark,
+            )
+        )
 
 
 def print_rules(rules=()) -> None:
@@ -108,5 +127,7 @@ def print_rules(rules=()) -> None:
         if rule.device_patterns:
             bits.append("串口名 " + "/".join(rule.device_patterns))
         print("  %-12s priority=%-4d %s" % (rule.name, rule.priority, "；".join(bits) or "-"))
-    print("  加规则：在 discovery/ 下新建一个 .py 暴露 RULES；临时用 --prefer 1A86:7523 / "
-          "--prefer name:COM7 / --prefer desc:ch340 / --prefer hwid:USB")
+    print(
+        "  加规则：在 discovery/ 下新建一个 .py 暴露 RULES；临时用 --prefer 1A86:7523 / "
+        "--prefer name:COM7 / --prefer desc:ch340 / --prefer hwid:USB"
+    )

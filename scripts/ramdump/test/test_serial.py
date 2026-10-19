@@ -11,29 +11,32 @@
 那会把别的脚本一起杀掉。端口被占时请用 `python scripts/serial_hub/serial_hub.py --list`
 看是谁，或用串口中枢接管该口（见 scripts/serial_hub/）。
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import sys
 import os
 import time
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
-from lib import serial_utils                                           # noqa: E402
+from lib import serial_utils  # noqa: E402
 
 BAUDRATE = serial_utils.BAUDRATE
 
 
 def list_ports():
     from serial.tools import list_ports as lp
+
     ports = list(lp.comports())
     pick = serial_utils.find_ch340_port()
     if not ports:
@@ -66,8 +69,13 @@ def probe(port, baud, seconds):
             buf += chunk
             if "msh />" in buf:
                 break
-        shape = "MSH（可下发 cmd_ramdump）" if "msh />" in buf else \
-                "@ramdump>（已在 dump CLI）" if "@ramdump>" in buf else "没识别（可能没跑固件/被别的进程占着）"
+        shape = (
+            "MSH（可下发 cmd_ramdump）"
+            if "msh />" in buf
+            else "@ramdump>（已在 dump CLI）"
+            if "@ramdump>" in buf
+            else "没识别（可能没跑固件/被别的进程占着）"
+        )
         print("[PROBE] 判定：%s" % shape)
         tail = [ln for ln in buf.replace("\r", "").split("\n") if ln.strip()][-8:]
         for ln in tail:
@@ -96,8 +104,7 @@ def echo_check(port, baud):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="test_serial.py",
-                                description="串口探针：列口 / 探控制台 / 回显自检")
+    p = argparse.ArgumentParser(prog="test_serial.py", description="串口探针：列口 / 探控制台 / 回显自检")
     p.add_argument("--list", action="store_true", help="列出所有串口并标出会自动选哪个")
     p.add_argument("--probe", action="store_true", help="打开串口敲回车，判断在 MSH 还是 @ramdump>")
     p.add_argument("--echo", action="store_true", help="发一行看是否回显")

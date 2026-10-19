@@ -15,6 +15,7 @@
 - `on_state(snapshot)` —— 状态**变化**时推送；
 - `hub.snapshot()` —— UI 需要按自己的帧率主动拉。
 """
+
 from __future__ import annotations
 
 import time
@@ -22,9 +23,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Protocol, runtime_checkable
 
 # 事件种类
-EV_RX = "rx"        # 设备 -> PC 的字节
-EV_TX = "tx"        # PC -> 设备的字节
-EV_HUB = "hub"      # hub 自身消息（连接/断开/写锁/协商/重连/就绪…）
+EV_RX = "rx"  # 设备 -> PC 的字节
+EV_TX = "tx"  # PC -> 设备的字节
+EV_HUB = "hub"  # hub 自身消息（连接/断开/写锁/协商/重连/就绪…）
 EV_STATE = "state"  # 状态快照（会话表、计数、写锁、串口状态）
 
 
@@ -35,11 +36,12 @@ class Event:
     - ``kind == EV_HUB``：用 ``msg``（原始消息）与 ``text``（已格式化整行，含时间戳）。
     - ``kind == EV_RX/EV_TX``：用 ``direction`` / ``who`` / ``data``。
     """
+
     kind: str
-    msg: str = ""            # hub 消息原文（不带时间戳），供 sink 判断要不要打窗口
-    text: str = ""           # 已格式化整行（含时间戳），sink 原样落盘/打印
-    direction: str = ""      # "RX" / "TX"
-    who: str = ""            # 会话名，或设备侧固定为 "board"
+    msg: str = ""  # hub 消息原文（不带时间戳），供 sink 判断要不要打窗口
+    text: str = ""  # 已格式化整行（含时间戳），sink 原样落盘/打印
+    direction: str = ""  # "RX" / "TX"
+    who: str = ""  # 会话名，或设备侧固定为 "board"
     data: bytes = b""
     ts: float = field(default_factory=time.time)
 
@@ -48,14 +50,11 @@ class Event:
 class EventSink(Protocol):
     """所有 sink 的契约，只有三件事。"""
 
-    def on_event(self, ev: Event) -> None:
-        ...
+    def on_event(self, ev: Event) -> None: ...
 
-    def on_state(self, st: Dict[str, Any]) -> None:
-        ...
+    def on_state(self, st: Dict[str, Any]) -> None: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 class SinkGroup:

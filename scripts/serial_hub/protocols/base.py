@@ -12,6 +12,7 @@
     name        协议名（写进会话表/日志）
     notes       协商轨迹（人类可读），由 hub 打日志
 """
+
 from __future__ import annotations
 
 

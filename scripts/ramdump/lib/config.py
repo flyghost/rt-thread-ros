@@ -8,11 +8,11 @@ Paths for the STM32F407 ATK Explorer BSP.
 import sys
 from pathlib import Path
 
-_SCRIPTS = Path(__file__).resolve().parents[2]      # scripts/
+_SCRIPTS = Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from firmware import config as _fc                  # noqa: E402
+from firmware import config as _fc  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = _fc.REPO_ROOT

@@ -49,8 +49,7 @@ def check_one(path: Path) -> list[str]:
     if bad:
         offset, byte = bad[0]
         problems.append(
-            f"含 {len(bad)} 个非 ASCII 字节（首个在偏移 {offset}，0x{byte:02X}）"
-            " —— cmd 会按代码页解析成乱码"
+            f"含 {len(bad)} 个非 ASCII 字节（首个在偏移 {offset}，0x{byte:02X}） —— cmd 会按代码页解析成乱码"
         )
 
     lone_lf = 0

@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """日志的格式与落盘原语。
 
-    esc(data)                字节 -> 可读文本（除 \n 外全转义，别把终端搞乱）
-    hexdump_text(data, off)  两栏 hex 视图的一行行文本（每 8 字节一个空档）
-    sync(f)                  flush + fsync（Windows 上不 fsync，别的进程看不到新内容）
+esc(data)                字节 -> 可读文本（除 \n 外全转义，别把终端搞乱）
+hexdump_text(data, off)  两栏 hex 视图的一行行文本（每 8 字节一个空档）
+sync(f)                  flush + fsync（Windows 上不 fsync，别的进程看不到新内容）
 """
+
 from __future__ import annotations
 
 import os
@@ -28,7 +29,6 @@ def esc(data: bytes) -> str:
     return "".join(out)
 
 
-
 def hexdump_text(data: bytes, off: int, tag: str = "") -> tuple[str, int]:
     """经典两栏 hex 视图：offset + 16 字节 hex（每 8 字节一个空档）+ ASCII。
 
@@ -37,7 +37,7 @@ def hexdump_text(data: bytes, off: int, tag: str = "") -> tuple[str, int]:
     cols = 16
     rows = []
     for i in range(0, len(data), cols):
-        piece = data[i:i + cols]
+        piece = data[i : i + cols]
         left = (" ".join("%02x" % b for b in piece[:8]) + " ").ljust(8 * 3)
         right = (" ".join("%02x" % b for b in piece[8:]) + " ").ljust(8 * 3)
         hexs = left + " " + right

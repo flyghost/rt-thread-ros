@@ -10,13 +10,15 @@
 
 前置：设备侧已经进 USB dump CLI，并在该 CDC 口上敲过 `vcom` 进入回环模式。
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import os
@@ -24,10 +26,10 @@ import sys
 import threading
 import time
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
-from lib import serial_utils                                          # noqa: E402
+from lib import serial_utils  # noqa: E402
 
 
 def one_round(port, size, wait=None):
@@ -52,7 +54,7 @@ def one_round(port, size, wait=None):
     try:
         usb.write(pattern)
         usb.flush()
-        w = wait if wait is not None else size / 500.0 + 2       # 粗估等待（沿用原 4k 脚本的公式）
+        w = wait if wait is not None else size / 500.0 + 2  # 粗估等待（沿用原 4k 脚本的公式）
         print("  发 %d B，等 %.1fs ..." % (size, w))
         time.sleep(w)
     finally:
@@ -68,9 +70,12 @@ def one_round(port, size, wait=None):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="test_usb_loopback.py",
-                                description="USB VCOM 回环测试（设备需已在 vcom 模式）")
-    p.add_argument("--com", help="USB CDC 口（CDC 口 VID:PID 通常是 FFFF:FFFF，自动找口找不到，一般要显式给）")
+    p = argparse.ArgumentParser(
+        prog="test_usb_loopback.py", description="USB VCOM 回环测试（设备需已在 vcom 模式）"
+    )
+    p.add_argument(
+        "--com", help="USB CDC 口（CDC 口 VID:PID 通常是 FFFF:FFFF，自动找口找不到，一般要显式给）"
+    )
     p.add_argument("--baud", type=int, default=115200, help="CDC 口的波特率只是占位（USB 虚拟串口）")
     p.add_argument("--sizes", default="1024,4096,8192", help="逗号分隔的载荷大小（默认 1024,4096,8192）")
     p.add_argument("--wait", type=float, help="每轮等待秒数（默认按 size/500+2 估）")

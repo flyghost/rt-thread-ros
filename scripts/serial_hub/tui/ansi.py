@@ -5,6 +5,7 @@
 零依赖：只用 ANSI 转义序列 + ctypes 打开 Windows 控制台的 VT 处理能力。
 其它 UI（别的前端）可以完全不用这个文件。
 """
+
 from __future__ import annotations
 
 import re
@@ -52,11 +53,11 @@ def enable_vt() -> bool:
         import ctypes
 
         kernel32 = ctypes.windll.kernel32
-        handle = kernel32.GetStdHandle(-11)          # STD_OUTPUT_HANDLE
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
         mode = ctypes.c_uint32()
         if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
             return False
-        enable_vt_flag = 0x0004                      # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        enable_vt_flag = 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
         if mode.value & enable_vt_flag:
             return True
         return bool(kernel32.SetConsoleMode(handle, mode.value | enable_vt_flag))

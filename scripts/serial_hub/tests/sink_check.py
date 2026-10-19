@@ -7,13 +7,15 @@
 
 跑法：python scripts/serial_hub/tests/sink_check.py
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import io
@@ -24,11 +26,11 @@ import time
 from contextlib import redirect_stdout
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_HERE))          # scripts/serial_hub
+sys.path.insert(0, os.path.dirname(_HERE))  # scripts/serial_hub
 
-from core.events import EV_HUB, EV_RX, EV_TX, Event   # noqa: E402
-from core.relay import SerialHub                      # noqa: E402
-from core.util import repo_root                       # noqa: E402
+from core.events import EV_HUB, EV_RX, EV_TX, Event  # noqa: E402
+from core.relay import SerialHub  # noqa: E402
+from core.util import repo_root  # noqa: E402
 
 # 日志落在仓库内的 out/tmp（不碰系统临时目录：有些环境里它不可写）
 _TMPROOT = os.path.join(repo_root(), "out", "tmp")
@@ -45,8 +47,9 @@ def _new_tmpdir():
     目录名带自增序号：同一秒内多个 hub 不能共用同一份日志文件。
     """
     _TMPSEQ[0] += 1
-    d = os.path.join(_TMPROOT, "sink-check-%s-%d-%d"
-                     % (time.strftime("%Y%m%d-%H%M%S"), os.getpid(), _TMPSEQ[0]))
+    d = os.path.join(
+        _TMPROOT, "sink-check-%s-%d-%d" % (time.strftime("%Y%m%d-%H%M%S"), os.getpid(), _TMPSEQ[0])
+    )
     os.makedirs(d, exist_ok=True)
     _TMPDIRS.append(d)
     return d
@@ -55,17 +58,32 @@ def _new_tmpdir():
 def make_args(log=True, stdout="rx", log_dir=None):
     os.makedirs(_TMPROOT, exist_ok=True)
     a = argparse.Namespace()
-    a.com = "COM_TEST"; a.baud = 115200; a.host = "127.0.0.1"
-    a.port = 5555; a.telnet_port = 5557; a.control_port = 5556
-    a.sniff = True; a.sniff_timeout = 0.5; a.allow_lan = False
-    a.stdout = stdout; a.log = log
+    a.com = "COM_TEST"
+    a.baud = 115200
+    a.host = "127.0.0.1"
+    a.port = 5555
+    a.telnet_port = 5557
+    a.control_port = 5556
+    a.sniff = True
+    a.sniff_timeout = 0.5
+    a.allow_lan = False
+    a.stdout = stdout
+    a.log = log
     if log_dir is None:
         log_dir = _new_tmpdir()
     a.log_dir = log_dir
-    a.read_timeout = 0.05; a.write_timeout = 1.0; a.tx_queue = 512
-    a.dtr_open = "keep"; a.reset_mode = "dtr"; a.reset_active = "low"; a.reset_pulse = 0.1
-    a.reopen = True; a.reopen_delay = 2.0; a.lock_writes = True
-    a.control_prefix = "@@"; a.prefer = []
+    a.read_timeout = 0.05
+    a.write_timeout = 1.0
+    a.tx_queue = 512
+    a.dtr_open = "keep"
+    a.reset_mode = "dtr"
+    a.reset_active = "low"
+    a.reset_pulse = 0.1
+    a.reopen = True
+    a.reopen_delay = 2.0
+    a.lock_writes = True
+    a.control_prefix = "@@"
+    a.prefer = []
     return a
 
 
@@ -139,8 +157,7 @@ def main():
     # esc() 只转义 \r，真换行保留成多行（每行带时间戳），所以多行数据 = 多行日志
     with redirect_stdout(io.StringIO()):
         hub.emit(Event(kind=EV_RX, direction="RX", who="board", data=b"a\r\nb\r\n"))
-    lines = [ln for ln in read_bytes(hub.log_stem + ".log").decode("utf-8").splitlines()
-             if "RX board" in ln]
+    lines = [ln for ln in read_bytes(hub.log_stem + ".log").decode("utf-8").splitlines() if "RX board" in ln]
     check(".log 按行切分（两行数据 -> 三行日志）", len(lines), 3)
 
     # ---------------- 2. --no-log：什么都不写 ----------------
@@ -234,7 +251,7 @@ if __name__ == "__main__":
     try:
         code = main()
     finally:
-        for h in _HUBS:                        # 先关掉日志句柄（Windows 上不关就删不掉目录）
+        for h in _HUBS:  # 先关掉日志句柄（Windows 上不关就删不掉目录）
             try:
                 h.sinks.close()
             except Exception:
@@ -245,6 +262,6 @@ if __name__ == "__main__":
                         f.close()
                 except Exception:
                     pass
-        for d in _TMPDIRS:                     # 再清掉本次的临时日志目录
+        for d in _TMPDIRS:  # 再清掉本次的临时日志目录
             shutil.rmtree(d, ignore_errors=True)
     sys.exit(code)

@@ -25,15 +25,15 @@ while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git
     _d = _os.path.dirname(_d)
 _sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
-import argparse                                          # noqa: E402
-import sys                                               # noqa: E402
-from pathlib import Path                                 # noqa: E402
+import argparse  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-_SCRIPTS = Path(__file__).resolve().parents[2]           # scripts/
+_SCRIPTS = Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from firmware import tools                               # noqa: E402
+from firmware import tools  # noqa: E402
 
 
 def main(argv=None) -> int:

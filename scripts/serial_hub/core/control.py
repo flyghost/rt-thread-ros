@@ -5,6 +5,7 @@
 每连接一个线程、`makefile("rwb", buffering=0)` 逐行读；命令执行交给
 `hub.command(cmd, source, client)` —— 命令实现留在 relay，因为它要读 hub 状态。
 """
+
 from __future__ import annotations
 
 
@@ -33,8 +34,7 @@ class ControlServer:
             self.sock = None
             return False
         threading.Thread(target=self._accept_loop, daemon=True).start()
-        self.hub.log("[hub] 控制口  %s:%d（lock/unlock/status/reset/shutdown）"
-                     % (self.host, self.port))
+        self.hub.log("[hub] 控制口  %s:%d（lock/unlock/status/reset/shutdown）" % (self.host, self.port))
         return True
 
     def close(self) -> None:
@@ -66,8 +66,9 @@ class ControlServer:
                     break
                 if not line:
                     break
-                reply = self.hub.command(line.decode("utf-8", "replace").strip(),
-                                         source="control", client=None)
+                reply = self.hub.command(
+                    line.decode("utf-8", "replace").strip(), source="control", client=None
+                )
                 if reply:
                     try:
                         f.write((reply + "\r\n").encode())

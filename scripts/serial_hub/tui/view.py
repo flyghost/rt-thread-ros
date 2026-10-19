@@ -19,6 +19,7 @@
 搜索高亮**不在这里做**：app 把命中的行预先插好 ANSI（`fit()` 按显示宽度量），
 view 只负责画 —— 保持「纯函数、可离线断言」。
 """
+
 from __future__ import annotations
 
 from core.util import human
@@ -29,10 +30,10 @@ STATUS_ROWS = 1
 FOOT_ROWS = 1
 INPUT_ROWS = 1
 
-SIDE_W = 28            # 会话侧栏目标宽度
-SIDE_MIN_W = 64        # 终端窄于这个就不画侧栏（宽度让给数据）
-BOTH_MIN_W = 48        # 终端窄于这个就不切 both（两栏各自太窄没法看）
-DIVIDER = "│"          # 全角宽度 1 的竖线
+SIDE_W = 28  # 会话侧栏目标宽度
+SIDE_MIN_W = 64  # 终端窄于这个就不画侧栏（宽度让给数据）
+BOTH_MIN_W = 48  # 终端窄于这个就不切 both（两栏各自太窄没法看）
+DIVIDER = "│"  # 全角宽度 1 的竖线
 
 HELP_LINES = [
     ("", "serial_hub TUI —— 按键"),
@@ -52,12 +53,17 @@ HELP_LINES = [
     ("End", "回到实时（跟随最新数据）"),
     ("Enter", "发送输入行（设备：补 CR；hub：当控制命令；搜索：执行搜索）"),
     ("", ""),
-    ("hub 命令", "help / status / sessions / lock <cid> / unlock / "
-                 "proto <cid> <raw|telnet> / kill <cid> / reset [dtr|rts|both] / shutdown"),
+    (
+        "hub 命令",
+        "help / status / sessions / lock <cid> / unlock / "
+        "proto <cid> <raw|telnet> / kill <cid> / reset [dtr|rts|both] / shutdown",
+    ),
 ]
 
-FOOTER = ("Ctrl-Q 退出  Ctrl-T 视图  Ctrl-W 侧栏  Ctrl-F 搜索  Ctrl-L 清屏  Ctrl-S 存盘  "
-          "Ctrl-P 暂停  Ctrl-E 回显  F1 帮助 | Tab 切目标 | ↑↓/PgUp/PgDn 滚动  End 跟随")
+FOOTER = (
+    "Ctrl-Q 退出  Ctrl-T 视图  Ctrl-W 侧栏  Ctrl-F 搜索  Ctrl-L 清屏  Ctrl-S 存盘  "
+    "Ctrl-P 暂停  Ctrl-E 回显  F1 帮助 | Tab 切目标 | ↑↓/PgUp/PgDn 滚动  End 跟随"
+)
 
 _EMPTY = ("", "")
 
@@ -69,7 +75,7 @@ def _status(state, w, *, paused, flash, mode, sidebar, extra_status):
         "OK" if st.get("ser_ok") else "断开",
     ]
     if extra_status:
-        parts.append(extra_status)        # 搜索反馈放前面，保证不被右端的截断吃掉
+        parts.append(extra_status)  # 搜索反馈放前面，保证不被右端的截断吃掉
     parts += [
         "运行 %ds" % int(st.get("uptime") or 0),
         "会话 %d" % int(st.get("clients") or 0),
@@ -125,7 +131,7 @@ def _slice_lines(src, rows, scroll):
     src = list(src or [])
     if scroll > 0:
         end = max(0, len(src) - scroll)
-        out = src[max(0, end - rows):end]
+        out = src[max(0, end - rows) : end]
     else:
         out = src[-rows:]
     out = list(out)
@@ -136,9 +142,11 @@ def _slice_lines(src, rows, scroll):
 
 def _input_line(text, mode, w):
     prompt = {"hub": "hub> ", "search": "搜>  "}.get(mode, "发>  ")
-    hint = {"hub": "  (Tab 切到设备发送)",
-            "search": "  (回车开始搜索，Esc 取消)",
-            "dev": "  (Tab 切到 hub 命令)"}.get(mode, "")
+    hint = {
+        "hub": "  (Tab 切到设备发送)",
+        "search": "  (回车开始搜索，Esc 取消)",
+        "dev": "  (Tab 切到 hub 命令)",
+    }.get(mode, "")
     rest = text + A.REVERSE + " " + A.RESET
     room = w - A.width(prompt) - A.width(text) - 1
     if room > A.width(hint):
@@ -162,9 +170,23 @@ def _help_panel(w, rows):
     return [("info", line) for line in out]
 
 
-def render(state, lines, w, h, *, input_text="", input_mode="dev", mode="text",
-           scroll=0, paused=False, flash="", help_on=False,
-           hex_lines=(), sidebar=(), extra_status=""):
+def render(
+    state,
+    lines,
+    w,
+    h,
+    *,
+    input_text="",
+    input_mode="dev",
+    mode="text",
+    scroll=0,
+    paused=False,
+    flash="",
+    help_on=False,
+    hex_lines=(),
+    sidebar=(),
+    extra_status="",
+):
     """返回 h 行、每行**恰好 w 个显示列**（含 ANSI 颜色）的帧。"""
     panel_rows = max(1, h - STATUS_ROWS - INPUT_ROWS - FOOT_ROWS)
     side = list(sidebar or [])
@@ -186,8 +208,11 @@ def render(state, lines, w, h, *, input_text="", input_mode="dev", mode="text",
     else:
         left_panel = _slice_lines(lines, panel_rows, scroll)
 
-    frame = [_status(state, w, paused=paused, flash=flash, mode=mode,
-                     sidebar=bool(side_w), extra_status=extra_status)]
+    frame = [
+        _status(
+            state, w, paused=paused, flash=flash, mode=mode, sidebar=bool(side_w), extra_status=extra_status
+        )
+    ]
     for i in range(panel_rows):
         kind, text = left_panel[i]
         if right_panel is None:

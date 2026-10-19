@@ -9,7 +9,7 @@ import serial.tools.list_ports
 
 CH340_VID = 0x1A86
 CH340_PID = 0x7523
-BAUDRATE  = 115200
+BAUDRATE = 115200
 
 
 def find_ch340_port():
@@ -34,8 +34,7 @@ def open_serial(port: str, baud: int = BAUDRATE) -> serial.Serial:
     return ser
 
 
-def serial_read_until(ser, marker,
-                      timeout: float = 15.0, echo: bool = True) -> str:
+def serial_read_until(ser, marker, timeout: float = 15.0, echo: bool = True) -> str:
     """Read from serial until 'marker' appears or timeout expires.
 
     Args:
@@ -48,7 +47,7 @@ def serial_read_until(ser, marker,
         All received data as a string.
     """
     if isinstance(marker, str):
-        marker = marker.encode('ascii')
+        marker = marker.encode("ascii")
 
     buf = bytearray()
     t0 = time.time()
@@ -57,19 +56,19 @@ def serial_read_until(ser, marker,
         if ch:
             buf.extend(ch)
             if echo:
-                sys.stdout.write(ch.decode('ascii', errors='replace'))
+                sys.stdout.write(ch.decode("ascii", errors="replace"))
                 sys.stdout.flush()
             if marker in buf:
                 break
         else:
             time.sleep(0.02)
-    return buf.decode('ascii', errors='replace')
+    return buf.decode("ascii", errors="replace")
 
 
 def serial_send(ser: serial.Serial, text: str, flush: bool = True):
     """Send a line to serial (appends CRLF).  Set flush=False for commands
     that crash the target (e.g. cmd_ramdump) to avoid blocking on TX drain."""
-    ser.write((text + "\r\n").encode('ascii'))
+    ser.write((text + "\r\n").encode("ascii"))
     if flush:
         ser.flush()
     time.sleep(0.1)

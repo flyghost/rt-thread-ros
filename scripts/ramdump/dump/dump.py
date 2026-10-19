@@ -11,13 +11,15 @@
 落盘位置：out/dump/<YYYYmmdd_HHMMSS>/（--out-dir 可指定）。
 只收不触发请用 dump/receive.py。
 """
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import argparse
 import os
@@ -25,18 +27,18 @@ import sys
 import time
 from pathlib import Path
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # scripts/ramdump
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/ramdump
 sys.path.insert(0, _ROOT)
 
-from lib import builder, console, serial_utils, ymodem_receiver        # noqa: E402
-from lib.config import OUT_DUMP_DIR                                    # noqa: E402
-from lib.serial_utils import BAUDRATE                                  # noqa: E402
+from lib import builder, console, serial_utils, ymodem_receiver  # noqa: E402
+from lib.config import OUT_DUMP_DIR  # noqa: E402
+from lib.serial_utils import BAUDRATE  # noqa: E402
 
 REGION_CMD = {
-    "all":   "ramdump",
+    "all": "ramdump",
     "flash": "ramdump_flash",
-    "sram":  "ramdump sram",
-    "ccm":   "ramdump ccm",
+    "sram": "ramdump sram",
+    "ccm": "ramdump ccm",
 }
 
 
@@ -90,21 +92,30 @@ def receive(ser, out_dir=None):
 
 def parse(argv):
     p = argparse.ArgumentParser(
-        prog="dump.py", description="ramdump 全流程采集（编译 → 下载 → 触发 → YMODEM 收）",
-        epilog="三个桶：build/ 编译下载 · dump/ 采集 · test/ 探针")
+        prog="dump.py",
+        description="ramdump 全流程采集（编译 → 下载 → 触发 → YMODEM 收）",
+        epilog="三个桶：build/ 编译下载 · dump/ 采集 · test/ 探针",
+    )
     p.add_argument("--com", help="串口号（省略则按 VID:PID 自动找 CH340）")
     p.add_argument("--baud", type=int, default=BAUDRATE)
     p.add_argument("--skip-build", action="store_true", help="跳过编译下载，直接采集")
     p.add_argument("--build-only", action="store_true", help="只编译下载，不采集")
     p.add_argument("--region", choices=sorted(REGION_CMD), default="all", help="dump 区域（默认 all）")
-    p.add_argument("--flash-only", dest="region", action="store_const", const="flash", help="等价 --region flash")
-    p.add_argument("--sram-only", dest="region", action="store_const", const="sram", help="等价 --region sram")
+    p.add_argument(
+        "--flash-only", dest="region", action="store_const", const="flash", help="等价 --region flash"
+    )
+    p.add_argument(
+        "--sram-only", dest="region", action="store_const", const="sram", help="等价 --region sram"
+    )
     p.add_argument("--ccm-only", dest="region", action="store_const", const="ccm", help="等价 --region ccm")
-    p.add_argument("--crash", action="store_true",
-                   help="走真异常路径（发 RAMDUMP_ASSERT）而不是 cmd_ramdump")
+    p.add_argument("--crash", action="store_true", help="走真异常路径（发 RAMDUMP_ASSERT）而不是 cmd_ramdump")
     p.add_argument("--crash-cmd", default="RAMDUMP_ASSERT", help="真异常路径用的 MSH 命令名")
-    p.add_argument("--transport", choices=("uart", "usb"), default="uart",
-                   help="uart=全走串口（默认）；usb=UART 触发 + USB CDC 收 dump")
+    p.add_argument(
+        "--transport",
+        choices=("uart", "usb"),
+        default="uart",
+        help="uart=全走串口（默认）；usb=UART 触发 + USB CDC 收 dump",
+    )
     p.add_argument("--no-check", action="store_true", help="跳过 MSH 探测，直接触发")
     p.add_argument("--out-dir", help="落盘目录（默认 out/dump/<时间戳>）")
     p.add_argument("--new-console", action="store_true", help="编译/下载时弹独立 cmd 窗口")
@@ -153,7 +164,7 @@ def _run_usb(a, port):
     if not a.no_check and not console.check_console(uart):
         uart.close()
         return 1
-    usb, usb_port = console.enter_ramdump_usb(uart)     # 成功时它自己已关掉 uart
+    usb, usb_port = console.enter_ramdump_usb(uart)  # 成功时它自己已关掉 uart
     if usb is None:
         return 1
     try:

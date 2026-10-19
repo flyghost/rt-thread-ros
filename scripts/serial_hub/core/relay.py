@@ -7,6 +7,7 @@
 控制口本身在 core/control.py；命令实现（help/status/sessions/lock/proto/kill/reset）
 留在这里的 `command()`，因为它要读 hub 状态。
 """
+
 from __future__ import annotations
 
 
@@ -47,7 +48,7 @@ class SerialHub:
         self.reopen_count = 0
         self.clients: dict[int, Client] = {}
         self.next_cid = 1
-        self.owner_cid = None       # 持有写权限的客户端（None = 谁都能写）
+        self.owner_cid = None  # 持有写权限的客户端（None = 谁都能写）
         self.tx: "queue.Queue[tuple[bytes, str]]" = queue.Queue(maxsize=args.tx_queue)
         self.running = True
         self.started = time.time()
@@ -70,7 +71,7 @@ class SerialHub:
         self.tui = None
         sinks = [LogSink(self)]
         if getattr(args, "ui", "stream") == "tui":
-            from tui.app import TuiApp                # 只有选了 TUI 才会 import
+            from tui.app import TuiApp  # 只有选了 TUI 才会 import
 
             self.tui = TuiApp(self, mode="hex" if getattr(args, "stdout", "rx") == "hex" else "text")
             sinks.append(self.tui)
@@ -90,7 +91,7 @@ class SerialHub:
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
                 timeout=a.read_timeout,
-                write_timeout=a.write_timeout,   # 关键：没有它会永久阻塞（老脚本就栽在这）
+                write_timeout=a.write_timeout,  # 关键：没有它会永久阻塞（老脚本就栽在这）
                 xonxoff=False,
                 rtscts=False,
                 dsrdtr=False,
@@ -101,7 +102,7 @@ class SerialHub:
             return False
         if a.dtr_open != "keep":
             try:
-                ser.dtr = (a.dtr_open == "high")
+                ser.dtr = a.dtr_open == "high"
             except Exception:
                 pass
         with self.ser_lock:
@@ -142,8 +143,7 @@ class SerialHub:
         if not self.args.log:
             return
         os.makedirs(self.args.log_dir, exist_ok=True)
-        stem = os.path.join(self.args.log_dir,
-                            "serial-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+        stem = os.path.join(self.args.log_dir, "serial-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
         # 二进制留档：用默认块缓冲 + 每段写完 flush，保证进程还在跑时也能 tail 到内容
         self.raw_f = open(stem + ".raw", "wb")
         self.log_f = open(stem + ".log", "w", encoding="utf-8", newline="")
@@ -167,13 +167,11 @@ class SerialHub:
 
     def log_data(self, direction: str, who: str, data: bytes) -> None:
         """兼容旧调用点：等价于发一个方向事件（落盘由 LogSink 完成）。"""
-        self.emit(Event(kind=EV_RX if direction == "RX" else EV_TX,
-                        direction=direction, who=who, data=data))
+        self.emit(Event(kind=EV_RX if direction == "RX" else EV_TX, direction=direction, who=who, data=data))
 
     def out_console(self, direction: str, who: str, data: bytes) -> None:
         """兼容旧调用点：等价于发一个方向事件（窗口渲染由 StreamSink 完成）。"""
-        self.emit(Event(kind=EV_RX if direction == "RX" else EV_TX,
-                        direction=direction, who=who, data=data))
+        self.emit(Event(kind=EV_RX if direction == "RX" else EV_TX, direction=direction, who=who, data=data))
 
     # ---------------- 数据口 ----------------
     def start_servers(self) -> bool:
@@ -189,9 +187,10 @@ class SerialHub:
         except OSError as exc:
             print("[hub] 数据口绑定 %s:%d 失败：%s" % (host, a.port, exc), file=sys.stderr)
             return False
-        self.log("[hub] 数据口  %s:%d  raw%s"
-                 % (a.host, a.port,
-                    "（首字节 0xFF 自动切 telnet）" if a.sniff else "（不做嗅探）"))
+        self.log(
+            "[hub] 数据口  %s:%d  raw%s"
+            % (a.host, a.port, "（首字节 0xFF 自动切 telnet）" if a.sniff else "（不做嗅探）")
+        )
         if a.telnet_port:
             try:
                 self.tsrv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -200,11 +199,12 @@ class SerialHub:
                 self.tsrv.listen(16)
                 self.tsrv.setblocking(False)
                 self.sel.register(self.tsrv, SEL_READ, ("tsrv", None))
-                self.log("[hub] telnet 口 %s:%d  （Telnet 前端）"
-                         % (a.host, a.telnet_port))
+                self.log("[hub] telnet 口 %s:%d  （Telnet 前端）" % (a.host, a.telnet_port))
             except OSError as exc:
-                print("[hub] telnet 口绑定 %s:%d 失败（继续跑）：%s"
-                      % (host, a.telnet_port, exc), file=sys.stderr)
+                print(
+                    "[hub] telnet 口绑定 %s:%d 失败（继续跑）：%s" % (host, a.telnet_port, exc),
+                    file=sys.stderr,
+                )
                 self.tsrv = None
         if a.control_port:
             self.ctl = ControlServer(self, host, a.control_port)
@@ -217,14 +217,15 @@ class SerialHub:
         except OSError:
             return
         # --port 上先不定协议，等首字节嗅探；--no-sniff 时直接 raw
-        c = Client(conn, addr, self.next_cid,
-                   proto=None if self.args.sniff else "raw",
-                   locked=not self.args.sniff)
+        c = Client(
+            conn, addr, self.next_cid, proto=None if self.args.sniff else "raw", locked=not self.args.sniff
+        )
         self.next_cid += 1
         self.clients[c.cid] = c
         self.sel.register(conn, SEL_READ, ("data", c))
-        self.log("[hub] 客户端接入 %s（当前 %d 个，协议=%s）"
-                 % (c.name, len(self.clients), c.proto or "待嗅探"))
+        self.log(
+            "[hub] 客户端接入 %s（当前 %d 个，协议=%s）" % (c.name, len(self.clients), c.proto or "待嗅探")
+        )
         self.mark_state()
 
     def accept_telnet(self) -> None:
@@ -239,10 +240,10 @@ class SerialHub:
         greet = c.codec.greeting()
         if greet:
             c.feed_raw(greet)
-            self.log("[hub] %s 主动协商 %s（WILL ECHO / WILL SGA / DO SGA，未转发给串口）"
-                     % (c.name, esc(greet)))
-        self.log("[hub] 客户端接入 %s（当前 %d 个，telnet 口）"
-                 % (c.name, len(self.clients)))
+            self.log(
+                "[hub] %s 主动协商 %s（WILL ECHO / WILL SGA / DO SGA，未转发给串口）" % (c.name, esc(greet))
+            )
+        self.log("[hub] 客户端接入 %s（当前 %d 个，telnet 口）" % (c.name, len(self.clients)))
         self.mark_state()
 
     def drop_client(self, c: Client, why: str = "断开") -> None:
@@ -257,8 +258,10 @@ class SerialHub:
         if self.owner_cid == c.cid:
             self.owner_cid = None
             self.log("[hub] 持有写锁的客户端 %s 已离开，自动解锁" % c.name)
-        self.log("[hub] 客户端离开 %s（%s，收 %s 发 %s，剩余 %d 个）"
-                 % (c.name, why, human(c.rx), human(c.tx), len(self.clients)))
+        self.log(
+            "[hub] 客户端离开 %s（%s，收 %s 发 %s，剩余 %d 个）"
+            % (c.name, why, human(c.rx), human(c.tx), len(self.clients))
+        )
         self.mark_state()
 
     def refresh_interest(self) -> None:
@@ -319,8 +322,7 @@ class SerialHub:
             if c.codec is None and (now - c.since) >= self.args.sniff_timeout:
                 c.use_proto("raw")
                 c.flush_held_out()
-                self.log("[hub] %s %.1fs 没开口，按 raw 处理"
-                         % (c.name, self.args.sniff_timeout))
+                self.log("[hub] %s %.1fs 没开口，按 raw 处理" % (c.name, self.args.sniff_timeout))
 
     def handle_client_write(self, c: Client) -> None:
         data = c.take_out()
@@ -347,10 +349,9 @@ class SerialHub:
                 c.linebuf = rest
                 cmd = line.decode("utf-8", "replace").strip()
                 if not cmd.startswith(self.args.control_prefix):
-                    self.push_tx(line + b"\r", c)   # 不是已知前缀就当普通数据放行
+                    self.push_tx(line + b"\r", c)  # 不是已知前缀就当普通数据放行
                     continue
-                reply = self.command(cmd[len(self.args.control_prefix):].strip(),
-                                     source="inline", client=c)
+                reply = self.command(cmd[len(self.args.control_prefix) :].strip(), source="inline", client=c)
                 if reply:
                     c.feed(("\r\n" + reply + "\r\n").encode())
                     self.log_data("CTL", c.name, reply.encode())
@@ -371,8 +372,7 @@ class SerialHub:
             return False
         if self.args.lock_writes and self.owner_cid is not None and owner_cid != self.owner_cid:
             self.drop_locked += len(data)
-            self.log("[hub] 丢弃 %s 的 %d 字节（写锁在 %s 手上）"
-                     % (who, len(data), self.owner_name()))
+            self.log("[hub] 丢弃 %s 的 %d 字节（写锁在 %s 手上）" % (who, len(data), self.owner_name()))
             return False
         try:
             self.tx.put_nowait((data, who))
@@ -425,8 +425,10 @@ class SerialHub:
                 self.tx_bytes += len(data)
                 self.emit(Event(kind=EV_TX, direction="TX", who=who, data=data))
             except serial.SerialTimeoutException:
-                self.log("[hub] 写超时（%ss），丢弃 %d 字节：目标可能在等流控或已停" 
-                         % (self.args.write_timeout, len(data)))
+                self.log(
+                    "[hub] 写超时（%ss），丢弃 %d 字节：目标可能在等流控或已停"
+                    % (self.args.write_timeout, len(data))
+                )
             except Exception as exc:
                 self.serial_error(exc)
 
@@ -441,29 +443,47 @@ class SerialHub:
         rest = parts[1:]
 
         if verb in ("help", "?"):
-            return ("# 命令：help | status | sessions(clients) | lock [cid] | unlock "
-                    "| proto <cid> <raw|telnet> | kill <cid> | reset [dtr|rts|both] | "
-                    "shutdown | ping     数据口内联：@@lock/@@unlock/@@proto/@@whoami")
+            return (
+                "# 命令：help | status | sessions(clients) | lock [cid] | unlock "
+                "| proto <cid> <raw|telnet> | kill <cid> | reset [dtr|rts|both] | "
+                "shutdown | ping     数据口内联：@@lock/@@unlock/@@proto/@@whoami"
+            )
         if verb == "ping":
             return "# pong"
         if verb == "status":
             up = time.time() - self.started
-            return ("# 串口=%s@%d %s 运行=%s 重连=%d 会话=%d 写锁=%s "
-                    "收=%s 发=%s 丢弃(锁)=%s 协议层吃掉=%s"
-                    % (a.com, a.baud, "OK" if self.ser_ok else "断开", 
-                       "%d秒" % int(up), self.reopen_count, len(self.clients),
-                       self.owner_name(), human(self.rx_bytes), human(self.tx_bytes),
-                       human(self.drop_locked), human(self.drop_proto)))
+            return "# 串口=%s@%d %s 运行=%s 重连=%d 会话=%d 写锁=%s 收=%s 发=%s 丢弃(锁)=%s 协议层吃掉=%s" % (
+                a.com,
+                a.baud,
+                "OK" if self.ser_ok else "断开",
+                "%d秒" % int(up),
+                self.reopen_count,
+                len(self.clients),
+                self.owner_name(),
+                human(self.rx_bytes),
+                human(self.tx_bytes),
+                human(self.drop_locked),
+                human(self.drop_proto),
+            )
         if verb in ("clients", "sessions"):
             if not self.clients:
                 return "# 暂无会话"
             rows = []
             now = time.time()
             for c in sorted(self.clients.values(), key=lambda x: x.cid):
-                rows.append("# %d proto=%-6s %s 会话=%ds 收=%s 发=%s 协议层吃掉=%s%s"
-                            % (c.cid, c.proto or "?", c.name, int(now - c.since),
-                               human(c.rx), human(c.tx), human(c.drop_proto),
-                               "  <=写锁" if c.cid == self.owner_cid else ""))
+                rows.append(
+                    "# %d proto=%-6s %s 会话=%ds 收=%s 发=%s 协议层吃掉=%s%s"
+                    % (
+                        c.cid,
+                        c.proto or "?",
+                        c.name,
+                        int(now - c.since),
+                        human(c.rx),
+                        human(c.tx),
+                        human(c.drop_proto),
+                        "  <=写锁" if c.cid == self.owner_cid else "",
+                    )
+                )
             return "\r\n".join(rows)
         if verb == "lock":
             if client is not None:
@@ -490,7 +510,7 @@ class SerialHub:
             self.log("[hub] 写锁解除（原持有者 %s）" % was)
             return "# ok: 写锁已解除（原持有者 %s）" % was
         if verb == "reset":
-            mode = (rest[0].lower() if rest else a.reset_mode)
+            mode = rest[0].lower() if rest else a.reset_mode
             if mode not in ("dtr", "rts", "both"):
                 return "# err: reset 参数要是 dtr|rts|both"
             t = threading.Thread(target=self.do_reset, args=(mode,), daemon=True)
@@ -500,10 +520,13 @@ class SerialHub:
             if client is None:
                 return "# 控制口连接（不属于数据会话；用 sessions 看会话号）"
             return "# 我是 %s 协议=%s 会话=%ds" % (
-                client.name, client.proto or "?", int(time.time() - client.since))
+                client.name,
+                client.proto or "?",
+                int(time.time() - client.since),
+            )
         if verb == "proto":
             if client is not None and len(rest) == 1:
-                rest = [str(client.cid), rest[0]]      # 数据口 @@proto telnet
+                rest = [str(client.cid), rest[0]]  # 数据口 @@proto telnet
             if len(rest) < 2:
                 return "# err: proto <cid> <raw|telnet>（数据口可省略 cid）"
             try:
@@ -542,7 +565,7 @@ class SerialHub:
         return "# err: 未知命令 %r（help）" % verb
 
     def do_reset(self, mode: str) -> None:
-        active_high = (self.args.reset_active == "high")
+        active_high = self.args.reset_active == "high"
         with self.ser_lock:
             ser = self.ser
             if ser is None:
@@ -558,8 +581,10 @@ class SerialHub:
                 time.sleep(self.args.reset_pulse)
                 for _, fn in lines:
                     fn(not active_high)
-                self.log("[hub] 已发送 %s 复位脉冲（active=%s，%ss）"
-                         % (mode, self.args.reset_active, self.args.reset_pulse))
+                self.log(
+                    "[hub] 已发送 %s 复位脉冲（active=%s，%ss）"
+                    % (mode, self.args.reset_active, self.args.reset_pulse)
+                )
             except Exception as exc:
                 self.log("[hub] 复位失败：%s" % exc)
 
@@ -593,24 +618,38 @@ class SerialHub:
         now = time.time()
         sessions = []
         for c in sorted(self.clients.values(), key=lambda x: x.cid):
-            sessions.append({
-                "cid": c.cid, "proto": c.proto or "?", "name": c.name,
-                "addr": "%s:%s" % (c.addr[0], c.addr[1]),
-                "since": c.since, "uptime": now - c.since,
-                "rx": c.rx, "tx": c.tx, "drop_proto": c.drop_proto,
-                "locked": c.cid == self.owner_cid,
-            })
+            sessions.append(
+                {
+                    "cid": c.cid,
+                    "proto": c.proto or "?",
+                    "name": c.name,
+                    "addr": "%s:%s" % (c.addr[0], c.addr[1]),
+                    "since": c.since,
+                    "uptime": now - c.since,
+                    "rx": c.rx,
+                    "tx": c.tx,
+                    "drop_proto": c.drop_proto,
+                    "locked": c.cid == self.owner_cid,
+                }
+            )
         return {
-            "com": self.args.com, "baud": self.args.baud,
-            "ser_ok": bool(self.ser_ok), "started": self.started,
-            "uptime": now - self.started, "reopen": self.reopen_count,
-            "clients": len(self.clients), "sessions": sessions,
+            "com": self.args.com,
+            "baud": self.args.baud,
+            "ser_ok": bool(self.ser_ok),
+            "started": self.started,
+            "uptime": now - self.started,
+            "reopen": self.reopen_count,
+            "clients": len(self.clients),
+            "sessions": sessions,
             "owner": self.owner_name() if self.owner_cid else "",
             "owner_cid": self.owner_cid,
-            "rx": self.rx_bytes, "tx": self.tx_bytes,
-            "drop_locked": self.drop_locked, "drop_proto": self.drop_proto,
+            "rx": self.rx_bytes,
+            "tx": self.tx_bytes,
+            "drop_locked": self.drop_locked,
+            "drop_proto": self.drop_proto,
             "log": self.log_stem,
-            "sinks": len(self.sinks.sinks), "sink_errors": self.sinks.errors,
+            "sinks": len(self.sinks.sinks),
+            "sink_errors": self.sinks.errors,
         }
 
     def run(self) -> int:
@@ -623,14 +662,15 @@ class SerialHub:
         if not self.start_servers():
             return 2
         self.mark_state()
-        self.log("[hub] 就绪。Raw 口 / %s / %d ；Telnet 口 / %s / %s ；控制口 %s"
-                 % (a.host, a.port, a.host, a.telnet_port or "关闭",
-                    a.control_port or "关闭"))
+        self.log(
+            "[hub] 就绪。Raw 口 / %s / %d ；Telnet 口 / %s / %s ；控制口 %s"
+            % (a.host, a.port, a.host, a.telnet_port or "关闭", a.control_port or "关闭")
+        )
         threading.Thread(target=self.reader_loop, daemon=True).start()
         threading.Thread(target=self.writer_loop, daemon=True).start()
         try:
             if self.tui is not None:
-                self.tui.loop(self)                    # UI 自己驱动 tick + 重画
+                self.tui.loop(self)  # UI 自己驱动 tick + 重画
             else:
                 while self.running:
                     self.tick(0.05)
@@ -644,9 +684,10 @@ class SerialHub:
             if self.ctl:
                 self.ctl.close()
             self.drop_serial("退出")
-            self.log("[hub] 结束：收 %s / 发 %s，日志 %s"
-                     % (human(self.rx_bytes), human(self.tx_bytes),
-                        (self.log_stem or "(未开)")))
+            self.log(
+                "[hub] 结束：收 %s / 发 %s，日志 %s"
+                % (human(self.rx_bytes), human(self.tx_bytes), (self.log_stem or "(未开)"))
+            )
             if self.log_f:
                 try:
                     self.log_f.close()

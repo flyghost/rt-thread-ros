@@ -13,14 +13,17 @@
        Ctrl-T 切视图、Ctrl-P 暂停、Ctrl-L 清屏、Ctrl-S 存盘、Ctrl-Q 退出
     5. loop() 真的驱动 hub.tick() 且进/出备用屏幕（stdout 抓得到转义序列）
 """
+
 from __future__ import annotations
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import io
 import os
@@ -28,16 +31,16 @@ import shutil
 import sys
 from contextlib import redirect_stdout
 
-_HERE = os.path.dirname(os.path.abspath(__file__))          # scripts/serial_hub/tests
-_PKG = os.path.dirname(_HERE)                               # scripts/serial_hub
-_REPO = os.path.dirname(os.path.dirname(_PKG))              # 仓库根
+_HERE = os.path.dirname(os.path.abspath(__file__))  # scripts/serial_hub/tests
+_PKG = os.path.dirname(_HERE)  # scripts/serial_hub
+_REPO = os.path.dirname(os.path.dirname(_PKG))  # 仓库根
 if _PKG not in sys.path:
     sys.path.insert(0, _PKG)
 
-from core.logstore import hexdump_text                       # noqa: E402
-from tui import ansi as A                                    # noqa: E402
-from tui.app import TuiApp                                   # noqa: E402
-from tui.view import render                                  # noqa: E402
+from core.logstore import hexdump_text  # noqa: E402
+from tui import ansi as A  # noqa: E402
+from tui.app import TuiApp  # noqa: E402
+from tui.view import render  # noqa: E402
 
 CHECKS = []
 
@@ -55,10 +58,20 @@ class StubHub:
         self.sent = []
         self.commands = []
         self.ticks = 0
-        self.state = {"com": "COM9", "baud": 115200, "ser_ok": True, "uptime": 7,
-                      "clients": 2, "owner": None, "rx": 4096, "tx": 128,
-                      "drop_locked": 21, "drop_proto": 22, "log": "serial-1.log",
-                      "sink_errors": 0}
+        self.state = {
+            "com": "COM9",
+            "baud": 115200,
+            "ser_ok": True,
+            "uptime": 7,
+            "clients": 2,
+            "owner": None,
+            "rx": 4096,
+            "tx": 128,
+            "drop_locked": 21,
+            "drop_proto": 22,
+            "log": "serial-1.log",
+            "sink_errors": 0,
+        }
 
     def send(self, data, who="tui", owner_cid=None):
         self.sent.append((bytes(data), who))
@@ -89,9 +102,23 @@ def geometry():
 
 def contents():
     lines = [("rx", "line-%d" % i) for i in range(1, 31)]
-    frame = render({"com": "COM9", "baud": 115200, "ser_ok": True, "uptime": 7,
-                    "clients": 2, "rx": 4096, "tx": 128, "log": "serial-9.log"},
-                   lines, 100, 12, input_text="v", input_mode="hub")
+    frame = render(
+        {
+            "com": "COM9",
+            "baud": 115200,
+            "ser_ok": True,
+            "uptime": 7,
+            "clients": 2,
+            "rx": 4096,
+            "tx": 128,
+            "log": "serial-9.log",
+        },
+        lines,
+        100,
+        12,
+        input_text="v",
+        input_mode="hub",
+    )
     plain = [A.strip_ansi(x) for x in frame]
     ok("状态行含串口与波特率", "COM9@115200" in plain[0], plain[0][:60])
     ok("状态行含会话数与计数", "会话 2" in plain[0] and "收 4.0 KB" in plain[0], plain[0][:70])
@@ -99,8 +126,13 @@ def contents():
     ok("输入行按模式给提示", "hub> v" in plain[-2] and "Tab 切到设备发送" in plain[-2], plain[-2][:60])
     ok("快捷键行含 Ctrl-Q", "Ctrl-Q" in plain[-1])
     scrolled = render({}, lines, 100, 12, scroll=6)
-    ok("scroll 让面板回退", "line-30" not in A.strip_ansi("".join(scrolled))[:0] and
-       ("line-24" in A.strip_ansi("\n".join(scrolled)) or "line-23" in A.strip_ansi("\n".join(scrolled))))
+    ok(
+        "scroll 让面板回退",
+        "line-30" not in A.strip_ansi("".join(scrolled))[:0]
+        and (
+            "line-24" in A.strip_ansi("\n".join(scrolled)) or "line-23" in A.strip_ansi("\n".join(scrolled))
+        ),
+    )
     helppage = render({}, lines, 100, 24, help_on=True)
     htext = A.strip_ansi("\n".join(helppage))
     ok("帮助页列出按键与命令", "Ctrl-S" in htext and "sessions" in htext)
@@ -173,7 +205,11 @@ def keyboard():
     app2.on_event(_ev("tx", b"ok\r\n"))
     app2.on_event(_ev("hub", msg="连接 #1"))
     kinds = [k for k, _t in app2.lines]
-    ok("sink 把 RX 拆行、TX/hub 各成一行", kinds.count("rx") >= 2 and "tx" in kinds and "hub" in kinds, str(kinds))
+    ok(
+        "sink 把 RX 拆行、TX/hub 各成一行",
+        kinds.count("rx") >= 2 and "tx" in kinds and "hub" in kinds,
+        str(kinds),
+    )
     ok("sink 攒了 hex 行", len(app2.hex_lines) >= 2, str(len(app2.hex_lines)))
     app2.paused = True
     app2.on_event(_ev("rx", b"paused-data\n"))
@@ -186,6 +222,7 @@ def keyboard():
     os.makedirs(tmp, exist_ok=True)
     saved = []
     import tui.app as appmod
+
     old_repo_root = appmod.repo_root
     appmod.repo_root = lambda: tmp
     try:
@@ -193,9 +230,14 @@ def keyboard():
         app3.on_event(_ev("rx", b"save-me\n"))
         path = app3.save_dump()
         saved = os.listdir(os.path.join(tmp, "out", "dump"))
-        ok("Ctrl-S 落盘 .raw + .txt + .hex", path and any(x.endswith(".raw") for x in saved)
-           and any(x.endswith(".txt") for x in saved)
-           and any(x.endswith(".hex") for x in saved), str(saved))
+        ok(
+            "Ctrl-S 落盘 .raw + .txt + .hex",
+            path
+            and any(x.endswith(".raw") for x in saved)
+            and any(x.endswith(".txt") for x in saved)
+            and any(x.endswith(".hex") for x in saved),
+            str(saved),
+        )
     finally:
         appmod.repo_root = old_repo_root
         shutil.rmtree(tmp, ignore_errors=True)
@@ -203,23 +245,34 @@ def keyboard():
 
 def step3():
     """第 3 步：both 混合视图 / 会话侧栏 / 搜索。"""
-    lines = [("rx", "boot ok"), ("rx", "ERROR: no disk"), ("tx", "version\r"),
-             ("rx", "ERROR: again"), ("hub", "连接 #1")]
-    frame = render({"com": "COM1"}, lines, 120, 12, mode="both",
-                   hex_lines=["00000000  61  |a|"])
+    lines = [
+        ("rx", "boot ok"),
+        ("rx", "ERROR: no disk"),
+        ("tx", "version\r"),
+        ("rx", "ERROR: again"),
+        ("hub", "连接 #1"),
+    ]
+    frame = render({"com": "COM1"}, lines, 120, 12, mode="both", hex_lines=["00000000  61  |a|"])
     plain = A.strip_ansi("\n".join(frame))
     ok("both 视图有分隔线", "│" in plain)
-    ok("窄屏 both 退回单栏",
-       "│" not in A.strip_ansi("\n".join(render({}, lines, 40, 12, mode="both"))))
+    ok("窄屏 both 退回单栏", "│" not in A.strip_ansi("\n".join(render({}, lines, 40, 12, mode="both"))))
     for mode in ("text", "hex", "both"):
-        fr = render({"com": "COM1"}, lines, 100, 10, mode=mode,
-                    hex_lines=["00000000  61  |a|"], sidebar=["会话 1", "收 2 B"])
-        ok("mode=%s 仍是恰好 h 行 × w 列" % mode,
-           len(fr) == 10 and all(A.width(A.strip_ansi(x)) == 100 for x in fr))
+        fr = render(
+            {"com": "COM1"},
+            lines,
+            100,
+            10,
+            mode=mode,
+            hex_lines=["00000000  61  |a|"],
+            sidebar=["会话 1", "收 2 B"],
+        )
+        ok(
+            "mode=%s 仍是恰好 h 行 × w 列" % mode,
+            len(fr) == 10 and all(A.width(A.strip_ansi(x)) == 100 for x in fr),
+        )
     fr = render({}, lines, 100, 10, sidebar=["会话侧栏标记"])
     ok("会话侧栏画在面板右侧", any("会话侧栏标记" in A.strip_ansi(x)[60:] for x in fr))
-    ok("关掉侧栏后不出现",
-       all("会话侧栏标记" not in A.strip_ansi(x) for x in render({}, lines, 100, 10)))
+    ok("关掉侧栏后不出现", all("会话侧栏标记" not in A.strip_ansi(x) for x in render({}, lines, 100, 10)))
 
     hub = StubHub()
     app = TuiApp(hub)
@@ -254,17 +307,28 @@ def step3():
 
     # 真快照的形状：sinks 是「个数」（int）而不是名字列表 —— 曾经把侧栏画崩
     app3 = TuiApp(StubHub())
-    app3.state = {"com": "COM1", "baud": 115200, "sinks": 2, "sink_errors": 1,
-                  "clients": 0, "sessions": [], "rx": 10, "tx": 4}
+    app3.state = {
+        "com": "COM1",
+        "baud": 115200,
+        "sinks": 2,
+        "sink_errors": 1,
+        "clients": 0,
+        "sessions": [],
+        "rx": 10,
+        "tx": 4,
+    }
     side = app3.sidebar_lines()
-    ok("侧栏能吃 int 型 sinks（真实快照形状）",
-       any("sink 数量 2" in s for s in side) and any("sink 错误 1" in s for s in side), str(side))
+    ok(
+        "侧栏能吃 int 型 sinks（真实快照形状）",
+        any("sink 数量 2" in s for s in side) and any("sink 错误 1" in s for s in side),
+        str(side),
+    )
 
 
 def _ev(kind, data=b"", msg=""):
     from core.events import Event
-    return Event(kind=kind, direction="RX" if kind == "rx" else "TX",
-                 who="board", data=data, msg=msg)
+
+    return Event(kind=kind, direction="RX" if kind == "rx" else "TX", who="board", data=data, msg=msg)
 
 
 def loop_check():

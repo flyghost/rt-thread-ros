@@ -69,7 +69,7 @@ def enter_ramdump_usb(uart_ser):
 
     # Wait for crash dump output on UART (confirms HardFault entry)
     print("[CONSOLE] Waiting for crash dump on UART...")
-    output = uart_ser.read(4096).decode('ascii', errors='replace')
+    output = uart_ser.read(4096).decode("ascii", errors="replace")
     print(output[-300:] if len(output) > 300 else output)
 
     # Done with UART — close it now to avoid port leak
@@ -85,12 +85,12 @@ def enter_ramdump_usb(uart_ser):
 
     usb_port = None
     for p in new_ports:
-        if 'USB' in after.get(p, ''):
+        if "USB" in after.get(p, ""):
             usb_port = p
             break
     if not usb_port:
         # Fallback: try known ports
-        for p in ['COM8', 'COM4']:
+        for p in ["COM8", "COM4"]:
             if p in after:
                 usb_port = p
                 break
@@ -107,7 +107,7 @@ def enter_ramdump_usb(uart_ser):
             usb_ser = serial.Serial(usb_port, 115200, timeout=1, write_timeout=3)
             break
         except serial.SerialException:
-            print(f"[CONSOLE] Retry {attempt+1}/10 opening {usb_port}...")
+            print(f"[CONSOLE] Retry {attempt + 1}/10 opening {usb_port}...")
             time.sleep(1.0)
     if not usb_ser:
         print(f"[CONSOLE] ERROR: Cannot open {usb_port}")
@@ -147,9 +147,9 @@ def trigger_dump(ser, region: str = "all") -> bool:
 
     cmd_map = {
         "flash": "ramdump_flash",
-        "sram":  "ramdump sram",
-        "ccm":   "ramdump ccm",
-        "all":   "ramdump",
+        "sram": "ramdump sram",
+        "ccm": "ramdump ccm",
+        "all": "ramdump",
     }
     cmd = cmd_map.get(region, "ramdump")
 

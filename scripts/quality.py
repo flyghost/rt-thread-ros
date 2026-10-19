@@ -75,9 +75,7 @@ def doctor() -> int:
     for name in ("ruff", "mypy", "pytest"):
         argv = [*_tool(name), "--version"]
         try:
-            out = subprocess.run(
-                argv, env=_env(), capture_output=True, text=True, timeout=120, cwd=HERE
-            )
+            out = subprocess.run(argv, env=_env(), capture_output=True, text=True, timeout=120, cwd=HERE)
         except (OSError, subprocess.SubprocessError) as exc:
             print(f"{name:<7}: 调用失败 {exc}")
             ok = False

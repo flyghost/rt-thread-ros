@@ -14,9 +14,26 @@ import subprocess
 import sys
 
 from firmware.config import (
-    ARTIFACT_DIR, BSP_DIR, BUILD_DIR, ENTRY_DIR, ENTRY_KIND, ENV_ROOT, OUT_BIN_DIR, PYOCD_FLASH_OPTS,
-    PYOCD_PACK, PYOCD_PKG_DIR, PYOCD_PY, PYOCD_TARGET, REPO_ROOT, RT_BUILD_DIR, RTT_EXEC_PATH,
-    SCONS_JOBS, TARGET_BIN, TARGET_ELF, TARGET_MAP, VENV_PY,
+    ARTIFACT_DIR,
+    BSP_DIR,
+    BUILD_DIR,
+    ENTRY_DIR,
+    ENTRY_KIND,
+    ENV_ROOT,
+    OUT_BIN_DIR,
+    PYOCD_FLASH_OPTS,
+    PYOCD_PACK,
+    PYOCD_PKG_DIR,
+    PYOCD_PY,
+    PYOCD_TARGET,
+    REPO_ROOT,
+    RT_BUILD_DIR,
+    RTT_EXEC_PATH,
+    SCONS_JOBS,
+    TARGET_BIN,
+    TARGET_ELF,
+    TARGET_MAP,
+    VENV_PY,
 )
 
 
@@ -55,6 +72,7 @@ def _run(argv, cwd, env) -> int:
 
 # ---- 编译 --------------------------------------------------------------
 
+
 def build(jobs: int | None = None) -> int:
     jobs = jobs or SCONS_JOBS
     if not VENV_PY.exists():
@@ -87,6 +105,7 @@ def menuconfig() -> int:
 
 # ---- 烧录 --------------------------------------------------------------
 
+
 def pyocd_argv(*args) -> list:
     return [PYOCD_PY, "-m", "pyocd", *args]
 
@@ -95,14 +114,15 @@ def check_pyocd() -> str:
     """返回 pyocd 版本号；不可用时抛 RuntimeError。"""
     if not PYOCD_PKG_DIR.is_dir():
         raise RuntimeError(
-            f"pyocd 未安装：{PYOCD_PKG_DIR}\n"
-            f"         先运行：python {PYOCD_PKG_DIR.parent / 'install.py'}"
+            f"pyocd 未安装：{PYOCD_PKG_DIR}\n         先运行：python {PYOCD_PKG_DIR.parent / 'install.py'}"
         )
     if not PYOCD_PACK.exists():
         raise RuntimeError(f"芯片 pack 缺失：{PYOCD_PACK}")
     proc = subprocess.run(
         [str(a) for a in pyocd_argv("--version")],
-        env=_pyocd_env(), capture_output=True, text=True,
+        env=_pyocd_env(),
+        capture_output=True,
+        text=True,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"pyocd 跑不起来：{(proc.stderr or proc.stdout).strip()}")
@@ -122,10 +142,16 @@ def flash(bin_path=None) -> int:
     print(f"[flash] pyocd {version} | {PYOCD_TARGET} | {target} ({target.stat().st_size:,} B)")
     rc = _run(
         pyocd_argv(
-            "flash", "--target", PYOCD_TARGET, *PYOCD_FLASH_OPTS,
-            "--pack", PYOCD_PACK, target,
+            "flash",
+            "--target",
+            PYOCD_TARGET,
+            *PYOCD_FLASH_OPTS,
+            "--pack",
+            PYOCD_PACK,
+            target,
         ),
-        REPO_ROOT, _pyocd_env(),
+        REPO_ROOT,
+        _pyocd_env(),
     )
     if rc == 0:
         copy_artifacts()
@@ -142,6 +168,7 @@ def copy_artifacts() -> None:
 
 # ---- 组合 --------------------------------------------------------------
 
+
 def build_and_flash(jobs: int | None = None) -> bool:
     if build(jobs) != 0:
         print("[build+flash] 编译失败，未烧录")
@@ -157,10 +184,13 @@ def status() -> int:
     print(f"板级 BSP   : {BSP_DIR}")
     print(f"中间文件   : {BUILD_DIR}  ({'存在' if BUILD_DIR.exists() else '未编译'})")
     print(f"产物目录   : {ARTIFACT_DIR}  ({'存在' if ARTIFACT_DIR.exists() else '未编译'})")
-    print(f"固件       : {TARGET_BIN}  "
-          f"({'%.0f KB' % (TARGET_BIN.stat().st_size / 1024) if TARGET_BIN.exists() else '缺失'})")
+    print(
+        f"固件       : {TARGET_BIN}  "
+        f"({'%.0f KB' % (TARGET_BIN.stat().st_size / 1024) if TARGET_BIN.exists() else '缺失'})"
+    )
     if TARGET_BIN.exists():
         import datetime
+
         ts = datetime.datetime.fromtimestamp(TARGET_BIN.stat().st_mtime)
         print(f"编译时间   : {ts:%Y-%m-%d %H:%M:%S}")
     try:

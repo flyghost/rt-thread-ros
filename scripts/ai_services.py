@@ -31,9 +31,7 @@ REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable  # 与运行本脚本的解释器一致（bat 已经探测过可用性）
 
 PY313 = Path(r"E:\software\InstallerEdition\DevTools\Python\Python313\python.exe")
-VENV_PY = Path(
-    r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe"
-)
+VENV_PY = Path(r"E:\software\EnvEdition\rt-thread-env\env-windows\.venv\Scripts\python.exe")
 
 PLACEHOLDER_HUB = "{hub_python}"
 
@@ -129,8 +127,15 @@ SERVICES: tuple[Service, ...] = (
         note="先开 hub 窗口，再前台起守卫",
     ),
     Service("guard-status", "守卫状态", argv=("{python}", "scripts/guard/guard.py", "--status")),
-    Service("guard-tasks", "守卫允许的任务（tasks.toml）", argv=("{python}", "scripts/guard/guard.py", "--tasks")),
-    Service("hub-list", "列出串口", argv=(PLACEHOLDER_HUB, "scripts/serial_hub/serial_hub.py", "--list"), needs_pyserial=True),
+    Service(
+        "guard-tasks", "守卫允许的任务（tasks.toml）", argv=("{python}", "scripts/guard/guard.py", "--tasks")
+    ),
+    Service(
+        "hub-list",
+        "列出串口",
+        argv=(PLACEHOLDER_HUB, "scripts/serial_hub/serial_hub.py", "--list"),
+        needs_pyserial=True,
+    ),
     Service("help", "打印帮助", argv=("{python}", "scripts/ai_services.py", "--help")),
 )
 
@@ -164,7 +169,10 @@ def hub_python() -> str:
 
 def expand(argv: tuple[str, ...], hub: str) -> list[str]:
     """展开占位符；串口 hub 的 COM/波特率/UI 允许用环境变量覆盖。"""
-    out = [item.replace("{python}", PY).replace("{root}", str(REPO)).replace(PLACEHOLDER_HUB, hub) for item in argv]
+    out = [
+        item.replace("{python}", PY).replace("{root}", str(REPO)).replace(PLACEHOLDER_HUB, hub)
+        for item in argv
+    ]
     if "serial_hub.py" in out:
         for flag, env in (("--com", "HUB_COM"), ("--baud", "HUB_BAUD"), ("--ui", "HUB_UI")):
             if flag in out and env in os.environ:

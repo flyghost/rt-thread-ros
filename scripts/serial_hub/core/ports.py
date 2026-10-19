@@ -5,13 +5,19 @@
 这里**只做枚举、选取、打印**，不含任何厂商/型号知识 —— "什么样的端口算哪一类"
 全部由 `discovery/` 下的规则表决定（VID:PID、串口名 glob、描述关键字、硬件 ID 关键字）。
 """
+
 from __future__ import annotations
 
 
 import sys
 
-from discovery import (classify, preferred, print_ports_table,  # noqa: F401
-                       print_rules, scan)
+from discovery import (
+    classify,
+    preferred,
+    print_ports_table,  # noqa: F401
+    print_rules,
+    scan,
+)
 
 
 def candidate_ports():

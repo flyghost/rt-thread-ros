@@ -12,19 +12,20 @@ Usage:
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 import sys as _s
 from pathlib import Path as _Path
 
-_SCRIPTS = _Path(__file__).resolve().parents[2]      # scripts/
+_SCRIPTS = _Path(__file__).resolve().parents[2]  # scripts/
 if str(_SCRIPTS) not in _s.path:
     _s.path.insert(0, str(_SCRIPTS))
 
-from firmware import tools as _tools                 # noqa: E402
+from firmware import tools as _tools  # noqa: E402
 
 
 def build_and_flash(new_console: bool = False) -> bool:

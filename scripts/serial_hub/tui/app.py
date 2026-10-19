@@ -13,6 +13,7 @@
 铁律：**不把串口读搬进 UI 线程**。IO 仍然由 hub 的读/写线程做，
 UI 每帧只做 hub.tick(0.05)（转发 select）+ 重画。
 """
+
 from __future__ import annotations
 
 import os
@@ -28,9 +29,9 @@ from tui import ansi as A
 from tui import keys as K
 from tui.view import kind_color, render
 
-PANEL_MAX = 4000              # 面板保留的最大行数
-RAW_MAX = 256 * 1024          # Ctrl-S 存盘保留的最大 RX 字节
-FRAME_SECONDS = 0.05          # 每帧让给 hub.tick() 的时间
+PANEL_MAX = 4000  # 面板保留的最大行数
+RAW_MAX = 256 * 1024  # Ctrl-S 存盘保留的最大 RX 字节
+FRAME_SECONDS = 0.05  # 每帧让给 hub.tick() 的时间
 
 
 class TuiApp:
@@ -41,20 +42,20 @@ class TuiApp:
     def __init__(self, hub=None, mode="text", echo_tx=True):
         self.hub = hub
         self.state = {}
-        self.lines = deque(maxlen=PANEL_MAX)          # (kind, text)
-        self.hex_lines = deque(maxlen=PANEL_MAX)      # 已格式化行
+        self.lines = deque(maxlen=PANEL_MAX)  # (kind, text)
+        self.hex_lines = deque(maxlen=PANEL_MAX)  # 已格式化行
         self.hex_off = 0
         self.raw = ByteRing(RAW_MAX)
         self.partial = ""
         self.mode = mode if mode in ("text", "hex", "both") else "text"
         self.input_text = ""
-        self.input_mode = "dev"                       # dev | hub | search
-        self.sidebar = True                           # 右侧会话侧栏
-        self.search = ""                              # 已提交的搜索关键字
-        self.search_on = False                        # 是否处于「搜索浏览」状态
-        self.hits = []                                # 命中行下标（针对文本行）
-        self.hit = 0                                  # 当前命中序号
-        self._hits_len = -1                           # hits 是按多少行算出来的
+        self.input_mode = "dev"  # dev | hub | search
+        self.sidebar = True  # 右侧会话侧栏
+        self.search = ""  # 已提交的搜索关键字
+        self.search_on = False  # 是否处于「搜索浏览」状态
+        self.hits = []  # 命中行下标（针对文本行）
+        self.hit = 0  # 当前命中序号
+        self._hits_len = -1  # hits 是按多少行算出来的
         self.scroll = 0
         self.paused = False
         self.echo_tx = bool(echo_tx)
@@ -161,7 +162,7 @@ class TuiApp:
         if not self.search_on:
             self.flash_msg("搜索已关闭")
             return
-        if self.mode == "hex":            # hex 面板不参与高亮 -> 自动切回文本
+        if self.mode == "hex":  # hex 面板不参与高亮 -> 自动切回文本
             self.mode = "text"
         hits = self.recompute_hits(force=True)
         if hits:
@@ -200,7 +201,7 @@ class TuiApp:
                 out.append(text[i:])
                 break
             out.append(text[i:pos])
-            out.append(bg + text[pos:pos + len(needle_lower)] + A.RESET + color)
+            out.append(bg + text[pos : pos + len(needle_lower)] + A.RESET + color)
             i = pos + len(needle_lower)
         return "".join(out)
 
@@ -225,15 +226,12 @@ class TuiApp:
         if not self.sidebar:
             return []
         st = self.state or {}
-        out = ["会话 %d   写锁 %s" % (int(st.get("clients") or 0), st.get("owner") or "无"),
-               "-" * 26]
+        out = ["会话 %d   写锁 %s" % (int(st.get("clients") or 0), st.get("owner") or "无"), "-" * 26]
         sessions = st.get("sessions") or []
         for s in sessions:
             mark = " <=锁" if s.get("locked") else ""
-            out.append("#%s %s %s%s" % (s.get("cid"), s.get("proto") or "?",
-                                        s.get("addr") or "", mark))
-            out.append("   收 %s  发 %s"
-                       % (human(int(s.get("rx") or 0)), human(int(s.get("tx") or 0))))
+            out.append("#%s %s %s%s" % (s.get("cid"), s.get("proto") or "?", s.get("addr") or "", mark))
+            out.append("   收 %s  发 %s" % (human(int(s.get("rx") or 0)), human(int(s.get("tx") or 0))))
             extra = "   会话 %ds" % int(s.get("uptime") or 0)
             if s.get("drop_proto"):
                 extra += "  协议吃掉 %s" % human(int(s["drop_proto"]))
@@ -279,13 +277,22 @@ class TuiApp:
         if self.flash and time.time() > self.flash_until:
             self.flash = ""
         w, h = size or A.term_size()
-        frame = render(self.state, self.decorated_text_lines(), w, h,
-                       input_text=self.input_text, input_mode=self.input_mode,
-                       mode=self.mode, scroll=self.scroll, paused=self.paused,
-                       flash=self.flash, help_on=self.help_on,
-                       hex_lines=list(self.hex_lines),
-                       sidebar=self.sidebar_lines(),
-                       extra_status=self.search_status())
+        frame = render(
+            self.state,
+            self.decorated_text_lines(),
+            w,
+            h,
+            input_text=self.input_text,
+            input_mode=self.input_mode,
+            mode=self.mode,
+            scroll=self.scroll,
+            paused=self.paused,
+            flash=self.flash,
+            help_on=self.help_on,
+            hex_lines=list(self.hex_lines),
+            sidebar=self.sidebar_lines(),
+            extra_status=self.search_status(),
+        )
         prefix = A.HOME
         if size is not None and self._last_size is not None and tuple(size) != self._last_size:
             prefix = A.CLEAR + A.HOME
@@ -309,8 +316,7 @@ class TuiApp:
         """返回 False 表示「退出 UI」。"""
         hub = self.hub
         # n / N：搜索命中之间跳（仅在「搜索浏览」状态、且输入行是空的）
-        if (tok in ("c:n", "c:N") and self.search_on and self.input_mode == "dev"
-                and not self.input_text):
+        if tok in ("c:n", "c:N") and self.search_on and self.input_mode == "dev" and not self.input_text:
             self.jump_hit(1 if tok == "c:n" else -1)
             return True
         if tok.startswith("c:"):
@@ -323,11 +329,11 @@ class TuiApp:
         elif tok == "backspace":
             self.input_text = self.input_text[:-1]
         elif tok == "esc":
-            if self.input_mode == "search":            # 放弃搜索输入
+            if self.input_mode == "search":  # 放弃搜索输入
                 self.input_mode = "dev"
                 self.input_text = ""
                 self.flash_msg("搜索输入已取消")
-            elif self.search_on:                       # 先退搜索，再谈关帮助
+            elif self.search_on:  # 先退搜索，再谈关帮助
                 self.exit_search()
             else:
                 self.help_on = False
@@ -380,7 +386,7 @@ class TuiApp:
 
     # ---------------- 动作（一律走 hub 的公开入口） ----------------
     def submit(self):
-        if self.input_mode == "search":            # 输入行此时是「搜索关键字」
+        if self.input_mode == "search":  # 输入行此时是「搜索关键字」
             self.run_search()
             return ""
         text = self.input_text.strip()
@@ -388,15 +394,18 @@ class TuiApp:
         if not text:
             self.scroll = 0
             return ""
-        forced = text.startswith("@@")        # 显式 @@ = 一定是 hub 命令（与数据口内联惯例一致）
+        forced = text.startswith("@@")  # 显式 @@ = 一定是 hub 命令（与数据口内联惯例一致）
         if forced:
             text = text[2:].strip()
             if not text:
                 return ""
         verb = text.split(" ")[0]
-        if forced or self.input_mode == "hub" or verb in ("help", "status", "sessions", "lock",
-                                                          "unlock", "proto", "kill", "reset",
-                                                          "shutdown", "ping"):
+        if (
+            forced
+            or self.input_mode == "hub"
+            or verb
+            in ("help", "status", "sessions", "lock", "unlock", "proto", "kill", "reset", "shutdown", "ping")
+        ):
             return self.run_command(text)
         return self.send_line(text)
 
@@ -418,7 +427,7 @@ class TuiApp:
             return ""
         try:
             reply = self.hub.command(text, source="tui", client=None)
-        except Exception as exc:                       # 命令有 bug 也不能把 UI 带走
+        except Exception as exc:  # 命令有 bug 也不能把 UI 带走
             reply = "命令出错：%s" % exc
             self.errors += 1
         for line in str(reply or "").split("\n"):

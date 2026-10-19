@@ -9,6 +9,7 @@
 
 这样 UI 想换成 ANSI / Textual / 独立进程 / Web，都只是换渲染层，ringbuf 不用动。
 """
+
 from __future__ import annotations
 
 import collections

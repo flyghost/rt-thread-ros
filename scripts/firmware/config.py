@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 
 # ---- 仓库布局 ----------------------------------------------------------
-SCRIPTS_DIR = Path(__file__).resolve().parents[1]        # scripts/
-REPO_ROOT = SCRIPTS_DIR.parent                           # 仓库根
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]  # scripts/
+REPO_ROOT = SCRIPTS_DIR.parent  # 仓库根
 TOOLS_DIR = REPO_ROOT / "tools"
 BSP_DIR = REPO_ROOT / "bsp" / "stm32" / "stm32f407-atk-explorer"
 PROJECTS_DIR = REPO_ROOT / "projects"
@@ -32,20 +32,18 @@ RTT_EXEC_PATH = Path(
     os.environ.get("RTT_EXEC_PATH", ENV_ROOT / "tools" / "gnu_gcc" / "arm_gcc" / "mingw" / "bin")
 )
 VENV_DIR = Path(os.environ.get("VENV", ENV_ROOT / ".venv"))
-VENV_PY = VENV_DIR / "Scripts" / "python.exe"            # 装了 SCons 的解释器
-if not VENV_PY.exists():                                 # 非 Windows 或自定义环境
+VENV_PY = VENV_DIR / "Scripts" / "python.exe"  # 装了 SCons 的解释器
+if not VENV_PY.exists():  # 非 Windows 或自定义环境
     VENV_PY = VENV_DIR / "bin" / "python"
 
 SCONS_JOBS = int(os.environ.get("SCONS_JOBS", "20"))
 
 # ---- pyocd（唯一来源：tools/pyocd，见 tools/pyocd/README.md）-----------
 PYOCD_DIR = TOOLS_DIR / "pyocd"
-PYOCD_PKG_DIR = PYOCD_DIR / "pkg"                        # pip 装出来的 pyocd（gitignore）
+PYOCD_PKG_DIR = PYOCD_DIR / "pkg"  # pip 装出来的 pyocd（gitignore）
 PYOCD_PACK = PYOCD_DIR / "packs" / "Keil.STM32F4xx_DFP.2.14.0-small.pack"
 PYOCD_TARGET = os.environ.get("PYOCD_TARGET", "STM32F407VE")
-PYOCD_FLASH_OPTS = os.environ.get(
-    "PYOCD_FLASH_OPTS", "--erase=auto --frequency=1000000"
-).split()
+PYOCD_FLASH_OPTS = os.environ.get("PYOCD_FLASH_OPTS", "--erase=auto --frequency=1000000").split()
 # 跑 pyocd 的解释器：pkg/ 里的 cffi、hidapi 是 CPython 3.13 的二进制 wheel，
 # 必须用同一 ABI 的解释器；需要别的环境时用 PYOOCD_PY 覆盖。
 PYOCD_PY = Path(os.environ.get("PYOCD_PY", sys.executable))

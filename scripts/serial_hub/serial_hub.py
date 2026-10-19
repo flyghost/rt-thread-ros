@@ -88,13 +88,15 @@ Windows 的 COM 口默认是【独占】的：一个终端打开后自动化脚�
 """
 
 from __future__ import annotations
+
 # __pycache__ 统一写到仓库的 out/pycache（sys.pycache_prefix 只影响设置之后的 import，
 # 所以要在所有本地 import 之前，但又必须在 from __future__ 之后）。
 import os as _os, sys as _sys
+
 _d = _os.path.abspath(__file__)
-while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, '.git')):
+while _d != _os.path.dirname(_d) and not _os.path.exists(_os.path.join(_d, ".git")):
     _d = _os.path.dirname(_d)
-_sys.pycache_prefix = _os.path.join(_d, 'out', 'pycache')
+_sys.pycache_prefix = _os.path.join(_d, "out", "pycache")
 
 
 import argparse
@@ -106,10 +108,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from core.ports import autodetect_port, print_ports, print_rules   # noqa: E402
-from core.relay import SerialHub                                    # noqa: E402
-from core.util import repo_root                                     # noqa: E402
-from discovery.base import parse_rule_spec                          # noqa: E402
+from core.ports import autodetect_port, print_ports, print_rules  # noqa: E402
+from core.relay import SerialHub  # noqa: E402
+from core.util import repo_root  # noqa: E402
+from discovery.base import parse_rule_spec  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -117,57 +119,89 @@ def build_parser() -> argparse.ArgumentParser:
         description="串口中继：一个进程独占串口，多个客户端（终端/脚本）同时收发",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Raw 终端    ：127.0.0.1:5555（首字节 0xFF 自动切 telnet）\n"
-               "Telnet 终端 ：127.0.0.1:5557（--telnet-port 0 可关）\n"
-               "脚本        ：连 5555 收发；@@lock / @@unlock / @@proto 切换协议\n"
-               "控制口 5556 ：sessions / lock / proto / kill / status / reset\n"
-               "客户端示例、探测规则见 README.md")
+        "Telnet 终端 ：127.0.0.1:5557（--telnet-port 0 可关）\n"
+        "脚本        ：连 5555 收发；@@lock / @@unlock / @@proto 切换协议\n"
+        "控制口 5556 ：sessions / lock / proto / kill / status / reset\n"
+        "客户端示例、探测规则见 README.md",
+    )
     p.add_argument("--com", help="串口名（如 COM7；省略则按探测规则自动选）")
-    p.add_argument("--prefer", action="append", default=[], metavar="SPEC",
-                   help="临时探测规则，可重复：1A86:7523 / name:COM7 / desc:ch340 / hwid:USB")
+    p.add_argument(
+        "--prefer",
+        action="append",
+        default=[],
+        metavar="SPEC",
+        help="临时探测规则，可重复：1A86:7523 / name:COM7 / desc:ch340 / hwid:USB",
+    )
     p.add_argument("--baud", type=int, default=115200, help="波特率（默认 115200）")
     p.add_argument("--host", default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
     p.add_argument("--port", type=int, default=5555, help="数据口（raw/嗅探，默认 5555）")
-    p.add_argument("--telnet-port", type=int, default=5557,
-                   help="telnet 接入口（给不会说 Raw 的终端；0=关闭，默认 5557）")
-    p.add_argument("--sniff", dest="sniff", action="store_true", default=True,
-                   help="数据口按首字节自动判定协议（0xFF=Telnet IAC，默认开）")
-    p.add_argument("--no-sniff", dest="sniff", action="store_false",
-                   help="数据口一律 raw，不做嗅探")
-    p.add_argument("--sniff-timeout", type=float, default=0.5,
-                   help="连接后迟迟不开口则按 raw 处理（秒，默认 0.5）")
+    p.add_argument(
+        "--telnet-port",
+        type=int,
+        default=5557,
+        help="telnet 接入口（给不会说 Raw 的终端；0=关闭，默认 5557）",
+    )
+    p.add_argument(
+        "--sniff",
+        dest="sniff",
+        action="store_true",
+        default=True,
+        help="数据口按首字节自动判定协议（0xFF=Telnet IAC，默认开）",
+    )
+    p.add_argument("--no-sniff", dest="sniff", action="store_false", help="数据口一律 raw，不做嗅探")
+    p.add_argument(
+        "--sniff-timeout", type=float, default=0.5, help="连接后迟迟不开口则按 raw 处理（秒，默认 0.5）"
+    )
     p.add_argument("--control-port", type=int, default=5556, help="控制口（0=关闭，默认 5556）")
     p.add_argument("--allow-lan", action="store_true", help="监听 0.0.0.0（默认只听本机）")
     p.add_argument("--list", action="store_true", help="列出候选串口后退出")
-    p.add_argument("--stdout", choices=["rx", "rxtx", "hex", "none"], default="rx",
-                   help="本窗口打印什么（默认 rx）")
-    p.add_argument("--ui", choices=["stream", "tui", "none"], default="stream",
-                   help="本窗口怎么显示：stream=逐行打印（默认，与以前逐字节相同）；"
-                        "tui=全屏面板（状态行/数据面板/输入行）；none=不打窗口，只落日志")
+    p.add_argument(
+        "--stdout", choices=["rx", "rxtx", "hex", "none"], default="rx", help="本窗口打印什么（默认 rx）"
+    )
+    p.add_argument(
+        "--ui",
+        choices=["stream", "tui", "none"],
+        default="stream",
+        help="本窗口怎么显示：stream=逐行打印（默认，与以前逐字节相同）；"
+        "tui=全屏面板（状态行/数据面板/输入行）；none=不打窗口，只落日志",
+    )
     p.add_argument("--log", dest="log", action="store_true", default=True, help="落盘日志（默认开）")
     p.add_argument("--no-log", dest="log", action="store_false", help="不落盘")
-    p.add_argument("--log-dir", default=os.path.join(repo_root(), "out", "log"),
-                   help="日志目录（默认 out/log）")
+    p.add_argument(
+        "--log-dir", default=os.path.join(repo_root(), "out", "log"), help="日志目录（默认 out/log）"
+    )
     p.add_argument("--read-timeout", type=float, default=0.05, help="串口读超时（默认 0.05s）")
-    p.add_argument("--write-timeout", type=float, default=1.0,
-                   help="串口写超时（默认 1.0s；没有它会永久阻塞）")
+    p.add_argument(
+        "--write-timeout", type=float, default=1.0, help="串口写超时（默认 1.0s；没有它会永久阻塞）"
+    )
     p.add_argument("--tx-queue", type=int, default=512, help="待发队列长度（默认 512 块）")
-    p.add_argument("--dtr-open", choices=["keep", "high", "low"], default="keep",
-                   help="打开串口时是否动 DTR（默认 keep=不动，避免误扰动设备）")
-    p.add_argument("--reset-mode", choices=["dtr", "rts", "both"], default="dtr",
-                   help="reset 命令默认用哪根线")
-    p.add_argument("--reset-active", choices=["low", "high"], default="low",
-                   help="复位脉冲的有效电平（默认 low）")
+    p.add_argument(
+        "--dtr-open",
+        choices=["keep", "high", "low"],
+        default="keep",
+        help="打开串口时是否动 DTR（默认 keep=不动，避免误扰动设备）",
+    )
+    p.add_argument(
+        "--reset-mode", choices=["dtr", "rts", "both"], default="dtr", help="reset 命令默认用哪根线"
+    )
+    p.add_argument(
+        "--reset-active", choices=["low", "high"], default="low", help="复位脉冲的有效电平（默认 low）"
+    )
     p.add_argument("--reset-pulse", type=float, default=0.1, help="复位脉冲宽度秒（默认 0.1）")
-    p.add_argument("--reopen", dest="reopen", action="store_true", default=True,
-                   help="串口掉了自动重连（默认开）")
+    p.add_argument(
+        "--reopen", dest="reopen", action="store_true", default=True, help="串口掉了自动重连（默认开）"
+    )
     p.add_argument("--no-reopen", dest="reopen", action="store_false", help="不自动重连")
     p.add_argument("--reopen-delay", type=float, default=2.0, help="重连间隔秒（默认 2.0）")
-    p.add_argument("--lock-writes", dest="lock_writes", action="store_true", default=True,
-                   help="@@lock 后冻结其他客户端的写入（默认开）")
-    p.add_argument("--no-lock-writes", dest="lock_writes", action="store_false",
-                   help="lock 只作标记，不冻结")
-    p.add_argument("--control-prefix", default="@@",
-                   help="数据口内联控制前缀（默认 @@，空串=关闭）")
+    p.add_argument(
+        "--lock-writes",
+        dest="lock_writes",
+        action="store_true",
+        default=True,
+        help="@@lock 后冻结其他客户端的写入（默认开）",
+    )
+    p.add_argument("--no-lock-writes", dest="lock_writes", action="store_false", help="lock 只作标记，不冻结")
+    p.add_argument("--control-prefix", default="@@", help="数据口内联控制前缀（默认 @@，空串=关闭）")
     return p
 
 
@@ -191,10 +225,8 @@ def setup_console() -> None:
 def main(argv=None) -> int:
     setup_console()
     args = build_parser().parse_args(argv)
-    if args.ui == "tui" and not (sys.stdout and sys.stdout.isatty()
-                                 and sys.stdin and sys.stdin.isatty()):
-        print("[hub] --ui tui 需要交互式终端（stdout/stdin 都是 tty），已回退到 --ui stream",
-              file=sys.stderr)
+    if args.ui == "tui" and not (sys.stdout and sys.stdout.isatty() and sys.stdin and sys.stdin.isatty()):
+        print("[hub] --ui tui 需要交互式终端（stdout/stdin 都是 tty），已回退到 --ui stream", file=sys.stderr)
         args.ui = "stream"
     try:
         rules = tuple(parse_rule_spec(spec) for spec in (args.prefer or ()))
