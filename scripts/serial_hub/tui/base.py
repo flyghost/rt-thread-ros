@@ -49,3 +49,16 @@ class TuiBase:
     def start_search(self, *args: Any, **kwargs: Any) -> Any: ...
     def exit_search(self, *args: Any, **kwargs: Any) -> Any: ...
     def save_dump(self, *args: Any, **kwargs: Any) -> Any: ...
+    # BufferMixin 提供、被 RenderMixin / InputMixin 调用（签名与实现一致）。
+    # 用 raise 而不是 ...：TuiBase 自己不实现，出事要立刻炸而不是返回 None。
+    def text_lines(self) -> list[tuple[str, str]]:
+        raise NotImplementedError
+
+    def recompute_hits(self, force: bool = False) -> list[int]:
+        raise NotImplementedError
+
+    def run_search(self) -> None:
+        raise NotImplementedError
+
+    def search_status(self) -> str:
+        raise NotImplementedError

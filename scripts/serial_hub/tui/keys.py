@@ -13,6 +13,8 @@ token 形式：
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
+from typing import Any
 
 _SPECIAL = {
     "H": "up",
@@ -69,21 +71,22 @@ _CTRL = {
 }
 
 
-def _win():
+def _win() -> Any:
     import msvcrt
 
     return msvcrt
 
 
-def _posix_setup():
+def _posix_setup() -> Callable[[], None]:
     """把 stdin 切成非阻塞原始模式；返回还原函数。"""
     import termios
     import tty
 
     fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    tty.setcbreak(fd)
-    return lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    # typeshed 只在 POSIX 平台提供 termios/tty 属性，本函数本身也只在 POSIX 下调用
+    old = termios.tcgetattr(fd)  # type: ignore[attr-defined]
+    tty.setcbreak(fd)  # type: ignore[attr-defined]
+    return lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old)  # type: ignore[attr-defined]
 
 
 def read_key() -> str:

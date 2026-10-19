@@ -343,7 +343,7 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 | 项 | 现状 | 为什么 |
 |---|---|---|
 | 覆盖 | 81 个文件（`firmware` `guard` `runtime` `cli.py` `quality.py` `ai_services.py` `check_bat.py` `serial_hub` `ramdump`） | 生产代码全覆盖；`exclude = '(^|.*/)(tests\|test)/'` 把测试脚本排除（它们由 pytest/ruff 管） |
-| 严格度 | `firmware.*` `guard.*` `runtime.*` `cli` `quality` `ai_services` `check_bat` 开 `disallow_untyped_defs`；`serial_hub` `ramdump` 只查函数体 | 前一组是新写的、注解齐全；后一组是历史代码 |
+| 严格度 | `firmware.*` `guard.*` `runtime.*` `cli` `quality` `ai_services` `check_bat` 开 `disallow_untyped_defs`；`serial_hub` `ramdump` 不开，但**开 `check_untyped_defs`**（函数体照查，能抓属性写错/参数类型放错这类真 bug） | 前一组是新写的、注解齐全；后一组是历史代码，补注解收益低于打开函数体检查 |
 | 为什么不用 `module = ["serial_hub.*"]` | 匹配不上 | 这两个包**没有 `__init__.py`**，mypy 认出的模块名是 `core.hub_base`、`lib.ymodem_receiver`（不带包前缀），所以只能「全局放宽 + 现代包逐个收紧」 |
 
 ### 11.4 CI（`.github/workflows/ci.yml`）

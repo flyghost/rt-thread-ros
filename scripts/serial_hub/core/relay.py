@@ -21,7 +21,7 @@ except Exception as exc:  # pragma: no cover
 
 import contextlib
 
-from core.events import EV_HUB, EV_RX, EV_TX, Event, SinkGroup
+from core.events import EV_HUB, EV_RX, EV_TX, Event, EventSink, SinkGroup
 from core.hub_clients import ClientsMixin
 from core.hub_commands import CommandsMixin
 from core.hub_serial import SerialMixin
@@ -64,7 +64,8 @@ class SerialHub(SerialMixin, ClientsMixin, CommandsMixin, StateMixin):
         # ---- 输出层：hub 只"发事件"，落盘 / 本窗口 / UI 都是 sink ----
         # ui=tui 时用 TuiApp 取代本窗口输出（日志 sink 照旧，协议层完全不受影响）
         self.tui = None
-        sinks = [LogSink(self)]
+        # 显式声明成 EventSink 列表：LogSink / TuiApp / StreamSink 都实现同一协议
+        sinks: list[EventSink] = [LogSink(self)]
         if getattr(args, "ui", "stream") == "tui":
             from tui.app import TuiApp  # 只有选了 TUI 才会 import
 
