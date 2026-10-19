@@ -37,7 +37,7 @@ if str(_SCRIPTS) not in sys.path:
 COMMANDS = ("build", "flash", "build-flash", "clean", "menuconfig", "status")
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="build.py",
         description="STM32F407 固件构建/烧录统一入口（默认项目 projects/base）",

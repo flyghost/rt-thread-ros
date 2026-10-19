@@ -21,11 +21,13 @@ from __future__ import annotations
 
 import os
 import socket
-import subprocess
 import sys
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+
+from runtime import proc
+from runtime.errors import ToolMissingError
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable  # 与运行本脚本的解释器一致（bat 已经探测过可用性）
@@ -145,13 +147,8 @@ SERVICES: tuple[Service, ...] = (
 
 def _can_import(python: str, module: str) -> bool:
     try:
-        done = subprocess.run(
-            [python, "-c", f"import {module}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=20,
-        )
-    except (OSError, subprocess.SubprocessError):
+        done = proc.run([python, "-c", f"import {module}"], capture=False, timeout=20)
+    except (OSError, ToolMissingError):
         return False
     return done.returncode == 0
 
@@ -184,9 +181,9 @@ def run_argv(argv: list[str], *, show: bool = True) -> int:
     if show:
         print(f"$ {' '.join(argv)}", flush=True)
     try:
-        return subprocess.call(argv, cwd=str(REPO))
-    except FileNotFoundError:
-        print(f"[ERROR] 找不到可执行文件：{argv[0]}", flush=True)
+        return proc.run(argv, cwd=REPO, capture=False).returncode
+    except ToolMissingError as exc:
+        print(f"[ERROR] {exc.message}", flush=True)
         return 127
     except KeyboardInterrupt:
         print("\n[interrupted]", flush=True)
@@ -230,7 +227,7 @@ def run_service(service: Service, extra: list[str]) -> int:
             hub,
         )
         print(f"$ {' '.join(hub_cmd)}   (new console)", flush=True)
-        subprocess.Popen(hub_cmd, cwd=str(REPO), creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+        proc.popen(hub_cmd, cwd=REPO, creationflags=proc.CREATE_NEW_CONSOLE)
         guard = next(s for s in SERVICES if s.name == "guard")
         return run_argv(expand(guard.argv, hub) + extra)
 

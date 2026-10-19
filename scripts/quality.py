@@ -21,10 +21,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
+
+from runtime import proc
+from runtime.errors import ToolMissingError
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -46,15 +48,8 @@ def _tool(name: str) -> list[str]:
 
 def _have(name: str) -> bool:
     try:
-        out = subprocess.run(
-            [*_tool(name), "--version"],
-            env=_env(),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=HERE,
-        )
-    except (OSError, subprocess.SubprocessError):
+        out = proc.run([*_tool(name), "--version"], env=_env(), timeout=120, cwd=HERE)
+    except (OSError, ToolMissingError):
         return False
     return out.returncode == 0
 
@@ -63,7 +58,7 @@ def _run(label: str, argv: list[str], quiet: bool = False) -> int:
     started = time.time()
     if not quiet:
         print(f"$ {' '.join(argv)}")
-    rc = subprocess.run(argv, env=_env(), cwd=HERE).returncode
+    rc = proc.run(argv, env=_env(), cwd=HERE, capture=False).returncode
     print(f"[{label}] 退出码 {rc}，耗时 {time.time() - started:.1f}s")
     return rc
 
@@ -75,8 +70,8 @@ def doctor() -> int:
     for name in ("ruff", "mypy", "pytest"):
         argv = [*_tool(name), "--version"]
         try:
-            out = subprocess.run(argv, env=_env(), capture_output=True, text=True, timeout=120, cwd=HERE)
-        except (OSError, subprocess.SubprocessError) as exc:
+            out = proc.run(argv, env=_env(), timeout=120, cwd=HERE)
+        except (OSError, ToolMissingError) as exc:
             print(f"{name:<7}: 调用失败 {exc}")
             ok = False
             continue

@@ -35,13 +35,22 @@ import contextlib
 import json
 import os
 import re
-import subprocess
 import sys
 import threading
 import time
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
+
+# 本文件可以被单独执行（`python scripts/guard/guard.py`）：此时 sys.path[0] 是
+# scripts/guard/，必须先把 scripts/ 放进 sys.path，才能 import 公共的 runtime 包。
+_SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from runtime.errors import ToolMissingError  # noqa: E402
+from runtime.proc import TimeoutExpired, popen  # noqa: E402
+from runtime.proc import run as run_cmd  # noqa: E402
 
 PROTOCOL = 1
 
@@ -280,7 +289,7 @@ class Mailbox:
         return self.root / f"rep_{n:04d}.log"
 
     def ids(self) -> list[int]:
-        out = []
+        out: list[int] = []
         if not self.root.is_dir():
             return out
         for p in self.root.glob("req_*.json"):
@@ -563,19 +572,9 @@ class Guard:
                 )
 
                 try:
-                    proc = subprocess.Popen(
-                        argv,
-                        cwd=str(cwd),
-                        env=env,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        bufsize=1,
-                    )
-                except FileNotFoundError as exc:
-                    status, message = "failed", f"可执行文件不存在：{exc}"
+                    proc = popen(argv, cwd=cwd, env=env)
+                except ToolMissingError as exc:
+                    status, message = "failed", f"可执行文件不存在：{exc.message}"
                     log.write(f"!! {message}\n")
                     exit_code = None
                     break
@@ -604,9 +603,9 @@ class Guard:
                 stdout = proc.stdout
                 assert stdout is not None
 
-                def pump(out: Iterable[str] = stdout) -> None:
+                def pump(out: Iterable[str] | None = None) -> None:
                     nonlocal log_bytes, last_growth
-                    for line in out:
+                    for line in out or ():
                         log.write(line)
                         log.flush()
                         log_bytes += len(line)
@@ -615,7 +614,7 @@ class Guard:
                         if len(tail) > TAIL_LINES:
                             del tail[0]
 
-                th = threading.Thread(target=pump, daemon=True)
+                th = threading.Thread(target=pump, args=(stdout,), daemon=True)
                 th.start()
 
                 while True:
@@ -651,7 +650,7 @@ class Guard:
                     log.write(f"\n!! {message} → 杀进程树 pid={proc.pid}\n")
                     log.flush()
                     self._kill_tree(proc.pid)
-                    with contextlib.suppress(subprocess.TimeoutExpired):
+                    with contextlib.suppress(TimeoutExpired):
                         proc.wait(timeout=10)
                     exit_code = None
                     th.join(timeout=2)
@@ -676,7 +675,7 @@ class Guard:
     @staticmethod
     def _kill_tree(pid: int) -> None:
         with contextlib.suppress(Exception):
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=20)
+            run_cmd(["taskkill", "/F", "/T", "/PID", str(pid)], timeout=20)
 
     # -- 主循环 --
     def loop(self) -> int:
@@ -755,7 +754,7 @@ def cmd_status(mb: Mailbox) -> int:
     hb = _read_json(mb.heartbeat) or {}
     lock = _read_json(mb.lock) or {}
     pid = hb.get("pid") or lock.get("pid")
-    alive = bool(pid) and _pid_alive(int(pid))
+    alive = bool(pid) and _pid_alive(int(pid or 0))
     beat_at = hb.get("beatAt")
     age = None
     if beat_at:
@@ -888,13 +887,17 @@ def cmd_tasks() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     for s in (sys.stdout, sys.stderr):
+        # TextIO 才有 reconfigure；用 getattr 探测，免得为类型标注加 ignore。
+        reconfigure = getattr(s, "reconfigure", None)
+        if reconfigure is None:
+            continue
         try:
             # 真控制台上保持默认（Windows 走 WriteConsoleW，中文正常）；
             # 被重定向到管道/文件时强制 UTF-8，否则会被按 cp936 写出去、下游按 UTF-8 读成乱码。
             if not s.isatty():
-                s.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+                reconfigure(encoding="utf-8", errors="replace")
             else:
-                s.reconfigure(errors="replace")  # type: ignore[attr-defined]
+                reconfigure(errors="replace")
         except Exception:
             pass
 

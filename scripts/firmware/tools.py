@@ -9,7 +9,8 @@
 
 import os
 import shutil
-import subprocess
+from collections.abc import Sequence
+from pathlib import Path
 
 from firmware.config import (
     ARTIFACT_DIR,
@@ -33,6 +34,8 @@ from firmware.config import (
     TARGET_MAP,
     VENV_PY,
 )
+from runtime import proc
+from runtime.errors import ToolMissingError
 
 
 def _scons_env() -> dict:
@@ -59,12 +62,12 @@ def _pyocd_env() -> dict:
     return env
 
 
-def _run(argv, cwd, env) -> int:
+def _run(argv: Sequence[str | Path], cwd: str | Path, env: dict[str, str]) -> int:
     print("  $ " + " ".join(str(a) for a in argv), flush=True)
     try:
-        return subprocess.run([str(a) for a in argv], cwd=str(cwd), env=env).returncode
-    except FileNotFoundError as exc:
-        print(f"  [ERROR] 找不到可执行文件：{exc}")
+        return proc.run([str(a) for a in argv], cwd=cwd, env=env, capture=False).returncode
+    except ToolMissingError as exc:
+        print(f"  [ERROR] {exc.message}")
         return 127
 
 
@@ -104,8 +107,8 @@ def menuconfig() -> int:
 # ---- 烧录 --------------------------------------------------------------
 
 
-def pyocd_argv(*args) -> list:
-    return [PYOCD_PY, "-m", "pyocd", *args]
+def pyocd_argv(*args: str) -> list[str]:
+    return [str(PYOCD_PY), "-m", "pyocd", *args]
 
 
 def check_pyocd() -> str:
@@ -116,19 +119,14 @@ def check_pyocd() -> str:
         )
     if not PYOCD_PACK.exists():
         raise RuntimeError(f"芯片 pack 缺失：{PYOCD_PACK}")
-    proc = subprocess.run(
-        [str(a) for a in pyocd_argv("--version")],
-        env=_pyocd_env(),
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(f"pyocd 跑不起来：{(proc.stderr or proc.stdout).strip()}")
-    return (proc.stdout or proc.stderr).strip().splitlines()[0]
+    done = proc.run([str(a) for a in pyocd_argv("--version")], env=_pyocd_env(), timeout=120)
+    if done.returncode != 0:
+        raise RuntimeError(f"pyocd 跑不起来：{(done.stderr or done.stdout).strip()}")
+    return (done.stdout or done.stderr).strip().splitlines()[0]
 
 
-def flash(bin_path=None) -> int:
-    target = TARGET_BIN if bin_path is None else bin_path
+def flash(bin_path: str | Path | None = None) -> int:
+    target = TARGET_BIN if bin_path is None else Path(bin_path)
     try:
         version = check_pyocd()
     except RuntimeError as exc:
@@ -145,8 +143,8 @@ def flash(bin_path=None) -> int:
             PYOCD_TARGET,
             *PYOCD_FLASH_OPTS,
             "--pack",
-            PYOCD_PACK,
-            target,
+            str(PYOCD_PACK),
+            str(target),
         ),
         REPO_ROOT,
         _pyocd_env(),

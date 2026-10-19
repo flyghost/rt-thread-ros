@@ -22,7 +22,7 @@ try:
     import serial
 except Exception as exc:  # pragma: no cover
     print(f"需要 pyserial：pip install pyserial  （导入失败：{exc}）", file=sys.stderr)
-    raise SystemExit(2) from exc  # noqa: B904 - 缺依赖属于部署错误，保留原因链
+    raise SystemExit(2) from exc  # 缺依赖属于部署错误，保留原因链
 
 import contextlib
 from pathlib import Path
