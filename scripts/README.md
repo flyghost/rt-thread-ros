@@ -25,12 +25,35 @@
 # 编译 + 烧录（日常）
 python scripts\firmware\build.py build-flash
 
-# 人手动：双击仓根 ai_services.bat（菜单 1~7）
+# 人手动：双击仓根 ai_services.bat（菜单 1~9，0 退出）
 ai_services.bat
+
+# 打印服务清单（命令表，带等价完整命令）
+python scripts\ai_services.py --list
 
 # 起串口 hub（起完别的进程/脚本用 TCP 127.0.0.1:5555 连它）
 python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 ```
+
+### 服务面板：`scripts/ai_services.py`（命令表）+ `ai_services.bat`（外壳）
+
+**命令表只在这一个文件里**（`SERVICES` 元组），bat 只有 68 行：探解释器 + 原样转发参数。
+增删服务改 Python 里的一行即可，不需要动 bat。
+
+| 菜单 | 名字 | 实际命令 | 说明 |
+|---|---|---|---|
+| 1 | `build` | `build.py build` | 默认项目 `projects/base`，产物 `out/bin/base/` |
+| 2 | `flash` | `build.py flash` | **直连烧录**（不再绕守卫） |
+| 3 | `build-flash` | `build.py build-flash` | 编译成功才烧 |
+| 4 | `board-build` | `build.py --board build` | 板级 BSP 对照编译 |
+| 5 | `clean` | `build.py clean` | 清 `out/build/*`、`out/bin/*`、旧 `build/` |
+| 6 | `status` | `build.py status` + `flash_guard --status` + `serial_hub --list` | 末行附 5555/5556 端口状态 |
+| 7 | `guard` | `flash_guard.py` | 前台常驻，Ctrl+C 结束 |
+| 8 | `hub` | `serial_hub.py --com COM46 --baud 115200 --ui tui` | 前台常驻；`ai_services.bat hub COM5 9600` 可覆盖 |
+| 9 | `both` | 新窗口起 hub，本窗口起守卫 | — |
+
+只给命令行用的名字：`guard-status`、`hub-list`、`help`。
+`python scripts\ai_services.py --run <名字或编号>` 等价于菜单选择；AI/CI 直接调各脚本，不走 bat。
 
 ## 1. 环境搭建
 
@@ -54,11 +77,11 @@ python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
 |---|---|---|
 | 编译（默认 `projects/base`） | `python scripts\firmware\build.py build` | `ai_services.bat build`（菜单 1） |
 | 编译指定项目 | `python scripts\firmware\build.py --project base build` | — |
-| 直接编译板级 BSP（对照用） | `python scripts\firmware\build.py --board build` | — |
+| 直接编译板级 BSP（对照用） | `python scripts\firmware\build.py --board build` | `ai_services.bat board-build`（菜单 4） |
 | 指定并行数 | `python scripts\firmware\build.py build -j8` | — |
-| 清理产物 | `python scripts\firmware\build.py clean` | `ramdump.bat clean` |
+| 清理产物 | `python scripts\firmware\build.py clean` | `ai_services.bat clean`（菜单 5）/ `ramdump.bat clean` |
 | menuconfig（始终在板目录） | `python scripts\firmware\build.py menuconfig` | `ramdump.bat menuconfig` |
-| 看状态 | `python scripts\firmware\build.py status` | `ai_services.bat status`（菜单 7） |
+| 看状态 | `python scripts\firmware\build.py status` | `ai_services.bat status`（菜单 6，汇总三段） |
 
 **构建入口**由 `PROJECT` 环境变量 / `--project` / `--board` 决定：默认 `projects/base`（项目层），
 `--board` 直接编译板级 BSP。`status` 第一行会打印当前入口（`(project)` 或 `(board)`）。
@@ -127,7 +150,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 起守卫（常驻） | `python scripts\flash_guard\flash_guard.py` | `ai_services.bat guard`（菜单 4，人手动） |
+| 起守卫（常驻） | `python scripts\flash_guard\flash_guard.py` | `ai_services.bat guard`（菜单 7，人手动） |
 | 活没活 / 积压 | `python scripts\flash_guard\flash_guard.py --status` | `ai_services.bat status` |
 | 历史请求 | `python scripts\flash_guard\flash_guard.py --list` | — |
 | 烧录 | `--request flash --wait` | `ai_services.bat flash` |
@@ -151,7 +174,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 
 | 目的 | Python 命令 | bat 等价 |
 |---|---|---|
-| 起中继（默认 COM 自动选、115200） | `python scripts\serial_hub\serial_hub.py` | `ai_services.bat hub`（菜单 5） |
+| 起中继（默认 COM 自动选、115200） | `python scripts\serial_hub\serial_hub.py` | `ai_services.bat hub`（菜单 8） |
 | 指定串口 / 波特率 | `... --com COM46 --baud 115200` | `ai_services.bat hub COM46 115200` |
 | 列出候选并标出自动选哪个 | `... --list` | `ramdump.bat list` |
 | 无界面（只落日志） | `... --ui none` | `set HUB_UI=none` 后 `ai_services.bat hub` |
@@ -218,7 +241,7 @@ pyocd 日志走 stderr，PowerShell 里看到 `NativeCommandError` 字样是正�
 | `SCONS_JOBS` | `20` | 并行编译数 |
 | `RT_BUILD_DIR` | `../../out/build/<入口目录名>`（由脚本设） | SCons 中间文件目录，**相对入口目录**（项目目录或板目录）；不设则回到上游默认的 `build/` |
 | `PROJECT` | `base`（默认） | 构建哪个项目（`projects/<名字>`）；设为空 / `none` 等价于板级编译 |
-| `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | 仅 `ai_services.bat` 用 |
+| `HUB_COM` / `HUB_BAUD` / `HUB_UI` | `COM46` / `115200` / `tui` | `scripts\ai_services.py` 的 `hub`/`both` 条目读取（可覆盖默认值） |
 | `FLASH_GUARD_NOPAUSE` | 未设 | 设了则 bat 结尾不 `pause`（自动化用） |
 | `PYTHONPYCACHEPREFIX` | `out\pycache`（bat 内设） | 别把 `__pycache__` 撒进源码树 |
 
@@ -235,7 +258,7 @@ python scripts\firmware\build.py build-flash
 python tools\pyocd\install.py
 python scripts\firmware\build.py status
 
-# 人手动：双击 ai_services.bat（菜单 1 编译 / 2 烧录 / 3 编译+烧录 / 4 守卫 / 5 hub / 6 两个都起 / 7 状态）
+# 人手动：双击 ai_services.bat（菜单 1 编译 / 2 烧录 / 3 编译+烧录 / 4 板级 / 5 清理 / 6 状态 / 7 守卫 / 8 hub / 9 两个都起）
 
 # 起串口 hub（起完别的进程用 TCP 127.0.0.1:5555 连它，控制口 5556，telnet 5557）
 python scripts\serial_hub\serial_hub.py --com COM46 --baud 115200 --ui tui
@@ -269,5 +292,5 @@ python scripts\flash_guard\flash_guard.py --request build_flash --wait --wait-ti
 
 | bat | 定位 | 约束 |
 |---|---|---|
-| `ai_services.bat` | 人的服务面板：菜单 1~7 + `guard`/`hub`/`both`/`status`/`build`/`flash`/`build-flash`/`help` | **纯 ASCII + CRLF**（cmd 逐字节解析，中文/纯 LF 会炸）；不含业务逻辑 |
+| `ai_services.bat` | **薄外壳**（68 行）：探 `python` → 转发所有参数给 `scripts\ai_services.py`；菜单/命令表全在那个 Python 文件里 | **纯 ASCII + CRLF**（cmd 逐字节解析，中文/纯 LF 会炸）；不含业务逻辑 |
 | `scripts/ramdump/ramdump.bat` | 采集流程的薄包装：`build`/`flash`/`clean`/`menuconfig`/`dump`/`recv`/`list`/`probe`/`loopback`/`analyzer`/`hub` | 同上 |
