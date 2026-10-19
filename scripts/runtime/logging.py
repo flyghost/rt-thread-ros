@@ -55,6 +55,16 @@ def setup(level: str = "normal") -> logging.Logger:
     return logger
 
 
+def reset() -> None:
+    """移除已注册的 handler，允许重新 `setup()`（测试用：capsys 需要重新绑定 stdout）。"""
+    global _configured
+    logger = logging.getLogger(_LOGGER_NAME)
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+    _configured = False
+
+
 def get_logger(name: str = "") -> logging.Logger:
     """取子 logger（名字会出现在 verbose 行里，便于定位来源）。"""
     setup() if not _configured else None

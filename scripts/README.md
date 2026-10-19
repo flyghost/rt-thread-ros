@@ -19,6 +19,7 @@
 | [9. 常见菜谱](#9-常见菜谱) | — | — |
 | [10. 已废弃 / 兼容入口](#10-已废弃--兼容入口) | — | — |
 | [11. Python 质量门](#11-python-质量门) | `tools/pyquality/install.py`、`scripts/quality.py`、`scripts/check_bat.py` | — |
+| [12. 统一入口](#12-统一入口) | `scripts/cli.py` | — |
 
 ## 0. 速查
 
@@ -353,6 +354,53 @@ python scripts\quality.py hooks-install     # 装 git 提交钩子（并把缓�
 | `pytest` 收集到 `tools/pyocd/pkg/**/tests` | 在仓根跑 pytest 了；必须在 `scripts/` 下（`quality.py` 会自动 `cwd=scripts`） |
 | 自动修复后行为变了 | **禁用全量 `--unsafe-fixes`**：它曾把 `print(...)` 整条删掉。删代码类修复必须人工过 diff |
 | 提交时报 `fatal error - NtCreateDirectoryObject(...msys-2.0S5-...): 0xC0000022` | Git 用 msys `sh` 跑钩子，受限环境里它建不了共享内存对象。此时**先 `python scripts\quality.py hooks` 手动跑一遍**（等价检查），再用 `git commit --no-verify` 提交；普通终端里不受影响 |
+
+## 12. 统一入口
+
+`python scripts/cli.py <命令> [参数...]` 是**路由**，不是新实现：它把命令名映射到既有脚本的 `main()`，行为与直接调老入口完全一致。
+
+```powershell
+python scripts\cli.py list                  # 有哪些命令（加 --json 输出机器可读清单）
+python scripts\cli.py doctor                # 环境自检：解释器/四个工具/pyocd/串口
+python scripts\cli.py status --json         # 构建状态（入口/中间目录/产物/大小/pyocd）
+python scripts\cli.py build-flash -j 8      # = python scripts\firmware\build.py build-flash -j 8
+python scripts\cli.py hub --com COM46       # = python scripts\serial_hub\serial_hub.py --com COM46
+```
+
+| 命令 | 分组 | 等价于 |
+|---|---|---|
+| `list` | 基础 | 本表 |
+| `doctor` | 基础 | 解释器 + `ruff/mypy/pytest/pre-commit` 版本 + `pyocd.check()` + 串口列表 |
+| `status` | 构建 | `scripts/firmware/build.py status`，另给 `--json` |
+| `build` / `build-flash` / `flash` / `clean` / `menuconfig` | 构建 | `scripts/firmware/build.py <同名命令>` |
+| `quality` | 质量 | `scripts/quality.py`（参数透传，如 `quality check --fix`） |
+| `guard` | 服务 | `scripts/guard/guard.py`（`--status`/`--request`/`--tasks` 透传） |
+| `hub` | 服务 | `scripts/serial_hub/serial_hub.py` |
+| `dump` / `recv` | 采集 | `scripts/ramdump/dump/{dump,receive}.py` |
+| `analyze` | 采集 | `scripts/ramdump/analyzer/ramdump_analyzer.py`（含 `--sram/--ccm/--exception/--elf` 等） |
+
+公共开关：`-v/--verbose`（叠加，诊断走 stderr）、`-q/--quiet`（只出结果/错误）、`--json`（**只对 `list`/`doctor`/`status` 生效**，其它命令原样透传）。
+退出码：`0` 成功、`1` 运行时失败、`2` 用法错误（未知命令、参数不对）。
+
+三条边界（避免误解）：
+1. **不复制业务**：子命令逻辑仍在原脚本里；`cli.py` 只做 import + 参数转发。
+2. **老入口继续可用**：本文档其余章节、`ai_services.py` 命令表都仍指向原脚本路径。
+3. **`--json` 不猜格式**：只有本文件自己产出的三个命令支持；要别的命令机器可读，由那个脚本自己加。
+
+### 12.1 `__pycache__` 落在 `out/pycache`
+
+入口脚本第一段都有一份**内联**的 4 行引导：
+
+```python
+_sys.pycache_prefix = str(
+    next(p for p in Path(__file__).resolve().parents if any((p / m).exists() for m in (".git", "AGENTS.md")))
+    / "out" / "pycache"
+)
+```
+
+为什么内联、不抽成 `runtime/pycache.py`：**import 本身就会先在源码旁生成 `.pyc`**，等模块被导入时已经晚了。
+所以每个入口在 import 任何本地模块之前都要自己算一次；写法统一成上面这 4 行，靠「向上找 `.git`/`AGENTS.md`」避免写死父级层数（过去正是层数写错导致 `__pycache__` 漏进源码树）。
+
 
 ## 附：两个 bat 的定位
 
