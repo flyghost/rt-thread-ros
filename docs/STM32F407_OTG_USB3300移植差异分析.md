@@ -175,7 +175,7 @@
 |---|---|
 | `board/linker_scripts/link.lds` | `CODE (rx) : ORIGIN = 0x08000000, LENGTH = 1024k` |
 | `board/board.h` | `#define STM32_FLASH_SIZE (1024*1024)` |
-| `scripts/src/toolbelt/firmware/config.py`（原 `bsp/.../build_and_flash.bat:67`，该 bat 已删） | `PYOCD_TARGET = "STM32F407VE"`（512K 型号） |
+| `scripts/toolbelt/src/toolbelt/firmware/config.py`（原 `bsp/.../build_and_flash.bat:67`，该 bat 已删） | `PYOCD_TARGET = "STM32F407VE"`（512K 型号） |
 
 三者互相矛盾。改法（先测再改）：
 
