@@ -1,4 +1,4 @@
-# 编辑器默认设置（与 scripts/pyproject.toml 里的 ruff 配置保持一致）
+# 编辑器默认设置（与 scripts/toolbelt/pyproject.toml 里的 ruff 配置保持一致）
 # 注意：.bat/.cmd 必须是 CRLF —— cmd.exe 的 goto/标签在纯 LF 下会解析错乱。
 root = true
 

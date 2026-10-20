@@ -1,3 +1,4 @@
-[submodule "scripts"]
-	path = scripts
+
+[submodule "scripts/toolbelt"]
+	path = scripts/toolbelt
 	url = https://github.com/flyghost/toolbelt.git

@@ -21,24 +21,24 @@
 
 | 想了解 | 看这里 |
 |---|---|
-| **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/README.md` |
+| **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/toolbelt/README.md` |
 | 仓库分层 / 构建烧录 / 关键路径 | `AGENTS.md` |
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
-| ramdump 采集与解析的完整用法 | `scripts/docs/ramdump.md` |
-| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/docs/serial-hub.md` |
-| 守卫（信箱协议 / 白名单 / 排错） | `scripts/docs/guard.md` |
-| pyocd 安装与版本（唯一实现） | `scripts/docs/pyocd.md` |
+| ramdump 采集与解析的完整用法 | `scripts/toolbelt/docs/ramdump.md` |
+| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/toolbelt/docs/serial-hub.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/toolbelt/docs/guard.md` |
+| pyocd 安装与版本（唯一实现） | `scripts/toolbelt/docs/pyocd.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
-> **脚本怎么用一律看 `scripts/README.md`**（命令总表）；本 README 与 `AGENTS.md` 只留方向性结论，
+> **脚本怎么用一律看 `scripts/toolbelt/README.md`**（命令总表）；本 README 与 `AGENTS.md` 只留方向性结论，
 > 避免出现第二份会过期的副本。
 
 ## 快速开始
 
 ```bash
 # 构建 + 烧录（STM32F407 板，工具链与 pyocd 路径都在脚本里）
-python scripts/tools/run.py build build-flash
-python scripts/tools/run.py build status        # 固件 / pyocd / pack 状态
+python scripts/toolbelt/tools/run.py build build-flash
+python scripts/toolbelt/tools/run.py build status        # 固件 / pyocd / pack 状态
 
 # 人手动用：双击 ai_services.bat（菜单：编译 / 烧录 / 守卫 / 串口 hub / 状态）
 
@@ -46,5 +46,5 @@ python scripts/tools/run.py build status        # 固件 / pyocd / pack 状态
 scripts/ramdump.bat flash
 ```
 
-> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/src/toolbelt/guard/`
+> `ai_services.bat` 只是人的启动壳，AI 一律直接调 Python 入口；`scripts/toolbelt/src/toolbelt/guard/`
 > 是**可选**的长任务执行器（信箱 + 完整日志 + 改脚本自动重启 + 无人值守）。
