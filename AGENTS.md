@@ -34,6 +34,16 @@ docs/                    # 设计文档：reference/ 外来原始方案；archiv
 上游 6 处 cwd 约定、本仓对上游的偏离清单、升级与新增板/项目的检查清单，全在 `docs/upstream-patches.md`。
 BSP 的 `Kconfig` 里 `RTT_DIR := ../../../os/rt-thread`（仅 menuconfig 使用）。
 
+## 双仓边界（本仓 vs `scripts/toolbelt/`）
+**判据：换个工程还成立吗？** 成立 → 工具仓；不成立 → 本仓（写进 `toolbelt.toml` 或 bat）。
+依赖是单向的：`本仓 → scripts/toolbelt`（借工具、质量门、编译）；工具仓不认识本仓（`neutrality` 门禁保证）。
+
+1. **一次编辑不跨两侧**：工具仓改动先在 `scripts/toolbelt/` 里提交并 push，再回本仓 `git add scripts` 提交指针。
+2. 在本仓会话里**不直接改**工具仓的业务代码/测试；要改就按第 1 条走。
+3. 工具仓内禁止本仓事实（工程名、板级路径、串口号、盘符、已删入口）；唯一入口是工程根 `toolbelt.toml`。
+4. 改完必跑：工具侧 `python scripts/toolbelt/tools/run.py quality all`（七门）；工程侧至少 `… build status`。
+5. 本仓事实只写 `toolbelt.toml`；bat 只放菜单与调用，不复制工具逻辑。
+
 ## Build & Flash
 ```bash
 python scripts/toolbelt/tools/run.py build build-flash   # 编译 + 烧录（默认项目 projects/base）

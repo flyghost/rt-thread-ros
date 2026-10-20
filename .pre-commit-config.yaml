@@ -1,12 +1,12 @@
 # 本地 pre-commit 钩子（不依赖远端仓库，离线可用）
 #
 # 安装（每台机器一次）：
-#   python scripts/toolbelt/tools/pyquality/install.py            # 把 ruff/mypy/pytest/pre-commit 装进 scripts/toolbelt/tools/pyquality/pkg
-#   python scripts/quality.py hooks-install      # 把钩子写进 .git/hooks/pre-commit
-# 手动全量跑：python scripts/quality.py hooks
-# 只跑暂存文件（= 提交时自动跑的那次）：python scripts/quality.py hooks --staged
+#   python scripts/toolbelt/tools/pyquality/install.py                 # 把 ruff/mypy/pytest/pre-commit 装进 scripts/toolbelt/tools/pyquality/pkg
+#   python scripts/toolbelt/tools/run.py quality hooks-install         # 把钩子写进 .git/hooks/pre-commit
+# 手动全量跑：python scripts/toolbelt/tools/run.py quality hooks
+# 只跑暂存文件（= 提交时自动跑的那次）：python scripts/toolbelt/tools/run.py quality hooks --staged
 #
-# 所有钩子都走 scripts/quality.py，保证「人手动跑」「提交钩子」「CI」是同一套命令与同一份配置
+# 所有钩子都走 `scripts/toolbelt/tools/run.py quality ...`，保证「人手动跑」「提交钩子」「CI」是同一套命令与同一份配置
 # （scripts/toolbelt/pyproject.toml）。钩子用 language: system，所以要求 PATH 上的 python 能跑本仓脚本。
 minimum_pre_commit_version: "3.0.0"
 
@@ -14,14 +14,14 @@ repos:
   - repo: local
     hooks:
       - id: ruff-check
-        name: ruff check (scripts/)
+        name: ruff check (scripts/toolbelt)
         entry: python -X utf8 scripts/toolbelt/tools/run.py quality check --fix
         language: system
         files: ^scripts/toolbelt/.*\.py$
         pass_filenames: false
 
       - id: ruff-format
-        name: ruff format (scripts/)
+        name: ruff format (scripts/toolbelt)
         entry: python -X utf8 scripts/toolbelt/tools/run.py quality format
         language: system
         files: ^scripts/toolbelt/.*\.py$
