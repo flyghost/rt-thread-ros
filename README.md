@@ -24,10 +24,10 @@
 | **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/README.md` |
 | 仓库分层 / 构建烧录 / 关键路径 | `AGENTS.md` |
 | ramdump 组件内部（异常链路 / 传输层 / 协议 / 脚本） | `app/ramdump/AGENTS.md` |
-| ramdump 采集与解析的完整用法 | `scripts/src/toolbelt/ramdump/README.md` |
-| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/src/toolbelt/serial_hub/README.md` |
-| 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/toolbelt/guard/README.md` |
-| pyocd 安装与版本（唯一实现） | `scripts/tools/pyocd/README.md` |
+| ramdump 采集与解析的完整用法 | `scripts/docs/ramdump.md` |
+| 串口服务器（一个进程独占串口，人 + 脚本同连） | `scripts/docs/serial-hub.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/docs/guard.md` |
+| pyocd 安装与版本（唯一实现） | `scripts/docs/pyocd.md` |
 | 设计文档（外来原始方案 / 已超越的实现方案 / 已落地的协议抽象稿） | `docs/` |
 
 > **脚本怎么用一律看 `scripts/README.md`**（命令总表）；本 README 与 `AGENTS.md` 只留方向性结论，

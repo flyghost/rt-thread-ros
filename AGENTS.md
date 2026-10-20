@@ -42,7 +42,7 @@ ai_services.bat                                # 人手动用：菜单（编译/
 ```
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/README.md`。**
 **改 `scripts/` 下的 Python：`python scripts/tools/run.py quality all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/README.md` 第 4 节）。**
-四条稳定事实（细节见 `scripts/tools/pyocd/README.md`、`scripts/src/toolbelt/firmware/` 与 `docs/upstream-patches.md`）：
+四条稳定事实（细节见 `scripts/docs/pyocd.md`、`scripts/src/toolbelt/firmware/` 与 `docs/upstream-patches.md`）：
 - 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
   `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
 - **构建入口必须站在入口目录里运行**（`cd projects/<name>` 或 `cd bsp/stm32/<board>`，或 `scons -C <...>`）：
@@ -75,7 +75,7 @@ ai_services.bat                                # 人手动用：菜单（编译/
 ## Ramdump 采集 / 解析（`scripts/src/toolbelt/ramdump/`）
 分层：`lib/`（配置、串口、控制台、YMODEM、编译下载的实现）、`build/` `dump/` `test/` 三个动作桶
 （**只依赖 lib，桶之间不互相 import**）、`analyzer/`（离线解析 dump）。
-命令、端口号、依赖环境、USB 收包注意事项、串口被占用怎么办——全在 `scripts/src/toolbelt/ramdump/README.md`。
+命令、端口号、依赖环境、USB 收包注意事项、串口被占用怎么办——全在 `scripts/docs/ramdump.md`。
 
 ## Trace32
 ```bash
@@ -91,10 +91,10 @@ do STM32F407_Restore.cmm                                    # GUI界面
 |------|------|
 | **所有脚本命令（环境/编译/烧录/串口/采集/解析，Python 与 bat 对照）** | `scripts/README.md` |
 | 组件级：异常链路 / 传输层 / 协议 / 脚本 | `app/ramdump/AGENTS.md` |
-| 采集与解析用法 | `scripts/src/toolbelt/ramdump/README.md` |
-| 串口服务器 | `scripts/src/toolbelt/serial_hub/README.md` |
-| 守卫（信箱协议 / 白名单 / 排错） | `scripts/src/toolbelt/guard/README.md` |
-| pyocd 安装与版本（唯一实现） | `scripts/tools/pyocd/README.md` |
+| 采集与解析用法 | `scripts/docs/ramdump.md` |
+| 串口服务器 | `scripts/docs/serial-hub.md` |
+| 守卫（信箱协议 / 白名单 / 排错） | `scripts/docs/guard.md` |
+| pyocd 安装与版本（唯一实现） | `scripts/docs/pyocd.md` |
 | USB 双栈（CherryUSB / ST） | `app/usb/README.md` |
 | **上游偏离与构建约束（6 处 cwd 约定 / 升级清单 / 新增板与项目清单）** | `docs/upstream-patches.md` |
 | 项目层（一块板多个项目 / 目录结构 / 已知限制） | `projects/README.md` |
