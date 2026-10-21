@@ -1,13 +1,15 @@
-# Python 质量门 + 固件编译回归
+# 质量门 + 固件编译回归
 #
-# 与本地完全同源：
-#   * 质量检查 = `python -X utf8 scripts/toolbelt/tools/run.py quality all`（ruff / ruff format / mypy / pytest，
-#     配置在 scripts/toolbelt/pyproject.toml，版本与 scripts/toolbelt/tools/pyquality/install.py 一致）
-#   * .bat 约束 = `python scripts/toolbelt/tools/run.py check-bat`（纯 ASCII + CRLF）
-#   * 固件编译 = `python scripts/toolbelt/tools/run.py build build`（不需要烧录器）
+# 与本地同源：质量门的步骤顺序只在 Python 里定义，YAML 只调用它。
+#   * 质量门 = `python -X utf8 scripts/toolbelt/tools/run.py ci`
+#     （= quality all 七门：ruff check / ruff format --check / mypy / pytest /
+#       docs-check / neutrality / check-bat）
+#   * 固件编译 = `python -X utf8 scripts/toolbelt/tools/run.py build build`（不需要烧录器）
+#   * 工具版本只在 scripts/toolbelt/tools/pyquality/install.py 里写一遍，
+#     CI 用 `--print-pins` 取用，避免两处维护漂移。
 #
-# 说明：本地工具装在 scripts/toolbelt/tools/pyquality/pkg（gitignore），CI 里改成装到 site-packages，
-# 版本号保持一致；quality.py 通过 `python -m <tool>` 调用，两种安装位置都能找到。
+# 注意：tools/ 是 git submodule，checkout 必须带 submodules: recursive，
+# 否则 scripts/toolbelt 是空目录，第一步就会挂。
 
 name: ci
 
@@ -27,28 +29,33 @@ env:
 
 jobs:
   python-quality:
-    name: Python 质量（ruff / format / mypy / pytest）
+    name: 质量门（ruff / format / mypy / pytest / docs / neutrality / bat）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      - name: 安装工具（版本与 scripts/toolbelt/tools/pyquality/install.py 一致）
+      - name: 子模块指针必须与工作树一致
+        run: |
+          set -euo pipefail
+          pointer="$(git rev-parse HEAD:scripts/toolbelt)"
+          checked_out="$(git -C scripts/toolbelt rev-parse HEAD)"
+          echo "parent pointer: $pointer"
+          echo "submodule HEAD: $checked_out"
+          test "$pointer" = "$checked_out"
+
+      - name: 安装工具（版本见 tools/pyquality/install.py）
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff==0.14.3 mypy==1.18.2 pytest==8.4.2 pyserial pyelftools
+          python -m pip install $(python -X utf8 scripts/toolbelt/tools/pyquality/install.py --print-pins)
 
-      - name: doctor（工具是否齐）
-        run: python -X utf8 scripts/toolbelt/tools/run.py quality doctor
-
-      - name: 质量门
-        run: python -X utf8 scripts/toolbelt/tools/run.py quality all
-
-      - name: .bat 必须纯 ASCII + CRLF
-        run: python -X utf8 scripts/toolbelt/tools/run.py check-bat
+      - name: 一条命令跑完质量门
+        run: python -X utf8 scripts/toolbelt/tools/run.py ci
 
   firmware-build:
     name: 固件编译（projects/base）
@@ -58,6 +65,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-python@v5
         with:
@@ -74,7 +83,7 @@ jobs:
           RTT_EXEC_PATH: /usr/bin
           VENV: ${{ env.pythonLocation }}
           SCONS_JOBS: "4"
-        run: python scripts/toolbelt/tools/run.py build build
+        run: python -X utf8 scripts/toolbelt/tools/run.py build build
 
       - name: 产物摘要
         run: |
