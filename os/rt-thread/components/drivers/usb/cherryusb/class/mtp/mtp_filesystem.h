@@ -74,6 +74,7 @@ void *usbd_fs_opendir(const char *path);
 void *usbd_fs_readdir(void *dp);
 int usbd_fs_closedir(void *dp);
 int usbd_mtp_fs_rmdir(const char *path);
+int usbd_mtp_fs_rmdir_recursive(const char *path);
 
 const char *usbd_fs_name_from_dent(void *dent);
 bool usbd_fs_is_dir_from_dent(void *dent);

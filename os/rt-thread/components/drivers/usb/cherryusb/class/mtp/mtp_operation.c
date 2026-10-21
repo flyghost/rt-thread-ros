@@ -1,6 +1,5 @@
 #include "mtp_operation.h"
 #include "usbd_mtp_config.h"
-#include "usb_config.h"
 #include "usbd_mtp.h"
 #include "usb_mtp.h"
 #include "usbd_mtp_support.h"
@@ -8,14 +7,16 @@
 #include <string.h>
 #include "usbd_core.h"
 
-#define MTP_STORAGE_ID          0xAAAA0001      //存储ID定义
+#define MTP_STORAGE_ID          0xAAAA0001      // 存储ID定义
 #define MTP_ROOT_HANDLE         0xBBBB0001      // 根目录句柄
 #define MTP_ROOT_PARENT_HANDLE  0x00000000      // 根目录下文件的父句柄
 
 #define MTP_XFER_BUFFER_SIZE    (3 + sizeof(struct mtp_header)) // 传输缓冲区大小，包含头部
-#define MTP_XFER_PAYLOAD_SIZE   (512)
+#define MTP_XFER_PAYLOAD_SIZE   (MTP_BUFFER_SIZE - sizeof(struct mtp_header))
 
 #define MTP_SCANNE_DIR_MAX_DEPTH  8               // 最大扫描目录深度
+
+#define MTP_DIR_TRAVERSAL_DEPTH_MAX 32
 
 static uint32_t g_mtp_storage_id_list[] = {
     MTP_STORAGE_ID,
@@ -34,6 +35,62 @@ static const mtp_storage_t g_disk_list[] = {
     {MTP_STORAGE_ID + 2, "RAM",    "/ram"},
     {0, NULL, NULL},
 };
+
+///////////////////////////////////////
+//   接收大文件数据
+///////////////////////////////////////
+typedef enum {
+    MTP_RECV_STATUS_IDLE,
+    MTP_RECV_STATUS_HEADER,         // 收到操作头
+    MTP_RECV_STATUS_SENDING,        // 数据接收中
+    MTP_RECV_STATUS_CMPL            // 传输完成
+} MTP_RECV_STATUS;
+
+typedef struct {
+    MTP_RECV_STATUS status;     // 状态
+    uint32_t trans_id;          // 事务ID
+    uint16_t code;
+
+    uint32_t tot_len;           // 总长度
+    uint32_t recv_len;          // 接收长度
+
+    void *param;                // 用户数据（预留，暂未使用，使用的时候删除该注释）
+} mtp_recv_ctrl_t;
+
+static mtp_recv_ctrl_t g_mtp_recv_ctrl = {0};
+static void mtp_recv_ctrl_reset(void)
+{
+    g_mtp_recv_ctrl.status = MTP_RECV_STATUS_IDLE;
+    g_mtp_recv_ctrl.tot_len = 0;
+    g_mtp_recv_ctrl.recv_len = 0;
+    // trans_id不允许清零
+}
+
+///////////////////////////////////////
+//   发送大文件数据
+///////////////////////////////////////
+typedef enum {
+    MTP_SEND_STATUS_IDLE = 0,
+    MTP_SEND_STATUS_SENDING_DATA,
+    MTP_SEND_STATUS_SENDING_RESPONSE,
+    MTP_SEND_STATUS_RECEIVING,
+} MTP_SEND_STATUS;
+
+typedef struct {
+    void* fp;
+    MTP_SEND_STATUS status;
+    uint32_t trans_id;
+    int (*function)(void *param);
+    void *param;
+    struct mtp_object *obj;
+    ssize_t tx_count; // 当前发送字节数
+
+    uint32_t total_len;
+} mtp_send_ctrl_t;
+
+static mtp_send_ctrl_t g_mtp_send_ctrl = {0};
+
+// static const char *root_name = "ROOT";
 
 const char *usbd_mtp_fs_description(uint8_t fs_disk_index)
 {
@@ -57,10 +114,37 @@ const char *usbd_mtp_fs_mount_path(uint8_t fs_disk_index)
     return NULL;
 }
 
+uint32_t usbd_mtp_storageid_from_mount_point(const char *full_path)
+{
+    for (int i = 0; g_disk_list[i].mount_point != NULL; i++) {
+        size_t mount_len = strlen(g_disk_list[i].mount_point);
+        if (strncmp(full_path, g_disk_list[i].mount_point, mount_len) == 0 && (full_path[0] == '/')) {
+            return g_disk_list[i].storage_id;
+        }
+    }
+
+    return 0;
+}
+
 const char *usbd_fs_top_mtp_path(void)
 {
     return usbd_mtp_fs_mount_path(0);
 }
+
+typedef struct {
+    const char *str;        // 原始字符串指针
+    uint32_t str_len;       // 字符串长度(字符数)
+    uint32_t pos;           // 当前处理位置(字符索引)
+    bool need_length_byte;  // 是否需要写入长度字节
+    bool first_call;        // 是否是第一次调用
+} mtp_string_2_utf16le_ctrl_t;
+
+typedef struct {
+    bool utf_16le_half;
+    uint32_t utf_16le_pos;
+    uint32_t tot_len;
+    char *str_addr;
+} mtp_utf16le_2_string_ctrl_t;
 
 #define MTP_PACK_UINT8_ARRAY(dest, offset, val) \
     (*(uint8_t *)((uint8_t *)dest + offset) = (uint8_t)(val), offset + sizeof(uint8_t))
@@ -71,24 +155,12 @@ const char *usbd_fs_top_mtp_path(void)
 #define MTP_PACK_UINT32_ARRAY(dest, offset, val) \
     (*(uint32_t *)((uint8_t *)dest + offset) = (uint32_t)(val), offset + sizeof(uint32_t))
 
-typedef enum {
-    MTP_TRANSFER_STATE_IDLE = 0,
-    MTP_TRANSFER_STATE_SENDING_DATA,
-    MTP_TRANSFER_STATE_SENDING_RESPONSE,
-    MTP_TRANSFER_STATE_RECEIVING,
-} MTP_OPERATION_XFER_STATE;
-
-typedef struct {
-    void* fp;
-    MTP_OPERATION_XFER_STATE state;
-    uint32_t trans_id;
-    int (*function)(void);
-    struct mtp_object *obj;
-    ssize_t tx_count; // 当前发送字节数
-} mtp_transfer_ctrl_t;
-
-
 static char mtp_current_path[CONFIG_USBDEV_MTP_MAX_PATHNAME] = {0};
+
+// 对象句柄管理
+static uint32_t object_count = 0;
+
+extern int usbd_mtp_start_write(uint8_t *buf, uint32_t len);
 
 // 通过扩展名获取文件类型描述
 static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
@@ -107,6 +179,9 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
     }
 
     for (int i = 0; support_format_extension[i].format != MTP_ARRAY_END_MARK; i++) {
+        if (support_format_extension[i].extension == NULL) {
+            continue;
+        }
         if (strcmp(dot, support_format_extension[i].extension) == 0) {
             MTP_LOGD_SHELL("File: %s, Format: 0x%x", filename, support_format_extension[i].format);
             return support_format_extension[i].format;
@@ -116,41 +191,10 @@ static uint16_t get_file_type_by_extension(const char *filename, bool is_dir)
     return MTP_FORMAT_UNDEFINED;
 }
 
-// 通过魔数获取文件类型描述
-// const char *get_file_type_by_magic(FILE *file) {
-//     unsigned char header[8] = {0};
-//     size_t bytes_read = fread(header, 1, sizeof(header), file);
-//     rewind(file); // 重置文件指针
-    
-//     if (bytes_read == 0) return "空文件或无法读取";
-    
-//     for (int i = 0; support_format_extension[i].magic_number != NULL; i++) {
-//         if (bytes_read >= support_format_extension[i].magic_len && 
-//             memcmp(header, support_format_extension[i].magic_number, support_format_extension[i].magic_len) == 0) {
-//             return support_format_extension[i].description;
-//         }
-//     }
-    
-//     return "未知文件类型";
-// }
-
-static mtp_transfer_ctrl_t g_mtp_transfer_ctrl = {0};
-
-// static int aaaaaaaaa = 0;
-
-static int mtp_send_object_info_test(void);
-
-// 对象句柄管理
-// static struct mtp_object object_pool[CONFIG_USBDEV_MTP_MAX_OBJECTS];
-static uint32_t object_count = 0;
-
-extern int usbd_mtp_start_write(uint8_t *buf, uint32_t len);
-
-// 辅助函数：打包MTP字符串（返回新offset）
-static uint32_t mtp_pack_string(uint8_t *buf, uint32_t offset, const char *str)
+static uint32_t mtp_convert_string_2_utf16le_without_termsymbol(uint8_t *buf, uint32_t offset, const char *str)
 {
     if (!str || !str[0]) {
-        buf[offset++] = 0; // 空字符串，长度为0
+        buf[offset++] = 0;
         return offset;
     }
     uint8_t len = 0;
@@ -168,19 +212,22 @@ static uint32_t mtp_pack_string(uint8_t *buf, uint32_t offset, const char *str)
     return offset;
 }
 
-static uint32_t mtp_pack_string_utf_16le(uint8_t *buf, uint32_t offset, const char *str)
+static uint32_t mtp_convert_string_2_utf16le(uint8_t *buf, uint32_t offset, const char *str)
 {
     if (!str || !str[0]) {
-        buf[offset++] = 0; // 空字符串，长度为0
+        buf[offset++] = 0;
         return offset;
     }
     uint8_t len = 0;
     const char *p = str;
-    while (*p) { len++; p++; }
+    while (*p) {
+        len++;
+        p++;
+    }
     buf[offset++] = len + 1;
     for (uint8_t i = 0; i < len; i++) {
         buf[offset++] = str[i];
-        buf[offset++] = 0x00; // UTF-16LE低字节
+        buf[offset++] = 0x00;
     }
 
     buf[offset++] = 0x00;
@@ -189,47 +236,171 @@ static uint32_t mtp_pack_string_utf_16le(uint8_t *buf, uint32_t offset, const ch
     return offset;
 }
 
-static uint32_t mtp_parse_string_utf_16le(const uint8_t *buf, uint32_t offset, char *out_str)
+static void mtp_convert_string_2_utf16le_init(mtp_string_2_utf16le_ctrl_t *ctx, const char *str)
 {
-    if (!buf || !out_str) return 0;
+    ctx->str = str;
+    ctx->pos = 0;
+    ctx->first_call = true;
+    ctx->need_length_byte = true;
+    ctx->str_len = 0;
 
-    // 读取长度字节
-    uint8_t char_count = buf[offset++];
-    if (char_count == 0) {
-        out_str[0] = '\0';
-        return offset + 2;  // 跳过终止符
+    // 如果str为NULL或空字符串，会初始化一个空字符串打包上下文
+    if (str && str[0]) {
+        const char *p = str;
+        while (*p) {
+            ctx->str_len++;
+            p++;
+        }
     }
-
-    // 实际字符数（减去终止符）
-    uint8_t actual_len = char_count - 1;
-    
-    // 转换为UTF-8（简化处理）
-    for (uint8_t i = 0; i < actual_len; i++) {
-        out_str[i] = buf[offset];  // 取低字节
-        offset += 2;               // 跳过高字节
-    }
-    out_str[actual_len] = '\0';
-
-    return offset + 2;  // 跳过终止符
 }
 
-static uint32_t mtp_pack_array_utf_16le(uint8_t *buf, uint32_t offset, uint8_t *src, uint32_t len)
+/**
+ * @brief 打包UTF-16LE字符串到缓冲区(分段处理)
+ * @param ctx 打包上下文
+ * @param buf 目标缓冲区
+ * @param buf_size 缓冲区剩余大小(字节数)
+ * @return 已使用的缓冲区字节数
+ * @note 返回值可能小于buf_size，表示打包完成
+ */
+static uint32_t mtp_convert_string_2_utf16le_step(mtp_string_2_utf16le_ctrl_t *ctx, uint8_t *buf, uint32_t buf_size)
 {
-    if (!src || !src[0] || !len) {
-        buf[offset++] = 0;
+    if (!buf || buf_size == 0) {
+        return 0;
+    }
+    
+    uint32_t used = 0;  // 已使用的缓冲区字节数
+    
+    // 处理空字符串情况
+    if (!ctx->str || ctx->str_len == 0) {
+        if (ctx->first_call) {
+            if (buf_size >= 1) {
+                buf[0] = 0;  // 空字符串长度为0
+                used = 1;
+                ctx->first_call = false;
+            }
+        }
+        return used;
+    }
+    
+    // 第一次调用需要写入长度字节
+    if (ctx->first_call && ctx->need_length_byte) {
+        if (buf_size >= 1) {
+            buf[0] = ctx->str_len + 1;  // UTF-16字符串长度(字符数+1表示结尾的null)
+            used += 1;
+            ctx->need_length_byte = false;
+        } else {
+            return 0;  // 缓冲区太小，连长度字节都放不下
+        }
+        ctx->first_call = false;
+    }
+    
+    // 处理字符串内容
+    while (ctx->pos < ctx->str_len && (buf_size - used) >= 2) {
+        // 写入当前字符的UTF-16LE编码(低字节在前)
+        buf[used++] = ctx->str[ctx->pos];    // ASCII字符或UTF-8的低字节
+        buf[used++] = 0x00;                  // UTF-16LE高字节(对于ASCII是0)
+        ctx->pos++;
+    }
+    
+    // 检查是否已经处理完所有字符，需要写入结尾的null
+    if (ctx->pos >= ctx->str_len && (buf_size - used) >= 2) {
+        buf[used++] = 0x00;  // UTF-16LE null字符低字节
+        buf[used++] = 0x00;  // UTF-16LE null字符高字节
+        ctx->pos++;  // 标记为完成
+    }
+    
+    return used;
+}
+
+static bool mtp_check_string_2_utf16le_is_end(mtp_string_2_utf16le_ctrl_t *ctx)
+{
+    if (!ctx->str || ctx->str_len == 0) {
+        return !ctx->first_call;  // 空字符串只需要一次调用就完成
+    }
+    return ctx->pos > ctx->str_len;  // 已经处理完所有字符和结尾null
+}
+
+static uint32_t mtp_calc_string_2_utf16le_length(const char *str)
+{
+    uint32_t offset = 0;
+
+    if (!str || !str[0]) {
+        offset++;
         return offset;
     }
-
-    buf[offset++] = len + 1;
+    uint8_t len = 0;
+    const char *p = str;
+    while (*p) {
+        len++;
+        p++;
+    }
+    offset++;
     for (uint8_t i = 0; i < len; i++) {
-        buf[offset++] = src[i];
-        buf[offset++] = 0x00; // UTF-16LE低字节
+        offset++;
+        offset++;
     }
 
-    buf[offset++] = 0x00;
-    buf[offset++] = 0x00;
+    offset++;
+    offset++;
 
     return offset;
+}
+
+static void mtp_convert_utf16le_2_string_init(mtp_utf16le_2_string_ctrl_t *ctrl, uint32_t str_exp_len, uint32_t str_max_len)
+{
+    ctrl->tot_len       = str_exp_len;
+    ctrl->utf_16le_pos  = 0;
+    ctrl->utf_16le_half = false;
+    ctrl->str_addr      = usb_malloc(CONFIG_USBDEV_MTP_MAX_PATHNAME);
+    memset(ctrl->str_addr, 0, CONFIG_USBDEV_MTP_MAX_PATHNAME);
+}
+
+static void mtp_convert_utf16le_2_string_deinit(mtp_utf16le_2_string_ctrl_t *ctrl)
+{
+    if (ctrl->str_addr) {
+        usb_free(ctrl->str_addr);
+        ctrl->str_addr = NULL;
+    }
+}
+
+static uint32_t mtp_convert_utf16le_2_string_step(mtp_utf16le_2_string_ctrl_t *ctrl, uint8_t *src, uint32_t len)
+{
+    uint16_t *data_ptr = (uint16_t *)src;
+    uint32_t name_start = 0;
+    uint32_t utf_16le_pos_start = ctrl->utf_16le_pos;
+
+    if (ctrl->utf_16le_half) {
+        data_ptr = (uint16_t *)((uint8_t *)src + 1);
+        ctrl->utf_16le_half = false;
+    }
+
+    // 提取文件名
+    while ((name_start + 1 <= len - 1) && 
+            ctrl->utf_16le_pos < CONFIG_USBDEV_MTP_MAX_PATHNAME - 1 && 
+            ctrl->utf_16le_pos < ctrl->tot_len) {
+        ctrl->str_addr[ctrl->utf_16le_pos] = (char)(data_ptr[ctrl->utf_16le_pos - utf_16le_pos_start] & 0xFF); // 取低8位作为ASCII
+        ctrl->utf_16le_pos++;
+        name_start += 2;
+    }
+
+    if (name_start + 1 > len - 1) {
+        ctrl->str_addr[ctrl->utf_16le_pos] = ((uint8_t *)src)[len - 1];
+        ctrl->utf_16le_pos++;
+        ctrl->utf_16le_half = true;
+    }
+
+    ctrl->str_addr[ctrl->utf_16le_pos] = '\0';
+
+    MTP_LOGD_SHELL("name tot len=%d, name pos=%d, name_start=%d", ctrl->tot_len, ctrl->utf_16le_pos, name_start);
+
+    MTP_DUMP_SHELL(16, ctrl->str_addr, ctrl->utf_16le_pos);
+
+    return ctrl->utf_16le_pos - utf_16le_pos_start;
+}
+
+static int mtp_check_utf16le_2_string_is_end(mtp_utf16le_2_string_ctrl_t *ctrl)
+{
+    return (ctrl->utf_16le_pos >= ctrl->tot_len);
 }
 
 static uint32_t mtp_pack_uint8_array(uint8_t *buf, uint32_t offset, uint8_t *arr, uint32_t len)
@@ -253,7 +424,6 @@ static uint32_t mtp_pack_uint16_array(uint8_t *buf, uint32_t offset, const uint1
     return offset;
 }
 
-
 static uint32_t simple_hash(const char *str)
 {
     uint32_t hash = 0x811C9DC5;
@@ -276,6 +446,8 @@ static uint64_t mtp_path_hash(const char *path)
         hash *= FNV_64_PRIME;
     }
     return hash;
+#undef FNV_64_INIT
+#undef FNV_64_PRIME
 }
 
 static uint64_t mtp_path_name_hash(const char *path, const char *name)
@@ -284,24 +456,37 @@ static uint64_t mtp_path_name_hash(const char *path, const char *name)
 #define FNV_64_PRIME 0x100000001B3ULL
 
     uint64_t hash = FNV_64_INIT;
-    for (int i = 0; path[i]; i++) {
+    int path_len = strlen(path);
+    
+    for (int i = 0; i < path_len; i++) {
         hash ^= (uint64_t)path[i];
         hash *= FNV_64_PRIME;
     }
-    hash ^= '/'; // 添加路径分隔符
-    hash *= FNV_64_PRIME;
+    
+    // 只有当path不以'/'结尾时才添加路径分隔符
+    if (path_len == 0 || path[path_len - 1] != '/') {
+        hash ^= '/'; // 添加路径分隔符
+        hash *= FNV_64_PRIME;
+    }
+    
     for (int i = 0; name[i]; i++) {
         hash ^= (uint64_t)name[i];
         hash *= FNV_64_PRIME;
     }
     return hash;
+#undef FNV_64_INIT
+#undef FNV_64_PRIME
 }
 
 uint32_t mtp_generate_handle(const char *path, uint32_t storage_id)
 {
     // 特殊对象处理
-    if (strcmp(path, "/") == 0) return MTP_ROOT_HANDLE;
+    // if (strcmp(path, "/") == 0) return MTP_ROOT_HANDLE;
     // if (strcmp(path, "/Trash") == 0) return MTP_TRASH_HANDLE;
+
+    if (strcmp(usbd_fs_top_mtp_path(), path) == 0) {
+        return MTP_ROOT_PARENT_HANDLE;
+    }
 
     // 组合存储ID和路径哈希（24位哈希）
     uint64_t hash = mtp_path_hash(path);
@@ -351,29 +536,20 @@ static void mtp_generate_persistent_uid(uint8_t *uid, uint32_t storage_id, uint3
 // 定义目录遍历回调函数类型
 typedef bool (*mtp_dir_visitor)(const char *path, const char *name, bool is_dir, void *user_data);
 
-#define MAX_DEPTH 32
-#define MAX_PATH CONFIG_USBDEV_MTP_MAX_PATHNAME
-
-// typedef struct {
-//     size_t path_offset;  // 路径在缓冲区中的起始偏移量
-//     size_t name_len;     // 当前目录名的长度
-//     void *dir_handle;    // 目录句柄
-//     int depth;           // 当前深度
-// } DirNode;
-
-typedef struct DirNode {
+typedef struct mtp_dir_traversal_node {
     char *full_path;
     void *dir_handle;
     int depth;
-    struct DirNode *next;
-} DirNode;
+    struct mtp_dir_traversal_node *next;
+} mtp_dir_traversal_node_t;
 
 typedef struct {
-    DirNode *head;
-    DirNode *tail;
-} DirQueue;
+    mtp_dir_traversal_node_t *head;
+    mtp_dir_traversal_node_t *tail;
+} mtp_dir_traversal_queue_t;
 
-static void queue_push(DirQueue *q, DirNode *node) {
+static void mtp_dir_traversal_queue_push(mtp_dir_traversal_queue_t *q, mtp_dir_traversal_node_t *node)
+{
     node->next = NULL;
     if (!q->tail) {
         q->head = q->tail = node;
@@ -383,47 +559,46 @@ static void queue_push(DirQueue *q, DirNode *node) {
     }
 }
 
-static DirNode* queue_pop(DirQueue *q) {
-    if (!q->head) return NULL;
-    DirNode *node = q->head;
+static mtp_dir_traversal_node_t *mtp_dir_traversal_queue_pop(mtp_dir_traversal_queue_t *q)
+{
+    if (!q->head)
+        return NULL;
+    mtp_dir_traversal_node_t *node = q->head;
     q->head = node->next;
-    if (!q->head) q->tail = NULL;
+    if (!q->head)
+        q->tail = NULL;
     return node;
 }
 
-bool mtp_traverse_directory(const char *root_path,
-                          mtp_dir_visitor visitor,
-                          void *user_data,
-                          int max_depth)
+static int mtp_traverse_directory(const char *root_path, mtp_dir_visitor visitor, void *user_data, int max_depth)
 {
-    /*======= 参数校验 =======*/
-    if (!root_path || root_path[0] != '/' || !visitor || max_depth < 0 || max_depth > MAX_DEPTH) {
-        MTP_LOGD_SHELL("Invalid params");
-        return false;
+    if (!root_path || root_path[0] != '/' || !visitor || max_depth < 0 || max_depth > MTP_DIR_TRAVERSAL_DEPTH_MAX) {
+        MTP_LOGE_SHELL("Invalid params");
+        return -1;
     }
 
     size_t root_len = strlen(root_path);
-    if (root_len >= MAX_PATH) {
-        MTP_LOGD_SHELL("Path too long");
-        return false;
+    if (root_len >= CONFIG_USBDEV_MTP_MAX_PATHNAME) {
+        MTP_LOGE_SHELL("Path too long");
+        return -1;
     }
 
-    MTP_LOGD_SHELL("Traversing directory: %s, max depth: %d", root_path, max_depth);
-
-    DirQueue queue = {0};
-    DirNode *root = usb_malloc(sizeof(DirNode));
+    mtp_dir_traversal_queue_t queue = {0};
+    mtp_dir_traversal_node_t *root = usb_malloc(sizeof(mtp_dir_traversal_node_t));
     root->full_path = usb_malloc(root_len + 1);
     strcpy(root->full_path, root_path);
     root->dir_handle = NULL;
     root->depth = 0;
     root->next = NULL;
-    queue_push(&queue, root);
+    mtp_dir_traversal_queue_push(&queue, root);
 
     bool result = true;
-    bool ret = true;
+    int ret = 0;
+
+    MTP_LOGD_SHELL("Traversing directory: %s, max depth: %d", root_path, max_depth);
 
     while (queue.head && result) {
-        DirNode *current = queue_pop(&queue);
+        mtp_dir_traversal_node_t *current = mtp_dir_traversal_queue_pop(&queue);
 
         if (current->depth > max_depth) {
             if (current->dir_handle) usbd_fs_closedir(current->dir_handle);
@@ -436,7 +611,7 @@ bool mtp_traverse_directory(const char *root_path,
             current->dir_handle = usbd_fs_opendir(current->full_path);
             if (!current->dir_handle) {
                 result = false;
-                ret = false;
+                ret = -1;
                 usb_free(current->full_path);
                 usb_free(current);
                 break;
@@ -454,7 +629,7 @@ bool mtp_traverse_directory(const char *root_path,
 
             if (!visitor(current->full_path, name, is_dir, user_data)) {
                 result = false;
-                ret = true;
+                ret = 0;
                 break;
             }
 
@@ -471,12 +646,12 @@ bool mtp_traverse_directory(const char *root_path,
                     strcat(subdir_path, name);
                 }
 
-                DirNode *subdir = usb_malloc(sizeof(DirNode));
+                mtp_dir_traversal_node_t *subdir = usb_malloc(sizeof(mtp_dir_traversal_node_t));
                 subdir->full_path = subdir_path;
                 subdir->dir_handle = NULL;
                 subdir->depth = current->depth + 1;
                 subdir->next = NULL;
-                queue_push(&queue, subdir);
+                mtp_dir_traversal_queue_push(&queue, subdir);
             }
         }
 
@@ -485,20 +660,22 @@ bool mtp_traverse_directory(const char *root_path,
         usb_free(current);
     }
 
-    // 不需要释放queue，因为每个DirNode都已释放
-
     return ret;
 }
 
-// 以下是原功能通过回调方式实现
+static void mtp_fullname_concat(char *file_full_path, const char *path, const char *name)
+{
+    if (strcmp(path, "/") == 0) {
+        snprintf(file_full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "/%s", name);
+    } else {
+        snprintf(file_full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s/%s", path, name);
+    }
+}
+
 struct reverse_handle_ctx {
     uint32_t target_hash;
     uint32_t storage_id;
-    // char *out_path;
-    // const char *file_name; // 可选，存储文件名
-    // size_t max_len;
     bool found;
-    // bool is_dir; // 是否为目录
     struct mtp_object *obj;
 };
 
@@ -514,13 +691,9 @@ static bool reverse_handle_visitor(const char *path, const char *name, bool is_d
         if ((current_storage_id >> 24) == (ctx->storage_id >> 24)) {
 
             ctx->found = true;
-            
-            if (strcmp(path, "/") == 0) {
-                snprintf(ctx->obj->file_full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "/%s", name);
-            }
-            else {
-                snprintf(ctx->obj->file_full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s/%s", path, name);
-            }
+
+            mtp_fullname_concat(ctx->obj->file_full_path, path, name);
+
             ctx->obj->file_full_name = strstr(ctx->obj->file_full_path, name);
             ctx->obj->file_full_name_length = usb_strlen(name);
             ctx->obj->format = get_file_type_by_extension(ctx->obj->file_full_name, is_dir);
@@ -566,6 +739,8 @@ static struct mtp_object *mtp_object_new(struct mtp_object *parent_obj, const ch
         usb_strncpy(obj->file_full_name, name, obj->file_full_name_length + 1);
     }
 
+    // MTP_DUMP_SHELL_WITH_STRING("Created MTP Object:", 16, obj->file_full_path, usb_strlen(obj->file_full_path));
+
     MTP_LOGI_SHELL("create file name: %s, path: %s", 
                    obj->file_full_name ? obj->file_full_name : "NULL", obj->file_full_path);
     MTP_LOGI_SHELL("%15s %10s %10s %10s %10s",
@@ -593,7 +768,7 @@ struct mtp_object *mtp_obj_reverse_handle(uint32_t storage_id, uint32_t handle)
 
     // 特殊句柄处理
     if (handle == MTP_ROOT_HANDLE) {
-        strncpy(obj->file_full_path, usbd_fs_top_mtp_path(), CONFIG_USBDEV_MTP_MAX_PATHNAME);
+        snprintf(obj->file_full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s", usbd_fs_top_mtp_path());
         obj->file_full_name = obj->file_full_path;
         obj->format = MTP_FORMAT_ASSOCIATION;
         obj->is_dir = true;
@@ -623,64 +798,76 @@ struct mtp_object *mtp_obj_reverse_handle(uint32_t storage_id, uint32_t handle)
 __ret:
     MTP_LOGI_SHELL("find file name: %s, path: %s", obj->file_full_name, obj->file_full_path);
     MTP_LOGI_SHELL("%15s %10s %10s %10s %10s",
-                    "Object Name", "Storage ID", "Format", "Parent Handle", "Object Handle");
+                    "Name", "Storage ID", "Format", "Parent", "Handle");
     MTP_LOGI_SHELL("%15s 0x%08X 0x%04X 0x%08X 0x%08X",
                     obj->file_full_name, obj->storage_id, obj->format, obj->parent_handle, obj->handle);
 
     return obj;
 }
 
+static int mtp_write(uint8_t *data, uint32_t len, uint16_t contype, uint16_t code, uint32_t trans_id)
+{
+    struct mtp_header *resp = (struct mtp_header *)data;
+    resp->conlen = len;
+    resp->contype = contype;
+    resp->code = code;
+    resp->trans_id = trans_id;
 
-static int g_tx_response_complete = 0;
+    return usbd_mtp_start_write(data, len);
+}
+
+// 发送MTP响应
+static int mtp_send_response(uint16_t code, uint32_t trans_id)
+{
+    return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header), MTP_CONTAINER_TYPE_RESPONSE, code, trans_id);
+}
+
+static int mtp_send_data(uint8_t *data, uint32_t len, uint16_t contype, uint32_t trans_id)
+{
+    return mtp_write(data, len, contype, MTP_CONTAINER_TYPE_DATA, trans_id);
+}
 
 void mtp_data_send_done(void)
 {
     struct mtp_header *hdr = (struct mtp_header *)g_usbd_mtp.tx_buffer;
     int ret = 0;
 
-    switch (g_mtp_transfer_ctrl.state) {
-        case MTP_TRANSFER_STATE_IDLE:
+    switch (g_mtp_send_ctrl.status) {
+        case MTP_SEND_STATUS_IDLE:
             MTP_LOGI_SHELL("Transfer state is idle");
             if (hdr->contype != MTP_CONTAINER_TYPE_RESPONSE) {
                 ret = mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
             }
             else {
-                // if (aaaaaaaaa) {
-                //     aaaaaaaaa = 0;
-                //     usb_osal_msleep(10);
-                //     ret = mtp_send_object_info_test();
-                //     break;
-                // }
-                g_tx_response_complete = 1;
                 // 清理当前事务ID，表示操作完成
                 g_usbd_mtp.cur_trans_id = 0;
             }
             break;
 
-        case MTP_TRANSFER_STATE_SENDING_DATA:
+        case MTP_SEND_STATUS_SENDING_DATA:
             MTP_LOGI_SHELL("Transfer state is sending data");
-            if (g_mtp_transfer_ctrl.function) {
-                ret = g_mtp_transfer_ctrl.function();
+            if (g_mtp_send_ctrl.function) {
+                ret = g_mtp_send_ctrl.function(g_mtp_send_ctrl.param);
             }
             else {
                 MTP_LOGE_SHELL("No function to call for sending data");
                 ret = -1;
             }
             break;
-        case MTP_TRANSFER_STATE_SENDING_RESPONSE:
+        case MTP_SEND_STATUS_SENDING_RESPONSE:
             MTP_LOGI_SHELL("Transfer state is sending response");
-            g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+            g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
             break;
 
         default:
             // 其他状态不处理
-            MTP_LOGE_SHELL("Unhandled transfer state: %d", g_mtp_transfer_ctrl.state);
+            MTP_LOGE_SHELL("Unhandled transfer state: %d", g_mtp_send_ctrl.status);
             ret = -1;
             break;
     }
 
     if (ret < 0) {
-        g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
     }
 }
 
@@ -703,7 +890,7 @@ static int mtp_get_device_info(struct mtp_header *hdr)
     offset += 2;
 
     // 2. VendorExtensionDesc
-    offset = mtp_pack_string(tx_buf, offset, mtp_extension_string);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, mtp_extension_string);
 
     // 3. FunctionalMode
     *(uint16_t*)(tx_buf + offset) = 0;
@@ -731,41 +918,19 @@ static int mtp_get_device_info(struct mtp_header *hdr)
     offset = mtp_pack_uint16_array(tx_buf, offset, supported_playback_formats, SUPPORTED_PLAYBACK_FORMATS_COUNT);
 
     // 9. Manufacturer
-    offset = mtp_pack_string(tx_buf, offset, MTP_MANUFACTURER_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_MANUFACTURER_STRING);
 
     // 10. Model
-    offset = mtp_pack_string(tx_buf, offset, MTP_MODEL_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_MODEL_STRING);
 
     // 11. DeviceVersion
-    offset = mtp_pack_string(tx_buf, offset, MTP_DEVICE_VERSION_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_DEVICE_VERSION_STRING);
 
     // 12. SerialNumber
-    offset = mtp_pack_string(tx_buf, offset, MTP_SERIAL_NUMBER_STRING);
+    offset = mtp_convert_string_2_utf16le_without_termsymbol(tx_buf, offset, MTP_SERIAL_NUMBER_STRING);
 
     // === 构建响应头 ===
-    struct mtp_header *resp_hdr = (struct mtp_header*)tx_buf;
-    resp_hdr->conlen = offset;
-    resp_hdr->contype = MTP_CONTAINER_TYPE_DATA;
-    resp_hdr->code = MTP_OPERATION_GET_DEVICE_INFO;
-    resp_hdr->trans_id = hdr->trans_id;
-
-    return usbd_mtp_start_write(tx_buf, resp_hdr->conlen);
-}
-
-// 发送MTP响应
-int mtp_send_response(uint16_t code, uint32_t trans_id)
-{
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header);
-    resp->contype = MTP_CONTAINER_TYPE_RESPONSE;
-    resp->code = code;
-    resp->trans_id = trans_id;
-
-    MTP_LOGD_SHELL("mtp start send response: code=0x%04X, trans_id=0x%08X", code, trans_id);
-
-    g_tx_response_complete = 0;
-
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header));
+    return mtp_write(tx_buf, offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_DEVICE_INFO, hdr->trans_id);
 }
 
 // 打开会话
@@ -804,13 +969,7 @@ static int mtp_get_storage_ids(struct mtp_header *hdr)
     offset = MTP_PACK_UINT32_ARRAY(storage_ids, offset, MTP_STORAGE_ID);
 
     // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + offset;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_STORAGE_IDS;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+    return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_STORAGE_IDS, hdr->trans_id);
 }
 
 // 获取存储信息
@@ -846,6 +1005,17 @@ static int _mtp_get_storage_info(struct mtp_header *hdr)
         return mtp_send_response(MTP_RESPONSE_INVALID_STORAGE_ID, hdr->trans_id);
     }
 
+    void *dir_hdl = usbd_fs_opendir(fs_mount_path);
+    if (dir_hdl == NULL) {
+        if (usbd_fs_mkdir(fs_mount_path, 0777) < 0) {
+            MTP_LOGE_SHELL("Failed to create root for path: %s", fs_mount_path);
+            return mtp_send_response(MTP_RESPONSE_INVALID_STORAGE_ID, hdr->trans_id);
+        }
+    }
+    else {
+        usbd_fs_closedir(dir_hdl);
+    }
+
     // 填充存储信息
     info->StorageType = MTP_STORAGE_FIXED_RAM;
     info->FilesystemType = MTP_STORAGE_FILESYSTEM_HIERARCHICAL;
@@ -853,17 +1023,11 @@ static int _mtp_get_storage_info(struct mtp_header *hdr)
     info->MaxCapability = (uint64_t)(statfs_param.f_bsize * statfs_param.f_blocks);
     info->FreeSpaceInBytes = (uint64_t)(statfs_param.f_bsize * statfs_param.f_bfree);
     info->FreeSpaceInObjects = CONFIG_USBDEV_MTP_MAX_OBJECTS - object_count; // 计算剩余对象空间
-    offset = mtp_pack_string_utf_16le(buffer, offset, fs_name);
-    offset = mtp_pack_string_utf_16le(buffer, offset, fs_name);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, fs_name);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, fs_name);
     
     // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + offset;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_STORAGE_INFO;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+    return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_STORAGE_INFO, hdr->trans_id);
 }
 
 // 上下文结构体用于回调传参
@@ -896,18 +1060,24 @@ static uint16_t mtp_get_format_from_filename(const char *filename)
 // 获取父对象句柄
 static uint32_t mtp_get_parent_handle(const char *path, uint32_t storage_id)
 {
-    char parent_path[CONFIG_USBDEV_MTP_MAX_PATHNAME];
-    strncpy(parent_path, path, sizeof(parent_path));
+    char *parent_path = (char *)usb_malloc(CONFIG_USBDEV_MTP_MAX_PATHNAME + 1);
+    usb_memset(parent_path, 0, CONFIG_USBDEV_MTP_MAX_PATHNAME + 1);
+
+    snprintf(parent_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s", path);
     
     // 找到最后一个分隔符
     char *last_slash = strrchr(parent_path, '/');
     if (!last_slash || last_slash == parent_path) {
+        usb_free(parent_path);
         return MTP_ROOT_PARENT_HANDLE; // 已经是根目录
     }
     
     // 截断得到父路径
     *last_slash = '\0';
-    return mtp_generate_handle(parent_path, storage_id);
+    uint32_t handle = mtp_generate_handle(parent_path, storage_id);
+    usb_free(parent_path);
+
+    return handle;
 }
 
 static bool get_handles_visitor(const char *path, const char *name, bool is_dir, void *user_data)
@@ -979,12 +1149,7 @@ static bool get_handles_path_visitor(const char *path, const char *name, bool is
         }
     }
 
-    if (strcmp(path, "/") == 0) {
-        snprintf(mtp_current_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "/%s", name);
-    }
-    else {
-        snprintf(mtp_current_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s/%s", path, name);
-    }
+    mtp_fullname_concat(mtp_current_path, path, name);
 
     return false; // 找到目标，停止遍历
 }
@@ -1042,20 +1207,20 @@ static int mtp_get_object_handles(struct mtp_header *hdr)
         MTP_LOGD_SHELL("Setting current path to root: %s, rootpath: %s", mtp_current_path, usbd_fs_top_mtp_path());
 
         // 直接扫描根目录
-        if (mtp_traverse_directory(mtp_current_path, get_handles_visitor, &ctx, 1) == false) {
+        if (mtp_traverse_directory(mtp_current_path, get_handles_visitor, &ctx, 1)) {
             MTP_LOGE_SHELL("Failed to traverse directory");
             return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
         }
     }
     else {
-        if (mtp_traverse_directory(mtp_current_path, get_handles_path_visitor, &ctx, MTP_SCANNE_DIR_MAX_DEPTH) == false) {
+        if (mtp_traverse_directory(mtp_current_path, get_handles_path_visitor, &ctx, MTP_SCANNE_DIR_MAX_DEPTH)) {
             MTP_LOGE_SHELL("Failed to traverse directory");
             return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
         }
 
         MTP_LOGD_SHELL("find path: %s", mtp_current_path);
 
-        if (mtp_traverse_directory(mtp_current_path, get_handles_visitor_list_all, &ctx, 1) == false) {
+        if (mtp_traverse_directory(mtp_current_path, get_handles_visitor_list_all, &ctx, 1)) {
             MTP_LOGE_SHELL("Failed to traverse directory");
             return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
         }
@@ -1063,13 +1228,9 @@ static int mtp_get_object_handles(struct mtp_header *hdr)
 
     MTP_LOGD_SHELL("Found %d object handles", handles->ObjectHandle_len);
 
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen   = sizeof(struct mtp_header) + sizeof(handles->ObjectHandle_len) + (handles->ObjectHandle_len * sizeof(handles->ObjectHandle[0]));
-    resp->contype  = MTP_CONTAINER_TYPE_DATA;
-    resp->code     = MTP_OPERATION_GET_OBJECT_HANDLES;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+    return mtp_write(g_usbd_mtp.tx_buffer, 
+                     sizeof(struct mtp_header) + sizeof(handles->ObjectHandle_len) + (handles->ObjectHandle_len * sizeof(handles->ObjectHandle[0])),
+                     MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_HANDLES, hdr->trans_id);
 }
 
 static uint32_t mtp_pack_object_filename(uint16_t *dest, size_t dest_size, const char *src)
@@ -1089,7 +1250,7 @@ static uint32_t mtp_pack_object_filename(uint16_t *dest, size_t dest_size, const
         src_len = (max_bytes - 3) / 2;
     }
     
-    offset = mtp_pack_string_utf_16le(buffer, offset, src);
+    offset = mtp_convert_string_2_utf16le(buffer, offset, src);
     
     // 确保不超过缓冲区
     if (offset > max_bytes) {
@@ -1107,15 +1268,73 @@ static void mtp_pack_object_info(struct mtp_object_info *info, struct mtp_object
     
 }
 
-// 获取对象信息
-static int _mtp_get_object_info(uint32_t handle, struct mtp_object_info *info, uint32_t *len)
+typedef struct {
+    struct mtp_object *obj;
+    uint32_t handle;
+    mtp_string_2_utf16le_ctrl_t string_ctx;
+} mtp_get_object_info_param_t;
+
+static int mtp_get_object_info_fsm(void *parameter)
 {
-    struct mtp_object *obj = mtp_obj_reverse_handle(MTP_STORAGE_ID, handle);
+    mtp_get_object_info_param_t *param = (mtp_get_object_info_param_t *)parameter;
+
+    if (g_mtp_send_ctrl.status == MTP_SEND_STATUS_SENDING_DATA) {
+        uint32_t used = 0;
+        if (mtp_check_string_2_utf16le_is_end(&param->string_ctx)) {
+            g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
+            MTP_LOGD_SHELL("send [%d] complete", g_mtp_send_ctrl.tx_count);
+            usb_free(param->obj);
+            return mtp_send_response(MTP_RESPONSE_OK, g_mtp_send_ctrl.trans_id);
+        }
+        else {
+            used = mtp_convert_string_2_utf16le_step(&param->string_ctx, g_usbd_mtp.tx_buffer, MTP_BUFFER_SIZE);
+        }
+        
+        // 这里边界需要再多做一个处理，todo
+        for (uint8_t i = 0; i < 6; i++) {
+            used = MTP_PACK_UINT8_ARRAY(g_usbd_mtp.tx_buffer, used, 0x11);
+        }
+
+        for (uint8_t i = 0; i < 6; i++) {
+            used = MTP_PACK_UINT8_ARRAY(g_usbd_mtp.tx_buffer, used, 0x22);
+        }
+
+        return mtp_write(g_usbd_mtp.tx_buffer, used, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_INFO, g_mtp_send_ctrl.trans_id);
+    }
+    else {
+        MTP_LOGE_SHELL("Invalid state in get_object_info_fsm: %d", g_mtp_send_ctrl.status);
+    }
+
+    return 0;
+}
+
+// 获取对象信息
+static int mtp_get_object_info(struct mtp_header *hdr, uint32_t len)
+{
+    static mtp_get_object_info_param_t param = {0};
+
+    if (hdr->conlen != sizeof(struct mtp_header) + sizeof(hdr->param[0])) {
+        MTP_LOGE_SHELL("Invalid parameter length");
+        return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
+    }
+
+    if (g_mtp_send_ctrl.status != MTP_SEND_STATUS_IDLE) {
+        MTP_LOGE_SHELL("Invalid ctrl status: %d", g_mtp_send_ctrl.status);
+        return mtp_send_response(MTP_RESPONSE_ACCESS_DENIED, hdr->trans_id);
+    }
+
+    param.handle = hdr->param[0];
+
+    // 在发送缓冲区中预留空间
+    uint32_t used;
+    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
+    struct mtp_object_info *info = (struct mtp_object_info *)(resp + 1);
+    uint32_t offset = offsetof(struct mtp_object_info, Filename) + sizeof(struct mtp_header);
+
+    struct mtp_object *obj = mtp_obj_reverse_handle(MTP_STORAGE_ID, param.handle);
     if (!obj) {
         return -1;
     }
-
-    memset(info, 0, sizeof(*info));
 
     if (obj->format == MTP_FORMAT_ASSOCIATION) {
         info->ObjectCompressedSize = 0;
@@ -1125,112 +1344,104 @@ static int _mtp_get_object_info(uint32_t handle, struct mtp_object_info *info, u
     }
 
     // 填充对象信息
-    memset(info, 0, sizeof(*info));
     info->StorageId = obj->storage_id;
     info->ObjectFormat = obj->format;
     // info->ObjectCompressedSize = file_stat.st_size;
     info->ParentObject = obj->parent_handle;
     info->AssociationType = obj->is_dir ? MTP_ASSOCIATION_TYPE_GENERIC_FOLDER : 0;
 
-    uint8_t *buffer = (uint8_t *)info;
+    param.obj = obj;
 
-    uint32_t offset = offsetof(struct mtp_object_info, Filename);
-    offset = mtp_pack_string_utf_16le(buffer, offset, obj->file_full_name);
+    mtp_convert_string_2_utf16le_init(&param.string_ctx, obj->file_full_name);
 
-    for (uint8_t i = 0; i < 6; i++) {
-        offset = MTP_PACK_UINT8_ARRAY(buffer, offset, 0x11);
-    }
+    used = mtp_convert_string_2_utf16le_step(&param.string_ctx, g_usbd_mtp.tx_buffer + offset, MTP_BUFFER_SIZE - offset);
 
-    for (uint8_t i = 0; i < 6; i++) {
-        offset = MTP_PACK_UINT8_ARRAY(buffer, offset, 0x22);
-    }
-
-    *len = offset;
-
-    usb_free(obj);
+    usb_memset(&g_mtp_send_ctrl, 0, sizeof(mtp_send_ctrl_t));
+    g_mtp_send_ctrl.trans_id = hdr->trans_id;
+    g_mtp_send_ctrl.tx_count = 0;
+    g_mtp_send_ctrl.function = mtp_get_object_info_fsm;
+    g_mtp_send_ctrl.param = &param;
     
-    return 0;
+    g_mtp_send_ctrl.total_len = sizeof(struct mtp_header) + offsetof(struct mtp_object_info, Filename) +
+                                    mtp_calc_string_2_utf16le_length(obj->file_full_name) + 6 + 6;
+
+    if (used + offset >= MTP_BUFFER_SIZE) {
+        MTP_LOGD_SHELL("String too long, need multiple packets : %d %d", used, offset);
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_SENDING_DATA;
+    }
+    
+    return mtp_write(g_usbd_mtp.tx_buffer, used + offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_INFO, g_mtp_send_ctrl.trans_id);
+    
 }
 
-// 获取对象信息
-static int mtp_get_object_info(struct mtp_header *hdr)
-{
-    if (hdr->conlen != sizeof(struct mtp_header) + 4) {
-        MTP_LOGE_SHELL("Invalid parameter length");
-        return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
-    }
-
-    uint32_t handle = hdr->param[0];
-    uint32_t len = 0;
-    
-    // 在发送缓冲区中预留空间
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    struct mtp_object_info *info = (struct mtp_object_info *)(resp + 1);
-    // uint8_t *info = (uint8_t *)(resp + 1);
-    
-    // 获取对象信息
-    if (_mtp_get_object_info(handle, info, &len) != 0) {
-        return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
-    }
-    
-    // 设置响应头
-    resp->conlen = sizeof(struct mtp_header) + len;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_OBJECT_INFO;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
-}
-
-static int mtp_send_object_data(void)
+static int mtp_get_object_fsm(void *param)
 {
     int ret;
-    struct mtp_object *obj = g_mtp_transfer_ctrl.obj;
+    struct mtp_object *obj = g_mtp_send_ctrl.obj;
 
-    g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_SENDING_DATA;
+    g_mtp_send_ctrl.status = MTP_SEND_STATUS_SENDING_DATA;
 
     uint32_t chunk_size = (MTP_BUFFER_SIZE > UINT32_MAX) ? UINT32_MAX : MTP_BUFFER_SIZE;
+    int len;
+
+    if (g_mtp_send_ctrl.tx_count == 0) {
     chunk_size = (chunk_size > MTP_XFER_PAYLOAD_SIZE) ? MTP_XFER_PAYLOAD_SIZE : chunk_size;
-    int len = usbd_mtp_fs_read_file(g_mtp_transfer_ctrl.fp, g_usbd_mtp.tx_buffer + sizeof(struct mtp_header), chunk_size);
-    if (len < 0) {
-        g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
-        MTP_LOGE_SHELL("File read error: %s", obj->file_full_path);
-        usbd_mtp_fs_close_file(g_mtp_transfer_ctrl.fp);
-        usb_free(obj);
-        ret = mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, g_mtp_transfer_ctrl.trans_id);
-    }
-    else if (len == 0) {
-        g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_SENDING_RESPONSE;
-        MTP_LOGI_SHELL("File read [%d] complete: %s", g_mtp_transfer_ctrl.tx_count, obj->file_full_path);
-        // 文件读取完成，发送响应
-        usbd_mtp_fs_close_file(g_mtp_transfer_ctrl.fp);
-        usb_free(obj);
-        ret = mtp_send_response(MTP_RESPONSE_OK, g_mtp_transfer_ctrl.trans_id);
+        len = usbd_mtp_fs_read_file(g_mtp_send_ctrl.fp, g_usbd_mtp.tx_buffer + sizeof(struct mtp_header), chunk_size);
     }
     else {
-        struct mtp_header *resp_hdr = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-        resp_hdr->conlen = sizeof(struct mtp_header) + len;
-        resp_hdr->contype = MTP_CONTAINER_TYPE_DATA;
-        resp_hdr->code = MTP_OPERATION_GET_OBJECT;
-        resp_hdr->trans_id = g_mtp_transfer_ctrl.trans_id;
+        len = usbd_mtp_fs_read_file(g_mtp_send_ctrl.fp, g_usbd_mtp.tx_buffer, chunk_size);
+    }
 
-        g_mtp_transfer_ctrl.tx_count += len;
-        MTP_LOGD_SHELL("Sending object data: %s, current send=%d, total send=%d", obj->file_full_path, len, g_mtp_transfer_ctrl.tx_count);
+    MTP_LOGD_SHELL("file read %d %d", len, chunk_size);
 
-        ret = usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp_hdr->conlen);
+    if (len < 0) {
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
+        MTP_LOGE_SHELL("File read error: %s", obj->file_full_path);
+        usbd_mtp_fs_close_file(g_mtp_send_ctrl.fp);
+        usb_free(obj);
+        ret = mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, g_mtp_send_ctrl.trans_id);
+    }
+    else if (len == 0) {
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_SENDING_RESPONSE;
+        MTP_LOGI_SHELL("File read [%d] complete: %s", g_mtp_send_ctrl.tx_count, obj->file_full_path);
+        // 文件读取完成，发送响应
+        usbd_mtp_fs_close_file(g_mtp_send_ctrl.fp);
+        usb_free(obj);
+        ret = mtp_send_response(MTP_RESPONSE_OK, g_mtp_send_ctrl.trans_id);
+    }
+    else {
+        if (g_mtp_send_ctrl.tx_count == 0) {
+            g_mtp_send_ctrl.tx_count += len;
+
+            struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
+            resp->conlen = sizeof(struct mtp_header) + obj->file_size;
+            resp->contype = MTP_CONTAINER_TYPE_DATA;
+            resp->code = MTP_OPERATION_GET_OBJECT;
+            resp->trans_id = g_mtp_send_ctrl.trans_id;
+
+            ret = usbd_mtp_start_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + len);
+
+        }
+        else {
+            g_mtp_send_ctrl.tx_count += len;
+            ret = usbd_mtp_start_write(g_usbd_mtp.tx_buffer, len);
+        }
+        
+        MTP_LOGD_SHELL("Sending object data: %s, current send=%d, total send=%d", obj->file_full_path, len, g_mtp_send_ctrl.tx_count);
+
         if (ret) {
             MTP_LOGE_SHELL("Failed to start write for object data: %s", obj->file_full_path);
-            g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+            g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
             usb_free(obj);
-            usbd_mtp_fs_close_file(g_mtp_transfer_ctrl.fp);
+            usbd_mtp_fs_close_file(g_mtp_send_ctrl.fp);
         }
     }
 
     if (ret) {
         MTP_LOGE_SHELL("Failed to start write for object data: %s", obj->file_full_path);
-        g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
         usb_free(obj);
-        usbd_mtp_fs_close_file(g_mtp_transfer_ctrl.fp);
+        usbd_mtp_fs_close_file(g_mtp_send_ctrl.fp);
     }
 
     return ret;
@@ -1277,16 +1488,11 @@ static int mtp_get_object(struct mtp_header *hdr)
         return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
     }
 
+    MTP_LOGD_SHELL("object file size = %d", obj->file_size);
+
     // 5. 根据文件大小选择发送策略
     if (obj->file_size <= MTP_XFER_PAYLOAD_SIZE) {
         // 小文件策略：头和体合并发送
-        struct mtp_header *resp_hdr = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-        resp_hdr->conlen = sizeof(struct mtp_header) + obj->file_size;
-        resp_hdr->contype = MTP_CONTAINER_TYPE_DATA;
-        resp_hdr->code = MTP_OPERATION_GET_OBJECT;
-        resp_hdr->trans_id = hdr->trans_id;
-
-        // 读取文件内容到缓冲区
         int len = usbd_mtp_fs_read_file(fp, g_usbd_mtp.tx_buffer + sizeof(struct mtp_header), obj->file_size);
         if (len != obj->file_size) {
             usbd_mtp_fs_close_file(fp);
@@ -1297,7 +1503,7 @@ static int mtp_get_object(struct mtp_header *hdr)
 
         usbd_mtp_fs_close_file(fp);
         usb_free(obj);
-        return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp_hdr->conlen);
+        return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + obj->file_size, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT, hdr->trans_id);
     } else {
         // 大文件策略：分块发送
         // struct mtp_header *resp_hdr = (struct mtp_header *)g_usbd_mtp.tx_buffer;
@@ -1306,45 +1512,86 @@ static int mtp_get_object(struct mtp_header *hdr)
         // resp_hdr->code = MTP_OPERATION_GET_OBJECT;
         // resp_hdr->trans_id = hdr->trans_id;
 
-        usb_memset(&g_mtp_transfer_ctrl, 0, sizeof(mtp_transfer_ctrl_t));
-        g_mtp_transfer_ctrl.obj = obj;
-        g_mtp_transfer_ctrl.fp = fp;
-        g_mtp_transfer_ctrl.trans_id = hdr->trans_id;
-        g_mtp_transfer_ctrl.tx_count = 0;
-        g_mtp_transfer_ctrl.function = mtp_send_object_data;
+        usb_memset(&g_mtp_send_ctrl, 0, sizeof(mtp_send_ctrl_t));
+        g_mtp_send_ctrl.obj = obj;
+        g_mtp_send_ctrl.fp = fp;
+        g_mtp_send_ctrl.trans_id = hdr->trans_id;
+        g_mtp_send_ctrl.tx_count = 0;
+        g_mtp_send_ctrl.function = mtp_get_object_fsm;
+        g_mtp_send_ctrl.param = NULL;
 
-        return mtp_send_object_data();
-
-        // if (usbd_mtp_start_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header)) != 0) {
-        //     g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
-        //     MTP_LOGE_SHELL("Failed to start write for object data");
-        //     usbd_mtp_fs_close_file(fp);
-        //     return -1;
-        // }
-
-        // // 再分块发送数据
-        // uint32_t remaining = obj->file_size;
-        // while (remaining > 0) {
-        //     uint32_t chunk_size = (remaining > MTP_BUFFER_SIZE) ? MTP_BUFFER_SIZE : remaining;
-            
-        //     int len = usbd_mtp_fs_read_file(fp, g_usbd_mtp.tx_buffer, chunk_size);
-        //     if (len <= 0) {
-        //         usbd_mtp_fs_close_file(fp);
-        //         return mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, hdr->trans_id);
-        //     }
-
-        //     if (usbd_mtp_start_write(g_usbd_mtp.tx_buffer, len) != 0) {
-        //         usbd_mtp_fs_close_file(fp);
-        //         return -1;
-        //     }
-
-        //     remaining -= len;
-        // }
-        
-        // usbd_mtp_fs_close_file(fp);
-        // return 0;
+        return mtp_get_object_fsm(NULL);
     }
 }
+
+uint32_t mtp_handle_get_from_fullpath(const char *fullpath)
+{
+    uint32_t storage_id = usbd_mtp_storageid_from_mount_point(fullpath);
+    if (storage_id == 0) {
+        return 0;
+    }
+
+    return mtp_generate_handle(fullpath, storage_id);
+}
+
+uint32_t mtp_parent_handle_get_from_fullpath(const char *fullpath)
+{
+    uint32_t storage_id = usbd_mtp_storageid_from_mount_point(fullpath);
+    if (storage_id == 0) {
+        return 0;
+    }
+
+    // 提取父目录路径
+    char *parent_path = usb_malloc(CONFIG_USBDEV_MTP_MAX_PATHNAME + 1);
+    const char *last_slash = strrchr(fullpath, '/');
+    
+    if (last_slash == NULL || last_slash == fullpath) {
+        // 如果没有找到斜杠，或者斜杠在开头，父目录就是根目录
+        strcpy(parent_path, "/");
+    } else {
+        // 复制到最后一个斜杠之前的部分作为父目录路径
+        size_t parent_len = last_slash - fullpath;
+        snprintf(parent_path, parent_len, "%s", fullpath);
+        parent_path[parent_len] = '\0';
+        
+        // 如果父目录路径为空，说明父目录是根目录
+        if (parent_path[0] == '\0') {
+            strcpy(parent_path, "/");
+        }
+    }
+
+    if (strcmp(usbd_fs_top_mtp_path(), parent_path) == 0) {
+        usb_free(parent_path);
+        return MTP_ROOT_HANDLE;
+    }
+
+    MTP_LOGI_SHELL("parent_path: %s, storage_id: 0x%08X", parent_path, storage_id);
+
+    uint32_t handle = mtp_generate_handle(parent_path, storage_id);
+    usb_free(parent_path);
+    return handle;
+}
+
+// int mtp_delete_obj(uint32_t handle)
+// {
+//     struct mtp_object *obj = mtp_obj_reverse_handle(MTP_STORAGE_ID, handle);
+//     if (!obj) {
+//         MTP_LOGD_SHELL("Object not found: 0x%08X", handle);
+//         return 0;
+//     }
+    
+//     // 删除文件或目录
+//     int ret;
+//     if (obj->is_dir) {
+//         ret = usbd_mtp_fs_rmdir(obj->file_full_path);
+//     } else {
+//         ret = usbd_mtp_fs_rm_file(obj->file_full_path);
+//     }
+
+//     usb_free(obj);
+
+//     return 0;
+// }
 
 // 删除对象
 static int mtp_delete_object(struct mtp_header *hdr)
@@ -1364,7 +1611,7 @@ static int mtp_delete_object(struct mtp_header *hdr)
     // 删除文件或目录
     int ret;
     if (obj->is_dir) {
-        ret = usbd_mtp_fs_rmdir(obj->file_full_path);
+        ret = usbd_mtp_fs_rmdir_recursive(obj->file_full_path);
     } else {
         ret = usbd_mtp_fs_rm_file(obj->file_full_path);
     }
@@ -1379,101 +1626,164 @@ static int mtp_delete_object(struct mtp_header *hdr)
     return mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
 }
 
-// 发送对象信息
-static int mtp_send_object_info(struct mtp_header *hdr)
+typedef struct {
+    uint32_t storage_id;
+    uint32_t parent_handle;
+    uint16_t obj_format;
+
+    mtp_utf16le_2_string_ctrl_t utf16le_name_ctrl;
+
+} mtp_send_object_info_param_t;
+
+static void mtp_send_object_info_clear(mtp_send_object_info_param_t *param)
 {
-    static uint32_t storage_id = 0;
-    static uint32_t parent_handle = 0;
+    mtp_convert_utf16le_2_string_deinit(&param->utf16le_name_ctrl);
 
-    if (hdr->conlen == sizeof(struct mtp_header) + sizeof(hdr->param[0]) * 2) {
-        // 第一阶段：接收存储ID和父句柄参数
-        storage_id = hdr->param[0];
-        parent_handle = hdr->param[1];
-        MTP_LOGD_SHELL("mtp_send_object_info: storage_id=0x%08X, parent_handle=0x%08X", storage_id, parent_handle);
+    usb_memset(param, 0, sizeof(mtp_send_object_info_param_t));
+}
 
-        // mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
+// 发送对象信息（由于存在长文件名的情况，所以发送可能会分包）
+static int mtp_send_object_info(struct mtp_header *hdr, uint32_t len)
+{
+    uint32_t name_start = 0;
 
-        // usb_osal_msleep(100); // 等待设备处理
-        return 0; // 等待下一阶段数据
-    }
-    else if(hdr->conlen <= offsetof(struct mtp_object_info, Filename)) {
+    struct mtp_object_info *obj_info = NULL;
+
+    static mtp_send_object_info_param_t trans_param = {0};
+
+    bool is_dir;
+    struct mtp_object *parent_obj;
+    struct mtp_object *obj;
+
+    if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_IDLE) {
+        MTP_LOGD_SHELL("MTP_RECV_STATUS_IDLE");
+        if (hdr->conlen != sizeof(struct mtp_header) + sizeof(hdr->param[0]) * 2) {
         MTP_LOGE_SHELL("Invalid parameter length");
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
     }
 
-    // 第二阶段：处理对象信息数据
-    struct mtp_object_info *obj_info = (struct mtp_object_info *)(hdr + 1);
+        mtp_send_object_info_clear(&trans_param);
 
-    if (storage_id != MTP_STORAGE_ID) {
-        MTP_LOGE_SHELL("Invalid storage ID: 0x%08X", storage_id);
+        trans_param.storage_id = hdr->param[0];
+        trans_param.parent_handle = hdr->param[1];
+
+        if (trans_param.storage_id != MTP_STORAGE_ID) {
+            MTP_LOGE_SHELL("Invalid storage ID: 0x%08X", trans_param.storage_id);
         return mtp_send_response(MTP_RESPONSE_INVALID_STORAGE_ID, hdr->trans_id);
     }
 
+        g_mtp_recv_ctrl.status = MTP_RECV_STATUS_HEADER;
+
+        MTP_LOGD_SHELL("mtp send obj info : storage_id=0x%08X, parent_handle=0x%08X", trans_param.storage_id, trans_param.parent_handle);
+
+        return 0;
+    }
+    else if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_HEADER) {
+        MTP_LOGD_SHELL("MTP_RECV_STATUS_HEADER");
+        name_start = sizeof(struct mtp_header) + offsetof(struct mtp_object_info, Filename);
+
+        // 非法的数据包
+        if (hdr->conlen <= name_start) {
+            MTP_LOGE_SHELL("Invalid parameter length");
+            mtp_recv_ctrl_reset();
+            mtp_send_object_info_clear(&trans_param);
+            return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
+        }
+
+        if (len <= name_start) {
+            MTP_LOGE_SHELL("Invalid parameter length");
+            mtp_recv_ctrl_reset();
+            mtp_send_object_info_clear(&trans_param);
+            return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
+        }
+
+        obj_info = (struct mtp_object_info *)(hdr + 1);
     if (obj_info->Filename_len == 0 || obj_info->Filename[0] == 0) {
         MTP_LOGE_SHELL("Invalid filename length");
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
     }
 
-    // 解析UTF-16LE编码的文件名
-    char filename[CONFIG_USBDEV_MTP_MAX_PATHNAME];
-    memset(filename, 0, sizeof(filename));
-    
-    // 将UTF-16LE转换为ASCII（简化处理，假设都是ASCII字符）
-    int name_len = obj_info->Filename_len;
-    if (name_len > CONFIG_USBDEV_MTP_MAX_PATHNAME - 1) {
-        name_len = CONFIG_USBDEV_MTP_MAX_PATHNAME - 1;
-    }
-    
-    for (int i = 0; i < name_len; i++) {
-        filename[i] = (char)(obj_info->Filename[i] & 0xFF); // 取低8位作为ASCII
-    }
-    filename[name_len] = '\0';
+        g_mtp_recv_ctrl.tot_len  = hdr->conlen;
+        g_mtp_recv_ctrl.recv_len = len;
+        g_mtp_recv_ctrl.trans_id = hdr->trans_id;
 
-    MTP_LOGI_SHELL("Creating object: %s, format=0x%04X, parent=0x%08X", 
-                   filename, obj_info->ObjectFormat, parent_handle);
+        trans_param.obj_format = obj_info->ObjectFormat;
 
+        mtp_convert_utf16le_2_string_init(&trans_param.utf16le_name_ctrl, obj_info->Filename_len, CONFIG_USBDEV_MTP_MAX_PATHNAME);
+
+        mtp_convert_utf16le_2_string_step(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
+
+        // obj_info已经全部接收完
+        if (g_mtp_recv_ctrl.recv_len < g_mtp_recv_ctrl.tot_len) {
+            g_mtp_recv_ctrl.status = MTP_RECV_STATUS_SENDING;
+            return 0;
+        }
+        else {
+            MTP_LOGD_SHELL("recv ok, ");
+        }
+
+        goto __trans_ok;
+    }
+    else if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_SENDING) {
+        // 继续接收文件名（可能收到多个512字节的包，直到收完）
+        g_mtp_recv_ctrl.recv_len += len;
+        name_start = 0;
+
+        if (!mtp_check_utf16le_2_string_is_end(&trans_param.utf16le_name_ctrl)) {
+            mtp_convert_utf16le_2_string_step(&trans_param.utf16le_name_ctrl, (uint8_t *)hdr + name_start, len - name_start);
+    }
+
+        if (g_mtp_recv_ctrl.recv_len < g_mtp_recv_ctrl.tot_len) {
+            // keep receiving
+            return 0;
+        }
+
+        MTP_LOGD_SHELL("recv ok, ");
+
+        goto __trans_ok;
+    }
+
+__trans_ok:
     // 创建新对象
-    bool is_dir = (obj_info->ObjectFormat == MTP_FORMAT_ASSOCIATION);
-    struct mtp_object *parent_obj = NULL;
+    is_dir = (trans_param.obj_format == MTP_FORMAT_ASSOCIATION);
+    parent_obj = NULL;
     
     // 如果有父句柄，查找父对象
-    if (parent_handle != 0xFFFFFFFF) {
-        parent_obj = mtp_obj_reverse_handle(storage_id, parent_handle);
+    if (trans_param.parent_handle != 0xFFFFFFFF) {
+        parent_obj = mtp_obj_reverse_handle(trans_param.storage_id, trans_param.parent_handle);
         if (!parent_obj) {
-            MTP_LOGE_SHELL("Parent object not found: 0x%08X", parent_handle);
-            return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
+            MTP_LOGE_SHELL("Parent object not found: 0x%08X", trans_param.parent_handle);
+            mtp_recv_ctrl_reset();
+            mtp_send_object_info_clear(&trans_param);
+            return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, g_mtp_recv_ctrl.trans_id);
         }
     }
     
-    struct mtp_object *obj = mtp_object_new(parent_obj, filename, obj_info->ObjectFormat, is_dir);
+    obj = mtp_object_new(parent_obj, trans_param.utf16le_name_ctrl.str_addr, trans_param.obj_format, is_dir);
     if (!obj) {
         MTP_LOGE_SHELL("Failed to create object");
         if (parent_obj) {
             usb_free(parent_obj);
         }
-        return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
+        mtp_recv_ctrl_reset();
+        mtp_send_object_info_clear(&trans_param);
+        return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, g_mtp_recv_ctrl.trans_id);
     }
 
     // 设置当前操作对象
     g_usbd_mtp.cur_object = obj;
-    g_usbd_mtp.cur_trans_id = hdr->trans_id;
+    g_usbd_mtp.cur_trans_id = g_mtp_recv_ctrl.trans_id;
 
     // 创建响应：返回存储ID、父句柄和新创建的对象句柄
     uint8_t *tx_buffer = (uint8_t *)(g_usbd_mtp.tx_buffer);
     uint32_t offset = sizeof(struct mtp_header);
     
-    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, storage_id);
-    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, parent_handle);
+    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, trans_param.storage_id);
+    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, trans_param.parent_handle);
     offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, obj->handle);
-
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = offset;
-    resp->contype = MTP_CONTAINER_TYPE_RESPONSE;
-    resp->code = MTP_RESPONSE_OK;
-    resp->trans_id = hdr->trans_id;
     
     // 设置传输状态为IDLE，这样在发送完成后会自动发送OK响应
-    g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+    g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
     
     // 清理父对象临时数据
     if (parent_obj) {
@@ -1485,111 +1795,126 @@ static int mtp_send_object_info(struct mtp_header *hdr)
             MTP_LOGE_SHELL("Failed to create directory: %s", obj->file_full_path);
             usb_free(obj);
             g_usbd_mtp.cur_object = NULL;
-            return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
+            mtp_recv_ctrl_reset();
+            mtp_send_object_info_clear(&trans_param);
+            return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, g_mtp_recv_ctrl.trans_id);
         }
         MTP_LOGD_SHELL("Created directory: %s", obj->file_full_path);
     }
 
-    return usbd_mtp_start_write((uint8_t *)g_usbd_mtp.tx_buffer, resp->conlen);
+    mtp_recv_ctrl_reset();
+    mtp_send_object_info_clear(&trans_param);
+    return mtp_write(g_usbd_mtp.tx_buffer, offset, MTP_CONTAINER_TYPE_RESPONSE, MTP_RESPONSE_OK, g_mtp_recv_ctrl.trans_id);
 }
 
-static int mtp_send_object_info_test(void)
-{
-    uint8_t *tx_buffer = (uint8_t *)(g_usbd_mtp.tx_buffer);
-    uint32_t offset = sizeof(struct mtp_header);
-    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, g_usbd_mtp.cur_object->handle);
-    offset = MTP_PACK_UINT32_ARRAY(tx_buffer, offset, g_usbd_mtp.cur_object->parent_handle);
-
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = offset;
-    resp->contype = MTP_OPERATION_SEND_OBJECT_INFO;
-    resp->code = MTP_RESPONSE_OK;
-    resp->trans_id = g_usbd_mtp.cur_trans_id;
-    
-    return usbd_mtp_start_write((uint8_t *)g_usbd_mtp.tx_buffer, resp->conlen);
-}
-
-enum mtp_transfer_state {
-    MTP_STATE_IDLE,
-    MTP_XFER_HEADER_RECEIVED,  // 收到操作头
-    MTP_XFER_DATA_RECEIVING,   // 数据接收中
-    MTP_XFER_COMPLETE          // 传输完成
-};
-
-struct mtp_transfer_ctrl {
-    uint32_t trans_id;
-    uint32_t expected_size;
-    uint32_t received_size;
-    enum mtp_transfer_state state;
+typedef struct {
     void *fp;
-};
+} mtp_send_object_param_t;
 
-static struct mtp_transfer_ctrl g_mtp_data_transfer_ctrl = {0};
+static inline void mtp_send_object_param_init(void)
+{
+    usb_free(g_usbd_mtp.cur_object);
+    g_usbd_mtp.cur_object = NULL;
+    g_mtp_recv_ctrl.status = MTP_RECV_STATUS_IDLE;
+}
 
 // 发送对象数据
-static int mtp_send_object_data2(struct mtp_header *hdr)
+static int mtp_send_object_data(struct mtp_header *hdr, uint32_t len)
 {
+    static mtp_send_object_param_t param = {0};
+
     if (!g_usbd_mtp.cur_object) {
-        g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
+        g_mtp_recv_ctrl.status = MTP_RECV_STATUS_IDLE;
+        MTP_LOGE_SHELL("object is null");
         return mtp_send_response(MTP_RESPONSE_INVALID_OBJECT_HANDLE, hdr->trans_id);
     }
 
-    if (g_mtp_data_transfer_ctrl.state == MTP_STATE_IDLE) {
-        // 初始化传输控制块
-        g_mtp_data_transfer_ctrl.trans_id = hdr->trans_id;
-        g_mtp_data_transfer_ctrl.state = MTP_XFER_HEADER_RECEIVED;
-        // usb_free(g_usbd_mtp.cur_object);
-        // g_usbd_mtp.cur_object = NULL;
-        
-        // 立即响应OK
-        // return mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
+    if (g_mtp_recv_ctrl.status != MTP_RECV_STATUS_IDLE &&
+        g_mtp_recv_ctrl.status != MTP_RECV_STATUS_HEADER &&
+        g_mtp_recv_ctrl.status != MTP_RECV_STATUS_SENDING)
+    {
+        mtp_send_object_param_init();
+        return mtp_send_response(MTP_RESPONSE_TRANSACTION_CANCELLED, hdr->trans_id);
     }
-    else if (g_mtp_data_transfer_ctrl.state == MTP_XFER_HEADER_RECEIVED) {
-        if (g_mtp_data_transfer_ctrl.trans_id != hdr->trans_id) {
-            g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
-            MTP_LOGE_SHELL("Transaction ID mismatch");
-            return mtp_send_response(MTP_RESPONSE_TRANSACTION_CANCELLED, hdr->trans_id);
+
+    if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_IDLE) {
+
+        MTP_LOGD_SHELL("MTP_RECV_STATUS_IDLE");
+
+        if (len != sizeof(struct mtp_header) || len != hdr->conlen) {
+            MTP_LOGE_SHELL("Invalid parameter length");
+            return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
         }
 
-        // uint8_t *data = (uint8_t *)(hdr + 1);
-        // uint32_t data_len = hdr->conlen - sizeof(struct mtp_header);
+        MTP_LOGI_SHELL("recv object data : len = %d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
 
-        // 打开文件准备写入
-        void *fp = usbd_mtp_fs_open_file(g_usbd_mtp.cur_object->file_full_path, "w+");
-        if (!fp) {
-            usb_free(g_usbd_mtp.cur_object);
-            g_usbd_mtp.cur_object = NULL;
-            g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
+        param.fp = usbd_mtp_fs_open_file(g_usbd_mtp.cur_object->file_full_path, "w+");
+        if (!param.fp) {
+            mtp_send_object_param_init();
             MTP_LOGE_SHELL("Failed to open file");
             return mtp_send_response(MTP_RESPONSE_ACCESS_DENIED, hdr->trans_id);
         }
 
-        // 写入数据
-        int len = usbd_mtp_fs_write_file(fp, (hdr + 1), hdr->conlen - sizeof(struct mtp_header));
-        usbd_mtp_fs_close_file(fp);
-        if (len < 0) {
-            usb_free(g_usbd_mtp.cur_object);
-            g_usbd_mtp.cur_object = NULL;
-            g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
-            MTP_LOGE_SHELL("Failed to write file");
-            return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, hdr->trans_id);
+        // 初始化传输控制块
+        g_mtp_recv_ctrl.trans_id = hdr->trans_id;
+        g_mtp_recv_ctrl.status = MTP_RECV_STATUS_HEADER;
+
+        return 0;
+    }
+
+    int recv_len;
+
+    if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_HEADER) {
+        MTP_LOGD_SHELL("MTP_RECV_STATUS_HEADER");
+        if (g_mtp_recv_ctrl.trans_id != hdr->trans_id) {
+            g_mtp_recv_ctrl.status = MTP_RECV_STATUS_IDLE;
+            MTP_LOGE_SHELL("Transaction ID mismatch");
+            return mtp_send_response(MTP_RESPONSE_TRANSACTION_CANCELLED, hdr->trans_id);
         }
 
-        // 更新对象大小
-        g_usbd_mtp.cur_object->file_size = len;
-        
-        // 清除当前操作对象
-        usb_free(g_usbd_mtp.cur_object);
-        g_usbd_mtp.cur_object = NULL;
-        g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
-        
-        return mtp_send_response(MTP_RESPONSE_OK, hdr->trans_id);
+        recv_len = usbd_mtp_fs_write_file(param.fp, (hdr + 1), len - sizeof(struct mtp_header));
+
+        // MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
     }
     else {
-        usb_free(g_usbd_mtp.cur_object);
-        g_usbd_mtp.cur_object = NULL;
-        g_mtp_data_transfer_ctrl.state = MTP_STATE_IDLE;
-        return mtp_send_response(MTP_RESPONSE_TRANSACTION_CANCELLED, hdr->trans_id);
+        MTP_LOGD_SHELL("MTP_RECV_STATUS_SENDING");
+        recv_len = usbd_mtp_fs_write_file(param.fp, (hdr), len);
+
+        // MTP_LOGI_SHELL("recv object data : len =%d payload len=%d", hdr->conlen, hdr->conlen - sizeof(struct mtp_header));
+    }
+
+    if (recv_len < 0) {
+        MTP_LOGE_SHELL("Failed to write file");
+        usbd_mtp_fs_close_file(param.fp);
+        param.fp = NULL;
+        mtp_send_object_param_init();
+        return mtp_send_response(MTP_RESPONSE_STORAGE_FULL, g_mtp_recv_ctrl.trans_id);
+    }
+
+    if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_HEADER) {
+        g_mtp_recv_ctrl.tot_len = hdr->conlen;
+        g_mtp_recv_ctrl.recv_len = len;
+        g_usbd_mtp.cur_object->file_size = recv_len;
+    }
+    else {
+        g_mtp_recv_ctrl.recv_len += len;
+        g_usbd_mtp.cur_object->file_size += recv_len;
+    }
+
+    MTP_LOGD_SHELL("current read file data %d bytes, tot read %d bytes, tot exp read %d bytes", recv_len, g_mtp_recv_ctrl.recv_len, g_mtp_recv_ctrl.tot_len);
+
+    if (g_mtp_recv_ctrl.recv_len >= g_mtp_recv_ctrl.tot_len) {
+        usbd_mtp_fs_close_file(param.fp);
+        mtp_send_object_param_init();
+
+        MTP_LOGI_SHELL("write ok, tot write %d bytes", g_mtp_recv_ctrl.tot_len - sizeof(struct mtp_header));
+
+        return mtp_send_response(MTP_RESPONSE_OK, g_mtp_recv_ctrl.trans_id);
+    }
+    else {
+        if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_HEADER) {
+            g_mtp_recv_ctrl.status = MTP_RECV_STATUS_SENDING;
+        }
     }
 
     return 0;
@@ -1652,8 +1977,8 @@ static int mtp_get_device_prop_desc(struct mtp_header *hdr)
 
         case MTP_TYPE_STR:
             MTP_LOGI_SHELL("MTP prop type : str");
-            offset = mtp_pack_string(desc_addr, offset, NULL);
-            offset = mtp_pack_string(desc_addr, offset, NULL);
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL);
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL);
             offset = MTP_PACK_UINT8_ARRAY(desc_addr, offset, (uint8_t)(prop->form_flag & 0xFF));
             break;
 
@@ -1663,17 +1988,11 @@ static int mtp_get_device_prop_desc(struct mtp_header *hdr)
     }
 
     // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + offset;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_DEVICE_PROP_DESC;
-    resp->trans_id = hdr->trans_id;
-
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+    return mtp_write(g_usbd_mtp.tx_buffer, sizeof(struct mtp_header) + offset, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_DEVICE_PROP_DESC, hdr->trans_id);
 }
 
 // 获取对象支持的属性列表
-static int mtp_get_object_props_supported(struct mtp_header *hdr)
+static int mtp_get_object_props_supported(uint8_t *tx_buffer, struct mtp_header *hdr)
 {
     if (hdr->conlen != sizeof(struct mtp_header) + sizeof(hdr->param[0])) {
         MTP_LOGE_SHELL("Invalid parameter length for get object props supported");
@@ -1681,7 +2000,7 @@ static int mtp_get_object_props_supported(struct mtp_header *hdr)
     }
 
     uint16_t format_code = (uint16_t)(hdr->param[0] & 0xFFFF);
-    struct mtp_object_props_support *props = (struct mtp_object_props_support *)(g_usbd_mtp.tx_buffer + sizeof(struct mtp_header));
+    struct mtp_object_props_support *props = (struct mtp_object_props_support *)(tx_buffer + sizeof(struct mtp_header));
     
     MTP_LOGD_SHELL("check object prop format support : 0x%x", format_code);
 
@@ -1690,22 +2009,19 @@ static int mtp_get_object_props_supported(struct mtp_header *hdr)
     for (int i = 0; support_format_properties[i].format_code != MTP_ARRAY_END_MARK; i++) {
         if (support_format_properties[i].format_code == format_code) {
             uint16_t *prop_list = support_format_properties[i].properties;
+            MTP_LOGRAW_SHELL("found supported object property : ");
             while (*prop_list != MTP_ARRAY_END_MARK) {
-                MTP_LOGD_SHELL("Found supported object property: 0x%04X", *prop_list);
+                MTP_LOGRAW_SHELL("0x%04X ", *prop_list);
                 props->ObjectPropCode[props->ObjectPropCode_len++] = *prop_list++;
             }
+            MTP_LOGRAW_SHELL("\r\n");
             break;
         }
     }
-    
-    // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + sizeof(props->ObjectPropCode_len) + (props->ObjectPropCode_len * sizeof(props->ObjectPropCode[0]));
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+
+    uint32_t tx_length = sizeof(struct mtp_header) + sizeof(props->ObjectPropCode_len) + (props->ObjectPropCode_len * sizeof(props->ObjectPropCode[0]));
+
+    return mtp_write(tx_buffer, tx_length, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED, hdr->trans_id);
 }
 
 // 获取对象属性描述
@@ -1785,7 +2101,7 @@ static int mtp_get_object_prop_desc(struct mtp_header *hdr)
             break;
         case MTP_TYPE_STR:
             MTP_LOGI_SHELL("MTP get obj prop desc type : str");
-            offset = mtp_pack_string(desc_addr, offset, NULL); // 默认值为空字符串
+            offset = mtp_convert_string_2_utf16le_without_termsymbol(desc_addr, offset, NULL); // 默认值为空字符串
             break;
             
         default:
@@ -1797,13 +2113,11 @@ static int mtp_get_object_prop_desc(struct mtp_header *hdr)
     offset = MTP_PACK_UINT8_ARRAY(desc_addr, offset, prop->form_flag);
 
     // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + offset;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_OBJECT_PROP_DESC;
-    resp->trans_id = hdr->trans_id;
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+    return mtp_write(g_usbd_mtp.tx_buffer, 
+                     sizeof(struct mtp_header) + offset, 
+                     MTP_CONTAINER_TYPE_DATA, 
+                     MTP_OPERATION_GET_OBJECT_PROP_DESC, 
+                     hdr->trans_id);
 }
 
 static const char* mtp_get_object_name(const struct mtp_object *obj)
@@ -1881,6 +2195,67 @@ static const char* mtp_get_display_name(const struct mtp_object *obj) {
     return obj->file_full_name;
 }
 
+static uint32_t mtp_fill_property_value_length(const struct mtp_object *obj, uint16_t prop_code, uint8_t *buf, uint32_t offset, uint16_t *data_type)
+{
+    uint32_t length = 0;
+
+    switch (prop_code) {
+        case MTP_PROPERTY_STORAGE_ID:
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_FORMAT:
+            length += sizeof(uint16_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_SIZE:
+            length += sizeof(uint32_t);
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_OBJECT_FILE_NAME:
+            length += mtp_calc_string_2_utf16le_length(mtp_get_object_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_object_name(obj), usb_strlen(mtp_get_object_name(obj)));
+            break;
+        case MTP_PROPERTY_NAME:
+            length += mtp_calc_string_2_utf16le_length(mtp_get_base_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_base_name(obj), usb_strlen(mtp_get_base_name(obj)));
+            break;
+        case MTP_PROPERTY_DISPLAY_NAME:
+            length += mtp_calc_string_2_utf16le_length(mtp_get_display_name(obj));
+            // MTP_DUMP_SHELL(16, mtp_get_display_name(obj), usb_strlen(mtp_get_display_name(obj)));
+            break;
+
+        case MTP_PROPERTY_PARENT_OBJECT:
+            length += sizeof(uint32_t);
+            break;
+
+        case MTP_PROPERTY_PROTECTION_STATUS:
+            length += sizeof(uint16_t);
+            break;
+
+        case MTP_PROPERTY_DATE_MODIFIED: {
+            length += mtp_calc_string_2_utf16le_length(usbd_mtp_fs_modify_time(obj->file_full_path));
+            break;
+        }
+
+        case MTP_PROPERTY_DATE_CREATED: {
+            length += mtp_calc_string_2_utf16le_length(usbd_mtp_fs_create_time(obj->file_full_path));
+            break;
+        }
+
+        case MTP_PROPERTY_PERSISTENT_UID:
+            length += 16;
+            break;
+
+        default:
+            length += sizeof(uint32_t);
+            break;
+    }
+    return length;
+}
+
+// 注意：这里面的数据长度一旦超过，会出问题，需要增加边界检测
 static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t prop_code, uint8_t *buf, uint32_t offset, uint16_t *data_type)
 {
     switch (prop_code) {
@@ -1916,19 +2291,22 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
             break;
 
         case MTP_PROPERTY_OBJECT_FILE_NAME: // 包含扩展名
-            MTP_LOGD_SHELL("MTP_PROPERTY_OBJECT_FILE_NAME: %s", mtp_get_object_name(obj));
+            // MTP_LOGD_SHELL("MTP_PROPERTY_OBJECT_FILE_NAME: %s", mtp_get_object_name(obj));
+            MTP_LOGD_SHELL("MTP_PROPERTY_OBJECT_FILE_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_object_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_object_name(obj));
             break;
         case MTP_PROPERTY_NAME:             // 不包含扩展名
-            MTP_LOGD_SHELL("MTP_PROPERTY_NAME: %s", mtp_get_base_name(obj));
+            // MTP_LOGD_SHELL("MTP_PROPERTY_NAME: %s", mtp_get_base_name(obj));
+            MTP_LOGD_SHELL("MTP_PROPERTY_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_base_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_base_name(obj));
             break;
         case MTP_PROPERTY_DISPLAY_NAME:     // 别称
-            MTP_LOGD_SHELL("MTP_PROPERTY_DISPLAY_NAME: %s", mtp_get_display_name(obj));
+            // MTP_LOGD_SHELL("MTP_PROPERTY_DISPLAY_NAME: %s", mtp_get_display_name(obj));
+            MTP_LOGD_SHELL("MTP_PROPERTY_DISPLAY_NAME");
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, mtp_get_display_name(obj));
+            offset = mtp_convert_string_2_utf16le(buf, offset, mtp_get_display_name(obj));
             break;
 
         case MTP_PROPERTY_PARENT_OBJECT:
@@ -1948,14 +2326,14 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
         case MTP_PROPERTY_DATE_MODIFIED: {
             MTP_LOGD_SHELL("MTP_PROPERTY_DATE_MODIFIED: %s", usbd_mtp_fs_modify_time(obj->file_full_path));
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, usbd_mtp_fs_modify_time(obj->file_full_path));
+            offset = mtp_convert_string_2_utf16le(buf, offset, usbd_mtp_fs_modify_time(obj->file_full_path));
             break;
         }
 
         case MTP_PROPERTY_DATE_CREATED: {
             MTP_LOGD_SHELL("MTP_PROPERTY_DATE_CREATED: %s", usbd_mtp_fs_create_time(obj->file_full_path));
             *data_type = MTP_TYPE_STR;
-            offset = mtp_pack_string_utf_16le(buf, offset, usbd_mtp_fs_create_time(obj->file_full_path));
+            offset = mtp_convert_string_2_utf16le(buf, offset, usbd_mtp_fs_create_time(obj->file_full_path));
             break;
         }
 
@@ -1964,7 +2342,6 @@ static uint32_t mtp_fill_property_value(const struct mtp_object *obj, uint16_t p
             *data_type = MTP_TYPE_UINT128;
             uint8_t uid[16] = {0};
             mtp_generate_uid(uid, MTP_STORAGE_ID, obj->handle, obj->file_full_name);
-            // offset = mtp_pack_array_utf_16le(buf, offset, uid, 16);
             offset = mtp_pack_uint8_array(buf, offset, uid, 16);
             MTP_LOGD_SHELL("MTP_PROPERTY_PERSISTENT_UID");
             break;
@@ -2068,6 +2445,199 @@ static bool is_windows_special_request(const uint32_t *params, uint32_t *handle,
     return is_windows;
 }
 
+typedef struct {
+    uint8_t *buf;
+    uint32_t length;
+    uint32_t offset;
+} mtp_prop_list_node_t;
+
+typedef struct {
+    struct mtp_object *obj;
+    const uint16_t *prop_list;
+    uint32_t prop_count;
+    uint32_t handle;
+    uint16_t prop_code;
+    uint32_t trans_id;
+    bool request_all_props;
+
+    mtp_prop_list_node_t *prop_list_node;
+    uint32_t prop_list_cur_node;
+
+    bool all_sent;
+
+    uint32_t total_len;
+} mtp_get_object_prop_list_t;
+
+static mtp_get_object_prop_list_t g_mtp_get_object_prop_list_param = {0};
+
+static int mtp_get_object_prop_list_send(void *param)
+{
+    mtp_get_object_prop_list_t *mtp_get_object_prop_list_ptr = (mtp_get_object_prop_list_t *)param;
+
+    const uint16_t *prop_list = mtp_get_object_prop_list_ptr->prop_list;
+    struct mtp_object *obj    = mtp_get_object_prop_list_ptr->obj;
+    uint32_t prop_count       = mtp_get_object_prop_list_ptr->prop_count;
+    uint32_t handle           = mtp_get_object_prop_list_ptr->handle;
+    uint16_t prop_code        = mtp_get_object_prop_list_ptr->prop_code;
+    uint32_t trans_id         = mtp_get_object_prop_list_ptr->trans_id;
+    bool request_all_props    = mtp_get_object_prop_list_ptr->request_all_props;
+    mtp_prop_list_node_t *prop_list_node = mtp_get_object_prop_list_ptr->prop_list_node;
+    uint32_t cur_node = 0;
+
+    // 写入属性数量
+    uint8_t *tx_buf  = g_usbd_mtp.tx_buffer;
+    uint32_t offset = sizeof(struct mtp_header);
+    struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + offset);
+    elem_list->element_len = prop_count;
+    offset += offsetof(struct mtp_object_prop_list, element);
+
+    MTP_LOGD_SHELL("Request prob count : %d", prop_count);
+
+    // MTP_LOGD_SHELL("222222----------------- %d --------------", tot_len);
+
+    uint16_t current_prop;
+    uint16_t data_type;
+    uint32_t tx_counter = 0;
+    uint32_t tx_remain;
+
+    if (g_mtp_send_ctrl.status == MTP_SEND_STATUS_IDLE) {
+        struct mtp_object_prop_element *elem;
+        struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + sizeof(struct mtp_header));
+        elem_list->element_len = prop_count;
+        tx_counter = sizeof(struct mtp_header) + offsetof(struct mtp_object_prop_list, element);
+
+        if (request_all_props) {
+            for (uint32_t i = 0; i < prop_count; i++) {
+                current_prop = prop_list[i];
+                elem = (struct mtp_object_prop_element *)prop_list_node[i].buf;
+
+                mtp_fill_property_value(obj, current_prop, prop_list_node[i].buf, offsetof(struct mtp_object_prop_element, value), &data_type);
+                elem->ObjectHandle = handle;
+                elem->PropertyCode = current_prop;
+                elem->Datatype = data_type;
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf, prop_list_node[i].length);
+            }
+        }
+        else {
+            current_prop = prop_code;
+            elem = (struct mtp_object_prop_element *)prop_list_node[0].buf;
+
+            mtp_fill_property_value(obj, current_prop, prop_list_node[0].buf, offsetof(struct mtp_object_prop_element, value), &data_type);
+            elem->ObjectHandle = handle;
+            elem->PropertyCode = current_prop;
+            elem->Datatype = data_type;
+
+            // MTP_DUMP_SHELL(16, prop_list_node[0].buf, prop_list_node[0].length);
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = 0;
+        mtp_get_object_prop_list_ptr->all_sent = false;
+        uint32_t cur_node = mtp_get_object_prop_list_ptr->prop_list_cur_node;
+        uint32_t total_len = tx_counter + mtp_get_object_prop_list_ptr->total_len;
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            tx_remain = MTP_BUFFER_SIZE - tx_counter;
+
+            // 当前节点已经发送完
+            if (tx_remain >= prop_list_node[i].length) {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf, prop_list_node[i].length);
+                tx_counter += prop_list_node[i].length;
+                prop_list_node[i].offset = prop_list_node[i].length;
+                cur_node = i + 1;
+
+                if (i + 1 == prop_count) {
+                    mtp_get_object_prop_list_ptr->all_sent = true;
+                    MTP_LOGI_SHELL("All properties sent");
+                }
+            }
+            // 还未发送完
+            else {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf, tx_remain);
+                tx_counter += tx_remain;
+                prop_list_node[i].offset = tx_remain;
+                cur_node = i;
+                // MTP_LOGI_SHELL("Partial property sent, node=%d, remain=%d", i, prop_list_node[i].length - prop_list_node[i].offset);
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+            }
+
+            if (tx_counter >= MTP_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = cur_node;
+
+        g_mtp_send_ctrl.status = MTP_SEND_STATUS_SENDING_DATA;
+
+        struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
+        resp->conlen = total_len;
+        resp->contype = MTP_CONTAINER_TYPE_DATA;
+        resp->code = MTP_OPERATION_GET_OBJECT_PROP_LIST;
+        resp->trans_id = trans_id;
+
+        return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, tx_counter);
+        // return mtp_write(g_usbd_mtp.tx_buffer, tx_counter, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROP_LIST, trans_id);
+    }
+    else if (g_mtp_send_ctrl.status == MTP_SEND_STATUS_SENDING_DATA) 
+    {
+        if (mtp_get_object_prop_list_ptr->all_sent) {
+            for (uint32_t i = 0; i < prop_count; i++) {
+                usb_free(prop_list_node[i].buf);
+            }
+            usb_free(prop_list_node);
+            usb_free(obj);
+            MTP_LOGD_SHELL("All properties sent");
+            g_mtp_send_ctrl.status = MTP_SEND_STATUS_SENDING_RESPONSE;
+            return mtp_send_response(MTP_RESPONSE_OK, trans_id);
+        }
+        
+        cur_node = mtp_get_object_prop_list_ptr->prop_list_cur_node;
+        tx_counter = 0;
+
+        uint32_t start = cur_node;
+
+        for (uint32_t i = start; i < prop_count; i++) {
+            tx_remain = MTP_BUFFER_SIZE - tx_counter;
+
+            // 当前节点已经发送完
+            if (tx_remain >= prop_list_node[i].length - prop_list_node[i].offset) {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+                tx_counter += prop_list_node[i].length - prop_list_node[i].offset;
+                prop_list_node[i].offset = prop_list_node[i].length;
+                cur_node = i + 1;
+
+                if (i + 1 == prop_count) {
+                    mtp_get_object_prop_list_ptr->all_sent = true;
+                    MTP_LOGI_SHELL("All properties sent");
+                }
+            }
+            // 还未发送完
+            else {
+                usb_memcpy(tx_buf + tx_counter, prop_list_node[i].buf + prop_list_node[i].offset, tx_remain);
+                tx_counter += tx_remain;
+                prop_list_node[i].offset += tx_remain;
+                cur_node = i;
+                // MTP_LOGI_SHELL("Partial property sent, node=%d, remain=%d", i, prop_list_node[i].length - prop_list_node[i].offset);
+                // MTP_DUMP_SHELL(16, prop_list_node[i].buf + prop_list_node[i].offset, prop_list_node[i].length - prop_list_node[i].offset);
+            }
+
+            if (tx_counter >= MTP_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        mtp_get_object_prop_list_ptr->prop_list_cur_node = cur_node;
+
+        return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, tx_counter);
+
+        // return mtp_write(g_usbd_mtp.tx_buffer, tx_counter, MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_PROP_LIST, trans_id);
+    }
+    else {
+        MTP_LOGE_SHELL("Invalid transfer state %d", g_mtp_send_ctrl.status);
+        return mtp_send_response(MTP_RESPONSE_GENERAL_ERROR, trans_id);
+    }
+}
+
 /* 主处理函数（兼容Windows和标准协议）*/
 static int mtp_get_object_prop_list(struct mtp_header *hdr)
 {
@@ -2079,10 +2649,6 @@ static int mtp_get_object_prop_list(struct mtp_header *hdr)
 
     uint32_t handle, group_code, depth;
     uint16_t prop_code, format_code;
-    // bool is_windows = false;
-    // 准备响应缓冲区
-    uint8_t *tx_buf;
-    uint32_t offset;
 
     /* 检测请求类型 */
     is_windows_special_request(hdr->param, &handle, &prop_code, &group_code, &depth, &format_code);
@@ -2140,72 +2706,50 @@ static int mtp_get_object_prop_list(struct mtp_header *hdr)
         return mtp_send_response(MTP_RESPONSE_OBJECT_PROP_NOT_SUPPORTED, hdr->trans_id);
     }
 
-    // 写入属性数量
-    tx_buf = g_usbd_mtp.tx_buffer;
-    offset = sizeof(struct mtp_header);
-    struct mtp_object_prop_list *elem_list = (struct mtp_object_prop_list *)(tx_buf + offset);
-    elem_list->element_len = prop_count;
-    offset += offsetof(struct mtp_object_prop_list, element);
+    usb_memset(&g_mtp_send_ctrl, 0, sizeof(mtp_send_ctrl_t));
+    g_mtp_send_ctrl.obj = obj;
+    g_mtp_send_ctrl.trans_id = hdr->trans_id;
+    g_mtp_send_ctrl.tx_count = 0;
+    g_mtp_send_ctrl.function = mtp_get_object_prop_list_send;
+    g_mtp_send_ctrl.param = &g_mtp_get_object_prop_list_param;
+    g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
 
-    MTP_LOGD_SHELL("Request prob count : %d", prop_count);
+    g_mtp_get_object_prop_list_param.obj = obj;
+    g_mtp_get_object_prop_list_param.prop_list = prop_list;
+    g_mtp_get_object_prop_list_param.prop_count = prop_count;
+    g_mtp_get_object_prop_list_param.handle = handle;
+    g_mtp_get_object_prop_list_param.prop_code = prop_code;
+    g_mtp_get_object_prop_list_param.trans_id = hdr->trans_id;
+    g_mtp_get_object_prop_list_param.request_all_props = request_all_props;
+
+    g_mtp_get_object_prop_list_param.prop_list_node = usb_malloc(sizeof(mtp_prop_list_node_t) * prop_count);
+    usb_memset(g_mtp_get_object_prop_list_param.prop_list_node, 0, sizeof(mtp_prop_list_node_t) * prop_count);
 
     uint16_t current_prop;
+    uint32_t total_len = 0;
     /* 处理属性请求 */
     if (request_all_props) {
         for (uint32_t i = 0; i < prop_count; i++) {
             current_prop = prop_list[i];
-            
-            // 检查缓冲区剩余空间
-            if (offset + sizeof(struct mtp_object_prop_element) > MTP_BUFFER_SIZE) { // 预留64字节给单个属性
-                MTP_LOGE_SHELL("Buffer overflow");
-                usb_free(obj);
-                return mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, hdr->trans_id);
-            }
-
-            // 填充属性头
-            struct mtp_object_prop_element *elem = (struct mtp_object_prop_element *)(tx_buf + offset);
-            uint16_t data_type;
-            elem->ObjectHandle = handle;
-            elem->PropertyCode = current_prop;
-            offset += offsetof(struct mtp_object_prop_element, value);
-
-            // 填充属性值
-            offset = mtp_fill_property_value(obj, current_prop, tx_buf, offset, &data_type);
-            elem->Datatype = data_type; // 解决编译告警，提示未对齐
+            g_mtp_get_object_prop_list_param.prop_list_node[i].length = offsetof(struct mtp_object_prop_element, value);
+            g_mtp_get_object_prop_list_param.prop_list_node[i].length += mtp_fill_property_value_length(obj, current_prop, NULL, 0, NULL);
+            g_mtp_get_object_prop_list_param.prop_list_node[i].buf = usb_malloc(g_mtp_get_object_prop_list_param.prop_list_node[i].length);
+            total_len += g_mtp_get_object_prop_list_param.prop_list_node[i].length;
         }
     }
     else {
         current_prop = prop_code;
-
-        // 检查缓冲区剩余空间
-        if (offset + sizeof(struct mtp_object_prop_element) > MTP_BUFFER_SIZE) { // 预留64字节给单个属性
-            MTP_LOGE_SHELL("Buffer overflow");
-            usb_free(obj);
-            return mtp_send_response(MTP_RESPONSE_INCOMPLETE_TRANSFER, hdr->trans_id);
-        }
-
-        // 填充属性头
-        struct mtp_object_prop_element *elem = (struct mtp_object_prop_element *)(tx_buf + offset);
-        uint16_t data_type;
-        elem->ObjectHandle = handle;
-        elem->PropertyCode = current_prop;
-        offset += offsetof(struct mtp_object_prop_element, value);
-
-        // 填充属性值
-        offset = mtp_fill_property_value(obj, current_prop, tx_buf, offset, &data_type);
-        elem->Datatype = data_type; // 解决编译告警，提示未对齐
+        g_mtp_get_object_prop_list_param.prop_list_node[0].length = offsetof(struct mtp_object_prop_element, value);
+        g_mtp_get_object_prop_list_param.prop_list_node[0].length += mtp_fill_property_value_length(obj, current_prop, NULL, 0, NULL);
+        g_mtp_get_object_prop_list_param.prop_list_node[0].buf = usb_malloc(g_mtp_get_object_prop_list_param.prop_list_node[0].length);
+        total_len += g_mtp_get_object_prop_list_param.prop_list_node[0].length;
     }
 
-    // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = offset;
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_OBJECT_PROP_LIST;
-    resp->trans_id = hdr->trans_id;
+    MTP_LOGI_SHELL(" ------------------------------ Total property data length: %d bytes", total_len);
 
-    usb_free(obj);
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, offset);
+    g_mtp_get_object_prop_list_param.total_len = total_len;
+
+    return mtp_get_object_prop_list_send(&g_mtp_get_object_prop_list_param);
 }
 
 struct reverse_handle_ctx2 {
@@ -2261,18 +2805,13 @@ static int mtp_get_object_references(struct mtp_header *hdr)
         MTP_LOGD_SHELL("Object is not a directory, returning empty reference list");
     }
 
-    // 设置响应头
-    struct mtp_header *resp = (struct mtp_header *)g_usbd_mtp.tx_buffer;
-    resp->conlen = sizeof(struct mtp_header) + sizeof(handles->ObjectHandle_len) + (handles->ObjectHandle_len * sizeof(handles->ObjectHandle[0]));
-    resp->contype = MTP_CONTAINER_TYPE_DATA;
-    resp->code = MTP_OPERATION_GET_OBJECT_REFERENCES;
-    resp->trans_id = hdr->trans_id;
-
     MTP_LOGD_SHELL("Found %d references for object 0x%08X", handles->ObjectHandle_len, handle);
 
     usb_free(obj);
-    
-    return usbd_mtp_start_write(g_usbd_mtp.tx_buffer, resp->conlen);
+
+    return mtp_write(g_usbd_mtp.tx_buffer, 
+                     sizeof(struct mtp_header) + sizeof(handles->ObjectHandle_len) + (handles->ObjectHandle_len * sizeof(handles->ObjectHandle[0])), 
+                     MTP_CONTAINER_TYPE_DATA, MTP_OPERATION_GET_OBJECT_REFERENCES, hdr->trans_id);
 }
 
 static void mtp_command_check(struct mtp_header *hdr, uint32_t param_num)
@@ -2343,12 +2882,16 @@ static void mtp_packet_print(uint8_t *data, uint32_t len)
     uint32_t param_num = (len - sizeof(struct mtp_header)) / sizeof(hdr->param[0]);
 
     MTP_LOGI_SHELL("============================ [%d] ===============================", msg_count);
-    MTP_LOGI_SHELL("recv mtp header, conlen : %d, contype : 0x%04X, code : 0x%04X, trans_id : 0x%08X", 
-                    hdr->conlen, hdr->contype, hdr->code, hdr->trans_id);
+    MTP_LOGI_SHELL("recv %d types, mtp header, conlen : %d, contype : 0x%04X, code : 0x%04X, trans_id : 0x%08X, param_num : %d", 
+                    len, hdr->conlen, hdr->contype, hdr->code, hdr->trans_id, param_num);
 
-    for (uint32_t i = 0; i < param_num; i++) {
-        MTP_LOGI_SHELL("param[%d] = 0x%08X", i, hdr->param[i]);
+    if (hdr->contype == MTP_CONTAINER_TYPE_DATA) {
+        param_num = (param_num >= 10 ? 10 : param_num);
     }
+
+    // for (uint32_t i = 0; i < param_num; i++) {
+    //     MTP_LOGI_SHELL("param[%d] = 0x%08X", i, hdr->param[i]);
+    // }
     MTP_LOGI_SHELL("===========================================================");
 
     msg_count++;
@@ -2367,15 +2910,32 @@ int mtp_command_handler(uint8_t *data, uint32_t len)
         return mtp_send_response(MTP_RESPONSE_SESSION_NOT_OPEN, hdr->trans_id);
     }
 
-    if (len < sizeof(struct mtp_header)) {
+    // PC发送文件过来，会存在最后一包小于mtp头长度的
+    if (len < sizeof(struct mtp_header) && g_mtp_recv_ctrl.status != MTP_RECV_STATUS_SENDING) {
         MTP_LOGE_SHELL("mtp header len invalid : %d", len);
         return mtp_send_response(MTP_RESPONSE_INVALID_PARAMETER, hdr->trans_id);
+    }
+
+    if (g_mtp_recv_ctrl.status == MTP_RECV_STATUS_SENDING) {
+        if (g_mtp_recv_ctrl.code == MTP_OPERATION_SEND_OBJECT) {
+            return mtp_send_object_data(hdr, len);
+    }
+        else if (g_mtp_recv_ctrl.code == MTP_OPERATION_SEND_OBJECT_INFO) {
+        return mtp_send_object_info(hdr, len);
+        }
+        else {
+            MTP_LOGE_SHELL("Invalid recv state for code: 0x%x", g_mtp_recv_ctrl.code);
+            USB_ASSERT(0);
+        }
     }
 
     mtp_packet_print(data, len);
 
     // 每次收到数据，说明当前TX进程需要重置
-    g_mtp_transfer_ctrl.state = MTP_TRANSFER_STATE_IDLE;
+    g_mtp_send_ctrl.status = MTP_SEND_STATUS_IDLE;
+    g_mtp_recv_ctrl.code = hdr->code;
+
+    uint8_t *tx_buffer = g_usbd_mtp.tx_buffer;
 
     // 根据操作码分发处理
     switch (hdr->code) {
@@ -2399,7 +2959,7 @@ int mtp_command_handler(uint8_t *data, uint32_t len)
             return mtp_get_object_handles(hdr);
         case MTP_OPERATION_GET_OBJECT_INFO:
             MTP_LOGI_SHELL("Get object info");
-            return mtp_get_object_info(hdr);
+            return mtp_get_object_info(hdr, len);
         case MTP_OPERATION_GET_OBJECT:
             MTP_LOGI_SHELL("Get object data");
             return mtp_get_object(hdr);
@@ -2408,16 +2968,16 @@ int mtp_command_handler(uint8_t *data, uint32_t len)
             return mtp_delete_object(hdr);
         case MTP_OPERATION_SEND_OBJECT_INFO:
             MTP_LOGI_SHELL("Send object info");
-            return mtp_send_object_info(hdr);
+            return mtp_send_object_info(hdr, len);
         case MTP_OPERATION_SEND_OBJECT:
             MTP_LOGI_SHELL("Send object data");
-            return mtp_send_object_data2(hdr);
+            return mtp_send_object_data(hdr, len);
         case MTP_OPERATION_GET_DEVICE_PROP_DESC:
             MTP_LOGI_SHELL("Get device property description");
             return mtp_get_device_prop_desc(hdr);
         case MTP_OPERATION_GET_OBJECT_PROPS_SUPPORTED:
             MTP_LOGI_SHELL("Get object properties supported");
-            return mtp_get_object_props_supported(hdr);
+            return mtp_get_object_props_supported(tx_buffer, hdr);
         case MTP_OPERATION_GET_OBJECT_PROP_DESC:
             MTP_LOGI_SHELL("Get object property description");
             return mtp_get_object_prop_desc(hdr);
@@ -2432,3 +2992,9 @@ int mtp_command_handler(uint8_t *data, uint32_t len)
             return mtp_send_response(MTP_RESPONSE_OPERATION_NOT_SUPPORTED, hdr->trans_id);
     }
 }
+
+
+extern void mtp_notify_object_added(uint32_t handle, uint32_t parent_handle);
+extern void mtp_notify_object_removed(uint32_t handle);
+
+

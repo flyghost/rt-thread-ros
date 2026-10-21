@@ -8,10 +8,17 @@
 #define USB_FS_USING_STANDARD    0  // 1 - 使用标准C接口, 0 - 使用posix接口
 
 // LOG配置
+#define MTP_LOGRAW_SHELL(fmt, ...)  CONFIG_USB_PRINTF(fmt, ##__VA_ARGS__)
 #define MTP_LOGD_SHELL(fmt, ...)    CONFIG_USB_PRINTF(fmt "\r\n", ##__VA_ARGS__)
 #define MTP_LOGI_SHELL(fmt, ...)    CONFIG_USB_PRINTF("\033[" "32m" fmt "\033[0m" "\r\n", ##__VA_ARGS__)
 #define MTP_LOGW_SHELL(fmt, ...)    CONFIG_USB_PRINTF("\033[" "33m" fmt "\033[0m" "\r\n", ##__VA_ARGS__)
 #define MTP_LOGE_SHELL(fmt, ...)    CONFIG_USB_PRINTF("\033[" "31m" fmt "\033[0m" "\r\n", ##__VA_ARGS__)
+
+// #define MTP_LOGRAW_SHELL(fmt, ...)  CONFIG_USB_PRINTF(fmt, ##__VA_ARGS__)
+// #define MTP_LOGD_SHELL(fmt, ...)    CONFIG_USB_PRINTF("MTP_LOGD : " fmt "\n", ##__VA_ARGS__)
+// #define MTP_LOGI_SHELL(fmt, ...)    CONFIG_USB_PRINTF("MTP_LOGI : " fmt "\n", ##__VA_ARGS__)
+// #define MTP_LOGW_SHELL(fmt, ...)    CONFIG_USB_PRINTF("MTP_LOGW : " fmt "\n", ##__VA_ARGS__)
+// #define MTP_LOGE_SHELL(fmt, ...)    CONFIG_USB_PRINTF("MTP_LOGE : " fmt "\n", ##__VA_ARGS__)
 
 
 #define usb_memset      rt_memset
@@ -23,6 +30,10 @@
 #define usb_malloc      rt_malloc
 #define usb_free        rt_free
 #define usb_strnlen        rt_strnlen
+
+typedef rt_base_t USB_OSAL_IRQ_LOCK_TYPE;
+#define USB_OSAL_IRQ_LOCK(lock)    lock = rt_hw_interrupt_disable()
+#define USB_OSAL_IRQ_UNLOCK(lock)  rt_hw_interrupt_enable(lock)
 
 static inline void MTP_DUMP_SHELL(uint32_t width, uint8_t *data, uint32_t len)
 {
@@ -36,7 +47,7 @@ static inline void MTP_DUMP_SHELL(uint32_t width, uint8_t *data, uint32_t len)
         /* 行首显示偏移量（根据宏选择显示模式） */
         if (i % width == 0) {
 #if MTP_DUMP_SHOW_OFFSET
-            CONFIG_USB_PRINTF("%p: ", (void*)(data + i)); // 显示实际内存地址
+            CONFIG_USB_PRINTF("%08x: ", (void*)(data + i)); // 显示实际内存地址
 #else
             CONFIG_USB_PRINTF("%08x: ", i); // 从0开始计数
 #endif

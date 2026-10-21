@@ -73,6 +73,79 @@ int usbd_mtp_fs_rmdir(const char *path)
     return ret;
 }
 
+// 递归删除目录及其所有内容
+int usbd_mtp_fs_rmdir_recursive(const char *path)
+{
+    struct stat statbuf;
+    
+    // 检查路径是否存在
+    if (stat(path, &statbuf) != 0) {
+        MTP_LOGE_SHELL("Path does not exist: %s", path);
+        return -1;
+    }
+    
+    // 如果是文件，直接删除
+    if (!S_ISDIR(statbuf.st_mode)) {
+        return usbd_mtp_fs_rm_file(path);
+    }
+    
+    // 如果是目录，递归删除其内容
+    void *dir = usbd_fs_opendir(path);
+    if (!dir) {
+        MTP_LOGE_SHELL("Failed to open directory: %s", path);
+        return -1;
+    }
+    
+    void *entry;
+    int ret = 0;
+    
+    char *full_path = (char *)usb_malloc(CONFIG_USBDEV_MTP_MAX_PATHNAME);
+    if (!full_path) {
+        MTP_LOGE_SHELL("malloc error");
+        return -1;
+    }
+    
+    while ((entry = usbd_fs_readdir(dir)) != NULL) {
+        const char *name = usbd_fs_name_from_dent(entry);
+        
+        // 跳过 "." 和 ".."
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            continue;
+        }
+        
+        // 构建完整路径
+        memset(full_path, 0, CONFIG_USBDEV_MTP_MAX_PATHNAME);
+        snprintf(full_path, CONFIG_USBDEV_MTP_MAX_PATHNAME, "%s/%s", path, name);
+        
+        if (usbd_fs_is_dir_from_dent(entry)) {
+            // 递归删除子目录
+            ret = usbd_mtp_fs_rmdir_recursive(full_path);
+        } else {
+            // 删除文件
+            ret = usbd_mtp_fs_rm_file(full_path);
+        }
+        
+        if (ret != 0) {
+            MTP_LOGE_SHELL("Failed to delete: %s", full_path);
+            break;
+        }
+    }
+    
+    usb_free(full_path);
+    
+    usbd_fs_closedir(dir);
+    
+    // 如果递归删除成功，删除空目录
+    if (ret == 0) {
+        ret = usbd_mtp_fs_rmdir(path);
+        if (ret == 0) {
+            MTP_LOGD_SHELL("Successfully removed directory: %s", path);
+        }
+    }
+    
+    return ret;
+}
+
 void *usbd_mtp_fs_open_file(const char *path, const char *mode)
 {
 #if USB_FS_USING_STANDARD
@@ -245,6 +318,12 @@ int usbd_mtp_fs_statfs(const char *path, struct mtp_statfs *buf)
     MTP_LOGD_SHELL("Filesystem stats for %s: bsize=%d, blocks=%d, bfree=%d", path, buf->f_bsize, buf->f_blocks, buf->f_bfree);
     return 0; // 获取成功
 #endif
+}
+
+#include <dfs.h>
+char *usbd_mtp_fs_normalize_path(const char *base, const char *path)
+{
+    return dfs_normalize_path(base, path);
 }
 
 // 测试代码
