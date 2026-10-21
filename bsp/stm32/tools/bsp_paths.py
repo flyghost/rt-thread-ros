@@ -10,10 +10,21 @@
   * 各板 ``SConstruct``（薄壳，``..`` → 本目录）
   * ``bsp/stm32/tools/bsp_build.py``
   * ``scripts/toolbelt/src/toolbelt/firmware/``（Python 侧算中间文件目录时复用同一套规则）
+
+目录布局也来自清单：``[build].build_dir`` / ``[build].artifact_dir`` 是**必填键**，
+没有内置默认值——缺了直接报错停下，避免"代码里悄悄假设一个 out/bin"。
+工具仓与构建系统读的是**同一份** ``toolbelt.toml``，所以两边不可能各算一套。
 """
 
 import os
 import sys
+
+try:  # Python 3.11+ 自带；构建用解释器是 3.13
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - 老解释器只给一句明确报错
+    tomllib = None  # type: ignore[assignment]
+
+MANIFEST_NAME = 'toolbelt.toml'
 
 # 项目根的标记文件：任一存在即认为到达仓库根
 ROOT_MARKERS = ('.git', 'AGENTS.md')
@@ -72,15 +83,64 @@ def fail(exc, where=''):
     sys.exit(1)
 
 
+_LAYOUT_CACHE: dict[str, dict[str, str]] = {}
+
+
+def _manifest_layout(root):
+    """读取清单里的目录布局根（``[build].build_dir`` / ``[build].artifact_dir``）。
+
+    两个键都是**必填且无默认值**：缺文件、缺键、空串都会抛 :class:`BspPathError`，
+    由 ``SConstruct`` 统一转成退出码 1。
+    """
+    path = os.path.join(root, MANIFEST_NAME)
+    if not os.path.isfile(path):
+        raise BspPathError(
+            '工程根缺少 %s：%s\n'
+            '        构建目录与产物目录必须在清单里显式声明'
+            '（[build].build_dir / [build].artifact_dir），本构建系统不提供默认值'
+            % (MANIFEST_NAME, root))
+    if tomllib is None:  # pragma: no cover
+        raise BspPathError('读取 %s 需要 Python 3.11+（tomllib）' % path)
+    try:
+        with open(path, 'rb') as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise BspPathError('读取 %s 失败：%s' % (path, exc))
+
+    build = data.get('build') or {}
+    layout = {}
+    for key, example in (('build_dir', 'out/build'), ('artifact_dir', 'out/bin')):
+        raw = build.get(key)
+        if not isinstance(raw, str) or not raw.strip():
+            raise BspPathError(
+                '%s 缺少必填键 [build].%s（当前值 %r）\n'
+                '        该键没有默认值，请显式写成相对工程根的目录，例如：\n'
+                '        [build]\n        %s = "%s"'
+                % (path, key, raw, key, example))
+        layout[key] = raw.strip()
+    return layout
+
+
+def _layout(root):
+    """按工程根缓存一次清单布局（SCons 一次构建里两个函数各调一次）。"""
+    if root not in _LAYOUT_CACHE:
+        _LAYOUT_CACHE[root] = _manifest_layout(root)
+    return _LAYOUT_CACHE[root]
+
+
 def artifact_dir(entry_dir, project_root=None):
-    """返回 ``out/bin/<entry 目录名>`` 的绝对路径（产物 elf/map/bin 都放这里）。"""
+    """返回 ``<[build].artifact_dir>/<entry 目录名>`` 的绝对路径（产物 elf/map/bin 都放这里）。"""
     root = project_root or find_project_root(entry_dir)
     name = os.path.basename(os.path.abspath(entry_dir).rstrip('\\/'))
-    return os.path.join(root, 'out', 'bin', name)
+    raw = _layout(root)['artifact_dir']
+    base = raw if os.path.isabs(raw) else os.path.join(root, raw)
+    return os.path.join(base, name)
 
 
 def build_root(entry_dir, project_root=None):
-    """返回 ``out/build/<entry 目录名>`` 的绝对路径（没有就返回默认值，不创建）。"""
+    """返回 ``<[build].build_dir>/<entry 目录名>`` 的绝对路径（没有就返回默认值，不创建）。"""
     root = project_root or find_project_root(entry_dir)
     name = os.path.basename(os.path.abspath(entry_dir).rstrip('\\/'))
-    return os.path.join(root, 'out', 'build', name)
+    raw = _layout(root)['build_dir']
+    base = raw if os.path.isabs(raw) else os.path.join(root, raw)
+    return os.path.join(base, name)

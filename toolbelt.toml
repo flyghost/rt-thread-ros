@@ -12,6 +12,15 @@ projects_dir = "projects"
 [build]
 toolchain_root = "E:/software/EnvEdition/rt-thread-env/env-windows"  # RTT_EXEC_PATH / VENV 由它推导
 scons_jobs = 20
+# 布局根（必填，无默认值）：中间文件与产物都不进源码树。<入口目录名> 由 --project/--board 推导。
+build_dir = "out/build"            # 中间文件根 → out/build/<入口名>
+artifact_dir = "out/bin"           # 产物根 → out/bin/<入口名>
+
+[artifacts]
+# 产物文件名（必填，无默认值）：名字由本仓 SConstruct/rtconfig.py 决定，工具只负责找。
+elf = "rt-thread.elf"
+bin = "rtthread.bin"
+map = "rt-thread.map"
 
 [flash]
 target = "STM32F407VE"
