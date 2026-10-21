@@ -43,7 +43,10 @@ REM Build family: inject the manifest projection (paths/toolchain/chip) as real
 REM command line arguments, then append the user args so they win on conflicts.
 :via_build
 set "TB_ARGS="
-for /f "usebackq delims=" %%A in (`"%PY%" -X utf8 "%RUNPY%" paths --format argv`) do set "TB_ARGS=%%A"
+REM NOTE: the command inside the backticks must NOT start with a quote, or cmd
+REM treats the whole string as a file name ("The filename, directory name, or
+REM volume label syntax is incorrect.") and the capture silently stays empty.
+for /f "usebackq delims=" %%A in (`%PY% -X utf8 "%RUNPY%" paths --format argv`) do set "TB_ARGS=%%A"
 "%PY%" -X utf8 "%RUNPY%" build !TB_ARGS! %1 !ARGS!
 exit /b %ERRORLEVEL%
 
