@@ -21,6 +21,11 @@
 
 | 7 | 3 份板级 `SConstruct`（`bsp/stm32/<board>/`） | 顶部守卫块 | 非 `--menuconfig` 时打印提示并 `sys.exit(1)`：「板级 SConstruct 已降级为 menuconfig 专用入口」 | 编译入口统一到 `projects/<name>`（含 `projects/board-<board>` 对照项目），避免绕过项目配置编出「没有项目差异」的固件；menuconfig 仍需以板目录为 cwd（板级 Kconfig 的 `RTT_DIR` 是相对板目录常量） | 升级上游时若整份替换板级 SConstruct，重新把守卫块插到 `sys.dont_write_bytecode = True` 之后 |
 
+
+**IDE / 构建产物文件已移除**：三块板的 `project.{uvprojx,uvoptx,uvproj,uvopt,ewp,eww,ewd}`、`template.{uvprojx,uvoptx,uvproj,uvopt,ewp,eww}`、`CMakeLists.txt`、`makefile.targets` 全部删除，`.cproject`/`.project`/`.settings`/`.vscode`/`DebugConfig` 也一并清掉。
+编译只走 SCons（入口 `projects/<name>`，见 `projects/README.md`）。需要 IDE 工程时按需生成：
+先从上游 RT-Thread BSP 取回同名 `template.*` 模板，再在板目录运行 `scons --target=mdk5`（或 `iar`/`cmake`/`eclipse`），生成完即可用，但**不要把它们提交回来**（保持本仓为「纯 SCons」形态）。
+
 本仓新增（**不属于**上游偏离，随仓更新）：`bsp/stm32/tools/bsp_paths.py`、`bsp/stm32/tools/bsp_build.py`、`bsp/stm32/tools/sdk_dist.py`（上游也有）、三块板的 `SConstruct` 薄壳。
 
 ## 2. 上游的 cwd 约定（6 处）——这是"必须从板目录构建"的根因

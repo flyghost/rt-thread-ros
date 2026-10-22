@@ -82,7 +82,8 @@
 
 ### 快速上手
 
-本 BSP 为开发者提供 MDK4、MDK5 和 IAR 工程，并且支持 GCC 开发环境。下面以 MDK5 开发环境为例，介绍如何将系统运行起来。
+本仓统一用 **SCons** 编译，不使用 MDK / IAR / CMake 工程文件（相关工程文件已随本次整理移除）。
+编译入口见根目录 `AGENTS.md` 的「Build & Flash」节与 `projects/README.md`。
 
 #### 硬件连接
 
@@ -90,9 +91,9 @@
 
 #### 编译下载
 
-双击 project.uvprojx 文件，打开 MDK5 工程，编译并下载程序到开发板。
+在工程根运行 `python scripts/toolbelt/tools/run.py build build-flash`（默认项目 `projects/base`；本板对照项目是 `projects/board-stm32f407-atk-explorer`）。
 
-> 工程默认配置使用 JLink 下载程序，在通过 JLink 连接开发板的基础上，点击下载按钮即可下载程序到开发板
+> 下载统一用 pyocd：`python scripts/toolbelt/tools/run.py build flash`（目标芯片与 pack 见工程根 `toolbelt.toml` 的 `[flash]`）。
 
 #### 运行结果
 
@@ -119,7 +120,7 @@ msh >
 
 3. 输入`pkgs --update`命令更新软件包。
 
-4. 输入`scons --target=mdk4/mdk5/iar` 命令重新生成工程。
+如需 IDE 工程，请先从上游 RT-Thread BSP 补回 `template.*` 模板文件，再运行 `scons --target=mdk5/iar` 生成（本仓默认不提供）。
 
 本章节更多详细的介绍请参考 [STM32 系列 BSP 外设驱动使用教程](../docs/STM32系列BSP外设驱动使用教程.md)。
 
