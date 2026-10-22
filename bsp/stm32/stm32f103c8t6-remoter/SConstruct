@@ -6,6 +6,16 @@ import sys
 # 下面会 import bsp/stm32/tools/ 里的模块；关掉字节码缓存，避免源码树里出现 __pycache__
 sys.dont_write_bytecode = True
 
+# 编译入口统一到 projects/（P6）：本文件只保留 --menuconfig 用途。
+# 直接在本目录跑 scons 会打印下面的提示并退出 1，避免"绕过项目"编出一份没有项目配置的固件。
+if '--menuconfig' not in sys.argv:   # RT-Thread 的 --menuconfig 由 building.py 注册，此处不能用 GetOption
+    sys.stderr.write(
+        '[build] 板级 SConstruct 已降级为 menuconfig 专用入口。\n'
+        '        编译：   python scripts/toolbelt/tools/run.py build --board build\n'
+        '        或项目： python scripts/toolbelt/tools/run.py build --project <name> build\n'
+        '        菜单配置：python scripts/toolbelt/tools/run.py build menuconfig\n')
+    sys.exit(1)
+
 # 1) 项目根：环境变量 PROJECT_ROOT 覆盖（必须存在）→ 否则从本目录向上找 .git；都不满足就报错退出。
 _root = os.getenv('PROJECT_ROOT')
 if _root:

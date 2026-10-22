@@ -1,0 +1,14 @@
+# 板级对照项目：与 bsp/stm32/stm32f103-100ask-mini 一一对应，供"只编这块板、不带业务项目"使用。
+# 编译入口统一到 projects/ 后，板级 SConstruct 只保留 menuconfig 用途。
+[project]
+name = "board-stm32f103-100ask-mini"
+board = "stm32f103-100ask-mini"
+variant = "board"
+target = "rt-thread"
+
+[config]
+rtconfig_h = "rtconfig.h"
+
+[flash]
+pyocd_target = "STM32F103C8"
+pack = "scripts/toolbelt/tools/pyocd/packs/Keil.STM32F1xx_DFP.2.3.0-small.pack"

@@ -19,6 +19,8 @@
 | 5 | `bsp/stm32/libraries/STM32F1xx_HAL/` | 整目录（236 文件 / 15.9 MB） | 完整 F1 HAL 库 | 曾在 `32a96c7 瘦身` 中被删除，两块 F103 无法编译；从 `32a96c7^` 恢复 | 跟随上游/ST 版本更新 |
 | 6 | 4 份 `SConstruct`（3 板 + `projects/base`）+ 4 份 `rtconfig.py` | SConstruct 尾部 `TARGET`/`SConsignFile`/`Default(TARGET)`；rtconfig 末尾 | `TARGET = os.path.join(<artifact_dir>, 'rt-thread.' + TARGET_EXT)`、`SConsignFile(<build_dir>/.sconsign.dblite)`、`Default(TARGET)`；`rtconfig.py` 把 `-Map=rt-thread.map` 与 `POST_ACTION` 的 ` rtthread.bin` 改写成 `out/bin/<入口名>/` 下的绝对路径（幂等，靠 `RT_ARTIFACT_DIR`） | 上游把 elf/map/bin/`.sconsign` 全写在 cwd（`building.py` 的 `TARGET` + `LFLAGS -Map` + `POST_ACTION`），会让项目/板目录混入产物；`TARGET` 出树后默认目标 `.` 不再包含它，必须显式 `Default(TARGET)` | 升级后重建时若产物又落回 cwd：先查 `rtconfig.py` 末尾注入块是否还在，再查 SConstruct 的 `TARGET`/`Default(TARGET)`/`SConsignFile` 三行 |
 
+| 7 | 3 份板级 `SConstruct`（`bsp/stm32/<board>/`） | 顶部守卫块 | 非 `--menuconfig` 时打印提示并 `sys.exit(1)`：「板级 SConstruct 已降级为 menuconfig 专用入口」 | 编译入口统一到 `projects/<name>`（含 `projects/board-<board>` 对照项目），避免绕过项目配置编出「没有项目差异」的固件；menuconfig 仍需以板目录为 cwd（板级 Kconfig 的 `RTT_DIR` 是相对板目录常量） | 升级上游时若整份替换板级 SConstruct，重新把守卫块插到 `sys.dont_write_bytecode = True` 之后 |
+
 本仓新增（**不属于**上游偏离，随仓更新）：`bsp/stm32/tools/bsp_paths.py`、`bsp/stm32/tools/bsp_build.py`、`bsp/stm32/tools/sdk_dist.py`（上游也有）、三块板的 `SConstruct` 薄壳。
 
 ## 2. 上游的 cwd 约定（6 处）——这是"必须从板目录构建"的根因

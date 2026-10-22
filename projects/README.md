@@ -3,7 +3,7 @@
 一个 **project** = 「一块板 + 一套配置 + 一套自有源」，编译产物落在自己目录，互不干扰。
 板级硬件描述仍然只有一份，放在 `bsp/stm32/<board>/`；项目只引用它，不复制它。
 
-## 目录结构（当前只有 base）
+## 目录结构（base + 三个板级对照项目）
 
 ```
 projects/
@@ -14,7 +14,18 @@ projects/
     ├── SConscript        # 编译组建：板级 board/ + applications/，以及本项目子目录
     ├── Kconfig           # 占位（menuconfig 仍在板目录跑，见「已知限制」）
     └── rtconfig.h        # 从板级复制（P3 计划改成 defconfig + fragment 生成）
+
+board-<board>/            # 板级对照项目（每块板一个）：只编这块板，不带业务代码
+├── project.toml          # name="board-<board>"、board=<board>、variant="board"
+├── SConstruct            # 与 base 相同（薄入口）
+├── rtconfig.py           # 与 base 相同
+├── SConscript            # 与 base 相同
+├── Kconfig               # 占位（menuconfig 仍在板目录跑）
+└── rtconfig.h            # 从对应板级复制
 ```
+
+**编译入口已统一到 `projects/`**：`bsp/stm32/<board>/SConstruct` 现在只保留
+`--menuconfig` 用途，直接 `cd bsp/stm32/<board> && scons` 会打印提示并退出 1。
 
 ## 怎么用
 
@@ -28,10 +39,10 @@ python scripts/toolbelt/tools/run.py build status        # 看入口/中间目�
 python scripts/toolbelt/tools/run.py build build         # 编译（默认 projects/base）
 python scripts/toolbelt/tools/run.py build build-flash   # 编译 + 烧录
 python scripts/toolbelt/tools/run.py build --project base build
-python scripts/toolbelt/tools/run.py build --board build # 直接编译板级 BSP（对照用）
+python scripts/toolbelt/tools/run.py build --board build # 编译板级对照项目 projects/board-<board>
 ```
 
-中间文件统一在 `out/build/base/`（板级模式是 `out/build/stm32f407-atk-explorer/`），
+中间文件统一在 `out/build/<入口名>/`（如 `out/build/base/`、`out/build/board-stm32f407-atk-explorer/`），
 产物统一在 `out/bin/base/`（`rt-thread.elf` / `rt-thread.map` / `rtthread.bin`）；
 **项目目录里不会出现 `.o`、`.elf`、`.bin`、`.map`、`__pycache__`**，只剩源码与配置。
 

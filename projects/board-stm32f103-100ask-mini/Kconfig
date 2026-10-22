@@ -1,0 +1,9 @@
+# 项目级 Kconfig（板级对照项目，P2 阶段为占位）
+# menuconfig 仍在**板目录**执行（板级 Kconfig 的 RTT_DIR 是相对板目录的常量）。
+mainmenu "rt-thread-ros board parity project (stm32f103-100ask-mini)"
+
+config PROJECT_NAME
+    string
+    default "board-stm32f103-100ask-mini"
+    help
+      Project identifier, keeps parity with project.toml [project].name.

@@ -1,0 +1,14 @@
+# 板级对照项目：与 bsp/stm32/stm32f407-atk-explorer 一一对应，供"只编这块板、不带业务项目"使用。
+# 编译入口统一到 projects/ 后，板级 SConstruct 只保留 menuconfig 用途。
+[project]
+name = "board-stm32f407-atk-explorer"
+board = "stm32f407-atk-explorer"
+variant = "board"
+target = "rt-thread"
+
+[config]
+rtconfig_h = "rtconfig.h"
+
+[flash]
+pyocd_target = "STM32F407VE"
+pack = "scripts/toolbelt/tools/pyocd/packs/Keil.STM32F4xx_DFP.2.14.0-small.pack"
