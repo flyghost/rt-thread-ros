@@ -54,8 +54,9 @@ scripts\ai_services.bat                       # 人手动用：菜单（编译/�
 **所有脚本命令（环境搭建 / 编译 / 烧录 / 守卫 / 串口 / 采集 / 解析，Python 与 bat 对照）见 `scripts/toolbelt/README.md`。**
 **改 `scripts/` 下的 Python：`python scripts/toolbelt/tools/run.py quality all` 必须全绿（ruff + format + mypy + pytest）；提交钩子与 CI 跑的是同一套命令（见 `scripts/toolbelt/README.md` 第 4 节）。**
 四条稳定事实（细节见 `scripts/toolbelt/docs/pyocd.md`、`scripts/toolbelt/src/toolbelt/firmware/` 与 `docs/upstream-patches.md`）：
-- 工具链环境变量由脚本内置（`RTT_CC=gcc`、`RTT_EXEC_PATH=%ENV_ROOT%\tools\gnu_gcc\arm_gcc\mingw\bin`、
-  `ENV_ROOT=E:\software\EnvEdition\rt-thread-env\env-windows`），SCons 跑在 `ENV_ROOT\.venv` 的解释器里；
+- 工具链参数一律来自 `toolbelt.toml` 的 `[build].toolchain_root`（命令行可用 `--env-root` /
+  `--rtt-exec-path` / `--venv` 覆盖），SCons 跑在 `<toolchain_root>\.venv` 的解释器里；
+  **toolbelt 不读任何环境变量**（读=禁止、写=允许，`tests/test_envless.py` 当门禁）；
 - **构建入口必须站在入口目录里运行**（`cd projects/<name>` 或 `cd bsp/stm32/<board>`，或 `scons -C <...>`）：
   上游 `building.py` 有 6 处按 cwd 解析的路径，跨目录 `scons -f` 会在薄壳里被明确拒绝（退 1）；
   中间文件统一在 `out/build/<入口目录名>`（`RT_BUILD_DIR`），产物统一在 `out/bin/<入口目录名>`
